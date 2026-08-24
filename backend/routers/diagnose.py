@@ -1,9 +1,11 @@
 import base64
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
-from models.diagnosis import DiagnosisRequest, DiagnosisResponse, TreatmentPlan
+from fastapi import APIRouter, File, UploadFile, Form, HTTPException
+from models.diagnosis import DiagnosisRequest, DiagnosisResponse
 from services.gemini_service import gemini_service
 from services.weather_service import weather_service
 from services.translation import translation_service
+from services.bigquery_service import bq_service
+import asyncio
 
 router = APIRouter(prefix="/api/diagnose", tags=["Diagnose"])
 
@@ -61,4 +63,16 @@ async def process_diagnosis(image_bytes: bytes, crop_type: str, latitude: float,
             ]
             
     diagnosis_data["language"] = language
+    
+    # Log to BigQuery (fire and forget)
+    log_data = {
+        "crop_type": crop_type,
+        "disease_name": diagnosis_data.get("disease_name"),
+        "confidence": diagnosis_data.get("confidence"),
+        "severity": diagnosis_data.get("severity"),
+        "latitude": latitude,
+        "longitude": longitude
+    }
+    asyncio.create_task(bq_service.log_diagnosis(log_data))
+    
     return diagnosis_data

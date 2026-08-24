@@ -171,6 +171,12 @@ async def whatsapp_webhook(request: Request):
                             advisory_text = advisory_text[:1500] + "..."
                         
                         msg.body(f"🌾 *KrishiSathi Advisory*\n\n{advisory_text}")
+                        
+                        # Add audio reply for accessibility
+                        import urllib.parse
+                        safe_text = urllib.parse.quote(advisory_text[:200]) # Limit audio to first 200 chars to avoid timeout/large files
+                        media_url = f"{API_BASE}/advisory/tts?text={safe_text}&lang=en"
+                        msg.media(media_url)
                     else:
                         msg.body(
                             "I'm having trouble processing your query. "

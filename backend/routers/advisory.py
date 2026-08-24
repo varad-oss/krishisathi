@@ -44,10 +44,14 @@ async def get_advisory(request: AdvisoryRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+from fastapi.responses import StreamingResponse
+import io
+from gtts import gTTS
+
 @router.post("/voice", response_model=VoiceAdvisoryResponse)
 async def get_voice_advisory(request: VoiceAdvisoryRequest):
-    # In a real app, use Google Cloud Speech-to-Text here
-    # For demo purposes, we'll mock the STT step
+    # In a real app, use Google Cloud Speech-to-Text here (needs billing)
+    # For zero-billing constraint, we mock STT or could use local models
     mock_transcription = "What is the best time to water my wheat crops?"
     
     # Process like normal text advisory
@@ -60,12 +64,28 @@ async def get_voice_advisory(request: VoiceAdvisoryRequest):
     
     advisory_response = await get_advisory(advisory_req)
     
-    # In a real app, use Google Cloud Text-to-Speech here
-    # For demo, return dummy base64 string
-    dummy_audio_b64 = base64.b64encode(b"dummy audio content").decode('utf-8')
+    # Generate audio using gTTS
+    tts = gTTS(text=advisory_response.advisory_text, lang=request.language if request.language in ['en', 'hi', 'mr', 'ta', 'te', 'bn', 'pt', 'ru', 'zh'] else 'en')
+    fp = io.BytesIO()
+    tts.write_to_fp(fp)
+    audio_b64 = base64.b64encode(fp.getvalue()).decode('utf-8')
     
     return VoiceAdvisoryResponse(
         transcribed_text=mock_transcription,
         advisory=advisory_response,
-        audio_response_base64=dummy_audio_b64
+        audio_response_base64=audio_b64
     )
+
+@router.get("/tts")
+async def text_to_speech(text: str, lang: str = "en"):
+    """Generate audio file for WhatsApp webhook media URLs"""
+    try:
+        # Check if lang is supported by gTTS, fallback to en
+        safe_lang = lang if lang in ['en', 'hi', 'mr', 'ta', 'te', 'bn', 'pt', 'ru', 'zh'] else 'en'
+        tts = gTTS(text=text, lang=safe_lang)
+        fp = io.BytesIO()
+        tts.write_to_fp(fp)
+        fp.seek(0)
+        return StreamingResponse(fp, media_type="audio/mpeg")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

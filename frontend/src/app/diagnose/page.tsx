@@ -210,11 +210,31 @@ export default function DiagnosePage() {
                 <span className={cn("px-3 py-1 rounded-full text-sm font-semibold border", getSeverityColor(result.severity))}>
                   {result.severity} Severity
                 </span>
-                <span className="px-3 py-1 rounded-full text-sm font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                <span className={cn(
+                  "px-3 py-1 rounded-full text-sm font-semibold border", 
+                  result.confidence < 75 ? "bg-red-50 text-red-700 border-red-200" : "bg-blue-50 text-blue-700 border-blue-200"
+                )}>
                   {getConfidenceLabel(result.confidence)} Confidence ({result.confidence.toFixed(1)}%)
                 </span>
               </div>
             </div>
+
+            {/* Low Confidence Fallback UI */}
+            {result.confidence < 75 && (
+              <div className="mx-6 mt-6 p-4 bg-orange-50 border border-orange-200 rounded-xl flex items-start gap-3">
+                <AlertTriangle className="h-6 w-6 text-orange-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-bold text-orange-900">Low Confidence Warning</h4>
+                  <p className="text-orange-800 text-sm mt-1">
+                    Our AI model is not highly confident about this diagnosis. The image might be blurry, or the symptoms could match multiple diseases. 
+                    <strong> Please consult a human expert before applying any chemical treatments.</strong>
+                  </p>
+                  <button className="mt-3 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors">
+                    Find Nearest Krishi Vigyan Kendra (KVK)
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Treatment Plan */}
             <div className="p-6 space-y-6">
@@ -271,7 +291,25 @@ export default function DiagnosePage() {
               </div>
 
               {/* Actions */}
-              <div className="pt-4 border-t flex justify-end">
+              <div className="pt-4 border-t flex justify-end gap-3">
+                <button 
+                  onClick={() => {
+                    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+                      const text = `Diagnosis: ${result.disease_name}. Severity: ${result.severity}. Immediate actions: ${result.treatment_plan.immediate_actions.join(', ')}`;
+                      const utterance = new SpeechSynthesisUtterance(text);
+                      // Try to match selected language, fallback to browser default
+                      utterance.lang = language === 'hi' ? 'hi-IN' : language === 'mr' ? 'mr-IN' : 'en-IN';
+                      window.speechSynthesis.cancel(); // stop any ongoing speech
+                      window.speechSynthesis.speak(utterance);
+                    } else {
+                      alert("Text-to-speech is not supported in your browser.");
+                    }
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold rounded-lg transition-colors"
+                >
+                  <Activity className="h-4 w-4" /> {/* Reusing Activity icon for audio/speaker since Volume/Speaker isn't imported */}
+                  Read Aloud
+                </button>
                 <button 
                   onClick={handleShare}
                   className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 hover:bg-green-100 font-semibold rounded-lg transition-colors"
