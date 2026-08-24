@@ -44,22 +44,17 @@ export default function MapPage() {
         
         <div className="absolute top-4 left-14 z-[400] bg-white/90 backdrop-blur-sm p-4 rounded-xl shadow-md border border-gray-200 pointer-events-auto">
           <h2 className="font-bold text-gray-900 flex items-center gap-2">
-            <MapPin className="h-5 w-5 text-green-600" />
-            Disease Outbreaks
-          </h2>
+            <MapPin className="h-5 w-5 text-green-600" />{t('Disease Outbreaks', language)}</h2>
           <p className="text-xs text-gray-500 mt-1">{t("Live tracking across Indian states", language)}</p>
           
           <div className="mt-4 space-y-2">
             <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider">{t("Severity Legend", language)}</p>
             <div className="flex items-center gap-2 text-xs">
-              <div className="h-3 w-3 rounded-full bg-red-500 opacity-60 border border-red-500"></div> Critical
-            </div>
+              <div className="h-3 w-3 rounded-full bg-red-500 opacity-60 border border-red-500"></div>{t('Critical', language)}</div>
             <div className="flex items-center gap-2 text-xs">
-              <div className="h-3 w-3 rounded-full bg-orange-500 opacity-60 border border-orange-500"></div> Severe / High
-            </div>
+              <div className="h-3 w-3 rounded-full bg-orange-500 opacity-60 border border-orange-500"></div>{t('Severe / High', language)}</div>
             <div className="flex items-center gap-2 text-xs">
-              <div className="h-3 w-3 rounded-full bg-yellow-500 opacity-60 border border-yellow-500"></div> Moderate
-            </div>
+              <div className="h-3 w-3 rounded-full bg-yellow-500 opacity-60 border border-yellow-500"></div>{t('Moderate', language)}</div>
           </div>
         </div>
       </div>
@@ -71,22 +66,20 @@ export default function MapPage() {
           {/* Active Alerts */}
           <div>
             <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-red-500" />
-              Active Regional Alerts
-            </h3>
+              <AlertTriangle className="h-5 w-5 text-red-500" />{t('Active Regional Alerts', language)}</h3>
             <div className="space-y-3">
               {alerts.map(alert => (
                 <div key={alert.id} className={cn("p-4 rounded-xl border", getSeverityColor(alert.severity))}>
                   <div className="flex justify-between items-start mb-1">
-                    <h4 className="font-bold">{alert.title}</h4>
-                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-white/50">{alert.severity}</span>
+                    <h4 className="font-bold">{t(alert.title, language)}</h4>
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-white/50">{t(alert.severity, language)}</span>
                   </div>
-                  <p className="text-sm opacity-90">{alert.message}</p>
+                  <p className="text-sm opacity-90">{t(alert.message, language)}</p>
                   <p className="text-xs mt-2 opacity-75 font-medium">{alert.date}</p>
                 </div>
               ))}
               {alerts.length === 0 && (
-                <p className="text-sm text-gray-500">No active alerts.</p>
+                <p className="text-sm text-gray-500">{t('No active alerts.', language)}</p>
               )}
             </div>
           </div>
@@ -111,7 +104,7 @@ export default function MapPage() {
                   {/* Progress bar for NDVI */}
                   <div className="mb-3">
                     <div className="flex justify-between text-xs text-gray-500 mb-1">
-                      <span>NDVI Score</span>
+                      <span>{t('NDVI Score', language)}</span>
                       <span>{data.ndvi_score.toFixed(2)}</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">

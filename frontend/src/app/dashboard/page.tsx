@@ -110,12 +110,8 @@ export default function DashboardPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              Policymaker Dashboard
-            </h1>
-            <p className="text-gray-600 mt-1">
-              Real-time agriculture intelligence across Indian states
-            </p>
+            <h1 className="text-3xl font-bold text-gray-900">{t('Policymaker Dashboard', language)}</h1>
+            <p className="text-gray-600 mt-1">{t('Real-time agriculture intelligence across Indian states', language)}</p>
           </div>
           <div className="flex items-center gap-4">
             <select
@@ -145,9 +141,7 @@ export default function DashboardPage() {
                 <Activity className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-500">
-                  Total Diagnoses
-                </p>
+                <p className="text-sm font-medium text-gray-500">{t('Total Diagnoses', language)}</p>
                 <h3 className="text-2xl font-bold text-gray-900">
                   {formatNumber(stats.total_diagnoses)}
                 </h3>
@@ -165,17 +159,13 @@ export default function DashboardPage() {
                 <AlertTriangle className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-500">
-                  Active Outbreaks
-                </p>
+                <p className="text-sm font-medium text-gray-500">{t('Active Outbreaks', language)}</p>
                 <h3 className="text-2xl font-bold text-gray-900">
                   {stats.active_outbreaks}
                 </h3>
               </div>
             </div>
-            <div className="text-sm text-gray-500">
-              Require immediate attention
-            </div>
+            <div className="text-sm text-gray-500">{t('Require immediate attention', language)}</div>
           </div>
 
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
@@ -184,9 +174,7 @@ export default function DashboardPage() {
                 <Users className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-500">
-                  Farmers Reached
-                </p>
+                <p className="text-sm font-medium text-gray-500">{t('Farmers Reached', language)}</p>
                 <h3 className="text-2xl font-bold text-gray-900">
                   {formatNumber(stats.farmers_reached)}
                 </h3>
@@ -201,9 +189,7 @@ export default function DashboardPage() {
                 <Globe2 className="h-6 w-6" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-500">
-                  Languages Served
-                </p>
+                <p className="text-sm font-medium text-gray-500">{t('Languages Served', language)}</p>
                 <h3 className="text-2xl font-bold text-gray-900">
                   {stats.languages_served}
                 </h3>
@@ -220,9 +206,7 @@ export default function DashboardPage() {
             {/* Outbreaks Table */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-                <h3 className="text-lg font-bold text-gray-900">
-                  Recent Disease Outbreaks
-                </h3>
+                <h3 className="text-lg font-bold text-gray-900">{t('Recent Disease Outbreaks', language)}</h3>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
@@ -239,9 +223,9 @@ export default function DashboardPage() {
                     {filteredOutbreaks.map((ob) => (
                       <tr key={ob.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 font-medium text-gray-900">
-                          {ob.disease}
+                          {t(ob.disease, language)}
                         </td>
-                        <td className="px-6 py-4 text-gray-600">{ob.region}</td>
+                        <td className="px-6 py-4 text-gray-600">{t(ob.region, language)}</td>
                         <td className="px-6 py-4">
                           <span
                             className={cn(
@@ -249,7 +233,7 @@ export default function DashboardPage() {
                               getSeverityColor(ob.severity),
                             )}
                           >
-                            {ob.severity}
+                            {t(ob.severity, language)}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-gray-600">
@@ -265,9 +249,7 @@ export default function DashboardPage() {
 
             {/* Chart */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-6">
-                Regional Crop Health (NDVI)
-              </h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-6">{t('Regional Crop Health (NDVI)', language)}</h3>
               <div className="h-72 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
@@ -324,9 +306,7 @@ export default function DashboardPage() {
             <div className="bg-gradient-to-br from-green-900 to-green-800 rounded-2xl shadow-sm text-white overflow-hidden">
               <div className="p-6 border-b border-green-700/50 flex justify-between items-center">
                 <h3 className="text-lg font-bold flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-green-300" />
-                  AI Insights Report
-                </h3>
+                  <FileText className="h-5 w-5 text-green-300" />{t('AI Insights Report', language)}</h3>
                 <button
                   onClick={loadReport}
                   disabled={loadingReport}
@@ -374,9 +354,7 @@ export default function DashboardPage() {
 
             {/* Indian States Grid */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">
-                Indian States Network
-              </h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-4">{t('Indian States Network', language)}</h3>
               <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                 {filteredStates.map((s) => (
                   <div
@@ -392,7 +370,7 @@ export default function DashboardPage() {
                           {s.name}
                         </p>
                         <p className="text-xs text-gray-500">
-                          Top: {s.top_crop}
+                          {t('Top:', language)} {s.top_crop}
                         </p>
                       </div>
                     </div>
@@ -419,9 +397,7 @@ export default function DashboardPage() {
             {/* Cross-State Signals */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <Globe2 className="h-5 w-5 text-blue-500" />
-                Cross-State Signals
-              </h3>
+                <Globe2 className="h-5 w-5 text-blue-500" />{t('Cross-State Signals', language)}</h3>
               <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
                 {filteredSignals.map((sig, idx) => (
                   <div key={idx} className="p-4 rounded-xl border border-blue-50 bg-blue-50/30 text-sm">
@@ -436,7 +412,7 @@ export default function DashboardPage() {
                         {sig.severity?.toUpperCase() || 'INFO'}
                       </span>
                     </div>
-                    <p className="text-gray-700">{sig.message}</p>
+                    <p className="text-gray-700">{t(sig.message, language)}</p>
                     <div className="text-xs text-gray-400 mt-2 text-right">
                       {new Date(sig.timestamp).toLocaleString('en-IN')}
                     </div>

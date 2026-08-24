@@ -156,9 +156,9 @@ export default function ChatPage() {
               <h3 className="font-semibold">{t("Weather Forecast", language)}</h3>
             </div>
             <p className="text-3xl font-light text-blue-900">{weatherData?.temp ? `${weatherData.temp}°C` : '...'}</p>
-            <p className="text-sm text-blue-700 mt-1 capitalize">{weatherData?.description || 'Fetching local conditions...'}</p>
+            <p className="text-sm text-blue-700 mt-1 capitalize">{t(weatherData?.description || 'Fetching local conditions...', language)}</p>
             {weatherData?.humidity && (
-              <p className="text-xs text-blue-600 mt-1">{weatherData.humidity}% humidity • {weatherData.wind} km/h wind</p>
+              <p className="text-xs text-blue-600 mt-1">{weatherData.humidity}% {t('humidity', language)} • {weatherData.wind} {t('km/h wind', language)}</p>
             )}
           </div>
           
@@ -169,7 +169,7 @@ export default function ChatPage() {
             </div>
             <div className="flex justify-between items-end">
               <div>
-                <p className="text-sm text-amber-700">Volumetric Moisture</p>
+                <p className="text-sm text-amber-700">{t('Volumetric Moisture', language)}</p>
                 <p className="text-2xl font-light text-amber-900">
                   {weatherData?.soil_moisture !== undefined ? (weatherData.soil_moisture * 100).toFixed(1) + '%' : weatherData?.rainfall + ' mm'}
                 </p>
@@ -217,8 +217,8 @@ export default function ChatPage() {
               <div className="space-y-3 max-h-48 overflow-y-auto custom-scrollbar pr-1">
                 {alerts.map((alert, idx) => (
                   <div key={idx} className="bg-white/60 p-2 rounded-lg text-xs border border-red-100 shadow-sm">
-                    <p className="font-bold text-red-900 mb-1">{alert.disease}</p>
-                    <p className="text-red-700 leading-snug">{alert.message}</p>
+                    <p className="font-bold text-red-900 mb-1">{t(alert.disease, language)}</p>
+                    <p className="text-red-700 leading-snug">{t(alert.message, language)}</p>
                   </div>
                 ))}
               </div>
