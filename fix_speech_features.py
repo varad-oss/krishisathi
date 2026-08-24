@@ -1,27 +1,10 @@
-// BCP47 language map for Web Speech API
-// This is the single source of truth for all speech-related language codes.
-// Browser SpeechRecognition and SpeechSynthesis both use BCP47 tags.
-export const LANG_TO_BCP47: Record<string, string> = {
-  en: 'en-IN',
-  hi: 'hi-IN',
-  mr: 'mr-IN',
-  ta: 'ta-IN',
-  te: 'te-IN',
-  bn: 'bn-IN',
-  kn: 'kn-IN',
-  gu: 'gu-IN',
-  pa: 'pa-IN',
-  ml: 'ml-IN',
-};
+import re
 
-export function getBCP47(langCode: string): string {
-  return LANG_TO_BCP47[langCode] || 'en-IN';
-}
+with open("frontend/src/lib/speech.ts", "r") as f:
+    ts = f.read()
 
-/**
- * Speak text aloud using the browser's SpeechSynthesis API.
- * Uses the correct BCP47 tag for the given language code.
- */
+# 1. Add state tracking for speech playback
+speech_state_code = """
 let currentAudio: HTMLAudioElement | null = null;
 let stateListeners: ((isSpeaking: boolean) => void)[] = [];
 
@@ -41,7 +24,11 @@ export function isSpeaking(): boolean {
   if (currentAudio && !currentAudio.paused) return true;
   return false;
 }
+"""
+ts = re.sub(r'let currentAudio: HTMLAudioElement \| null = null;', speech_state_code.strip(), ts, count=1)
 
+# 2. Update speakText to fire events
+new_speakText = """
 export function speakText(text: string, langCode: string): void {
   if (typeof window === 'undefined') return;
   
@@ -91,32 +78,12 @@ export function stopSpeaking(): void {
   }
   notifyStateChange(false);
 }
-
-/**
- * Check if SpeechRecognition is available in the current browser.
- */
-export function isSpeechRecognitionSupported(): boolean {
-  if (typeof window === 'undefined') return false;
-  return !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
-}
-
-/**
- * Create a SpeechRecognition instance configured for the given language.
- * Returns null if not supported.
- */
-export function createSpeechRecognition(langCode: string): any | null {
-  if (!isSpeechRecognitionSupported()) return null;
-  const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-  const recognition = new SpeechRecognition();
-  recognition.lang = getBCP47(langCode);
-  recognition.interimResults = true;
-  recognition.continuous = false;
-  recognition.maxAlternatives = 1;
-  return recognition;
-}
+"""
+ts = re.sub(r'export function speakText.*?export function stopSpeaking\(\): void \{.*?\}', new_speakText.strip(), ts, flags=re.DOTALL)
 
 
-
+# 3. Update startRecording to add silence detection
+new_recording = """
 let mediaRecorder: MediaRecorder | null = null;
 let audioChunks: Blob[] = [];
 let audioContext: AudioContext | null = null;
@@ -219,3 +186,9 @@ export function stopRecording() {
     audioContext = null;
   }
 }
+"""
+
+ts = re.sub(r'let mediaRecorder: MediaRecorder \| null = null;.*?export function stopRecording\(\) \{.*?\}', new_recording.strip(), ts, flags=re.DOTALL)
+
+with open("frontend/src/lib/speech.ts", "w") as f:
+    f.write(ts)

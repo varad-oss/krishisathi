@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Camera, Upload, MapPin, AlertTriangle, ShieldCheck, Activity, Share2, Info, MessageCircle, Send, Loader2, Mic, MicOff, Volume2, AlertCircle } from 'lucide-react';
+import { Camera, Upload, MapPin, AlertTriangle, ShieldCheck, Activity, Share2, Info, MessageCircle, Send, Loader2, Mic, MicOff, Volume2, VolumeX, AlertCircle } from 'lucide-react';
 import { cn, getSeverityColor, getConfidenceLabel } from '@/lib/utils';
 import { diagnoseCrop, getFollowUpAdvisory } from '@/lib/api';
 import { DiagnosisResponse } from '@/lib/types';
@@ -10,7 +10,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { t } from '@/lib/translations';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { speakText, startRecording, stopRecording } from '@/lib/speech';
+import { speakText, stopSpeaking, startRecording, stopRecording, onSpeechStateChange } from '@/lib/speech';
 
 const CROP_TYPES = ['Wheat', 'Rice', 'Tomato', 'Potato', 'Corn', 'Soybean', 'Cotton', 'Sugarcane', 'Other'];
 
@@ -30,6 +30,11 @@ export default function DiagnosePage() {
   const [followUpInput, setFollowUpInput] = useState('');
   const [followUpLoading, setFollowUpLoading] = useState(false);
   const [followUpError, setFollowUpError] = useState(false);
+  const [isSpeakingActive, setIsSpeakingActive] = useState(false);
+  useEffect(() => {
+    return onSpeechStateChange(setIsSpeakingActive);
+  }, []);
+
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
 
@@ -149,6 +154,19 @@ export default function DiagnosePage() {
 
   return (
     <div className="flex-1 bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+      {/* Global Stop Audio Button */}
+      {isSpeakingActive && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4">
+          <button
+            onClick={stopSpeaking}
+            className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-full shadow-lg hover:bg-red-700 transition-all font-medium"
+          >
+            <VolumeX className="h-4 w-4" />
+            {t('Stop Audio', language) || 'Stop Audio'}
+          </button>
+        </div>
+      )}
+
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="text-center space-y-2 mb-8">
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900">{t(t("Crop Disease Diagnosis", language), language)}</h1>

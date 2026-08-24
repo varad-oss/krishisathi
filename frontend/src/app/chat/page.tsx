@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Loader2, Cloud, Droplets, MapPin, Satellite, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
-import { speakText, stopSpeaking, startRecording, stopRecording } from '@/lib/speech';
+import { speakText, stopSpeaking, startRecording, stopRecording, onSpeechStateChange } from '@/lib/speech';
 import { getAdvisory, getWeather, getCropHealth, getPersonalizedAlerts } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { SUPPORTED_LANGUAGES } from '@/lib/languages';
@@ -41,6 +41,11 @@ export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
+  const [isSpeakingActive, setIsSpeakingActive] = useState(false);
+  useEffect(() => {
+    return onSpeechStateChange(setIsSpeakingActive);
+  }, []);
+
   const [isListening, setIsListening] = useState(false);
   const [autoRead, setAutoRead] = useState(false);
   const recognitionRef = useRef<any>(null);
@@ -155,6 +160,19 @@ export default function ChatPage() {
 
   return (
     <div className="flex-1 bg-gray-50 flex flex-col md:flex-row h-[calc(100vh-4rem)]">
+      {/* Global Stop Audio Button */}
+      {isSpeakingActive && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4">
+          <button
+            onClick={stopSpeaking}
+            className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-full shadow-lg hover:bg-red-700 transition-all font-medium"
+          >
+            <VolumeX className="h-4 w-4" />
+            {t('Stop Audio', language) || 'Stop Audio'}
+          </button>
+        </div>
+      )}
+
       
       {/* Contextual Data Sidebar */}
       <div className="w-full md:w-80 bg-white border-r p-6 flex flex-col gap-6 overflow-y-auto shrink-0">
