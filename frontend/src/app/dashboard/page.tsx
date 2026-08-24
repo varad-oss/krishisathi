@@ -34,7 +34,7 @@ import {
   RefreshCw,
   Activity,
 } from "lucide-react";
-import { formatNumber, getSeverityColor, cn } from "@/lib/utils";
+import { formatNumber, formatDate, getSeverityColor, cn } from "@/lib/utils";
 
 import { useLanguage } from "@/lib/LanguageContext";
 import { t } from "@/lib/translations";
@@ -243,7 +243,7 @@ export default function DashboardPage() {
                         <td className="px-6 py-4 text-gray-600">
                           {formatNumber(ob.reports_count, language)}
                         </td>
-                        <td className="px-6 py-4 text-gray-500">{ob.date}</td>
+                        <td className="px-6 py-4 text-gray-500">{formatDate(ob.date, language)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -275,6 +275,7 @@ export default function DashboardPage() {
                       axisLine={false}
                       tickLine={false}
                       tick={{ fontSize: 12, fill: "#6b7280" }}
+                      tickFormatter={(value) => formatNumber(value, language)}
                     />
                     <RechartsTooltip
                       cursor={{ fill: "#f9fafb" }}

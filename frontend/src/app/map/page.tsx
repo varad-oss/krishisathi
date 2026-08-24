@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { getCropHealth, getAlerts, getOutbreaks } from '@/lib/api';
 import { CropHealthData, Alert, OutbreakData } from '@/lib/types';
 import { MapPin, AlertTriangle, CloudRain, ThermometerSun } from 'lucide-react';
-import { cn, getSeverityColor, formatNumber } from '@/lib/utils';
+import { cn, getSeverityColor, formatNumber, formatDate } from '@/lib/utils';
 
 // Dynamically import the map component so it only loads on the client side
 const MapComponent = dynamic(() => import('@/components/MapComponent'), { 
@@ -75,7 +75,7 @@ export default function MapPage() {
                     <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-white/50">{t(alert.severity, language)}</span>
                   </div>
                   <p className="text-sm opacity-90">{t(alert.message, language)}</p>
-                  <p className="text-xs mt-2 opacity-75 font-medium">{alert.date}</p>
+                  <p className="text-xs mt-2 opacity-75 font-medium">{formatDate(alert.date, language)}</p>
                 </div>
               ))}
               {alerts.length === 0 && (
