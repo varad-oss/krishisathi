@@ -116,7 +116,7 @@ def strip_pii(data: dict) -> dict:
         "farmer_name", "farmer_id", "phone_number", "phone",
         "email", "aadhaar", "address", "exact_location",
         "farm_gps_lat", "farm_gps_lng", "farmer_photo",
-        "device_id", "ip_address"
+        "device_id", "ip_address", "notes", "village"
     ]
     cleaned = {}
     for key, value in data.items():
