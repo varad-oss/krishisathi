@@ -123,7 +123,7 @@ class GeminiService:
             print(f"Error calling Gemini: {e}")
             return "Service temporarily unavailable. Ensure proper care of your crops based on local guidelines."
             
-    def generate_dashboard_report(self, data: dict) -> str:
+    def generate_dashboard_report(self, data: dict, language: str = 'en') -> str:
         if not self.client:
             return "This is a mock weekly report. No significant issues reported."
             
@@ -132,7 +132,7 @@ class GeminiService:
             You are an agricultural data analyst. Generate a natural language weekly report from the following aggregated data for a policymaker dashboard.
             Data: {data}
             
-            Keep the report professional, highlighting key insights, risks, and recommendations.
+            Keep the report professional, highlighting key insights, risks, and recommendations.\n            MUST GENERATE IN LANGUAGE CODE: {language}.
             """
             
             response = self._call_with_fallback(

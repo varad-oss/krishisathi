@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { SUPPORTED_LANGUAGES } from '@/lib/languages';
 import { useLanguage } from '@/lib/LanguageContext';
 import { t } from '@/lib/translations';
+import { formatNumber } from '@/lib/utils';
 import { WeatherData, CropHealthData } from '@/lib/types';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -155,10 +156,10 @@ export default function ChatPage() {
               <Cloud className="h-5 w-5" />
               <h3 className="font-semibold">{t("Weather Forecast", language)}</h3>
             </div>
-            <p className="text-3xl font-light text-blue-900">{weatherData?.temp ? `${weatherData.temp}°C` : '...'}</p>
+            <p className="text-3xl font-light text-blue-900">{weatherData?.temp ? `${formatNumber(weatherData.temp, language)}°C` : '...'}</p>
             <p className="text-sm text-blue-700 mt-1 capitalize">{t(weatherData?.description || 'Fetching local conditions...', language)}</p>
             {weatherData?.humidity && (
-              <p className="text-xs text-blue-600 mt-1">{weatherData.humidity}% {t('humidity', language)} • {weatherData.wind} {t('km/h wind', language)}</p>
+              <p className="text-xs text-blue-600 mt-1">{formatNumber(weatherData.humidity, language)}% {t('humidity', language)} • {formatNumber(weatherData.wind, language)} {t('km/h wind', language)}</p>
             )}
           </div>
           
@@ -193,7 +194,7 @@ export default function ChatPage() {
             <div className="flex justify-between items-end">
               <div>
                 <p className="text-sm text-green-700">{t("Vegetation Index", language)}</p>
-                <p className="text-2xl font-light text-green-900">{ndviData?.ndvi_score || '...'}</p>
+                <p className="text-2xl font-light text-green-900">{ndviData ? formatNumber(ndviData.ndvi_score, language) : '...'}</p>
               </div>
               <span className={cn(
                 "text-xs font-bold px-2 py-1 rounded",
@@ -218,7 +219,7 @@ export default function ChatPage() {
                 {alerts.map((alert, idx) => (
                   <div key={idx} className="bg-white/60 p-2 rounded-lg text-xs border border-red-100 shadow-sm">
                     <p className="font-bold text-red-900 mb-1">{t(alert.disease, language)}</p>
-                    <p className="text-red-700 leading-snug">{t(alert.message, language)}</p>
+                    <p className="text-red-700 leading-snug">{t('High risk of', language)} {t(alert.disease, language)} {t('detected', language)} {formatNumber(alert.distance_km, language)}{t('km away in', language)} {t(alert.location, language)}.</p>
                   </div>
                 ))}
               </div>
@@ -287,7 +288,7 @@ export default function ChatPage() {
                 ) : (
                   <div className="prose prose-sm md:prose-base prose-green max-w-none">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {msg.content}
+                      {t(msg.content, language)}
                     </ReactMarkdown>
                   </div>
                 )}

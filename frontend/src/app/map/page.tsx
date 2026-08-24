@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { getCropHealth, getAlerts, getOutbreaks } from '@/lib/api';
 import { CropHealthData, Alert, OutbreakData } from '@/lib/types';
 import { MapPin, AlertTriangle, CloudRain, ThermometerSun } from 'lucide-react';
-import { cn, getSeverityColor } from '@/lib/utils';
+import { cn, getSeverityColor, formatNumber } from '@/lib/utils';
 
 // Dynamically import the map component so it only loads on the client side
 const MapComponent = dynamic(() => import('@/components/MapComponent'), { 
@@ -91,13 +91,13 @@ export default function MapPage() {
               {healthData.map((data, idx) => (
                 <div key={idx} className="p-4 bg-gray-50 rounded-xl border border-gray-100">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="font-bold text-gray-800">{data.region}</span>
+                    <span className="font-bold text-gray-800">{t(data.region, language)}</span>
                     <span className={cn(
                       "text-xs font-bold px-2 py-1 rounded-full",
                       data.health_status === 'Excellent' || data.health_status === 'Good' ? "bg-green-100 text-green-700" :
                       data.health_status === 'Fair' ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700"
                     )}>
-                      {data.health_status}
+                      {t(data.health_status, language)}
                     </span>
                   </div>
                   
@@ -105,7 +105,7 @@ export default function MapPage() {
                   <div className="mb-3">
                     <div className="flex justify-between text-xs text-gray-500 mb-1">
                       <span>{t('NDVI Score', language)}</span>
-                      <span>{data.ndvi_score.toFixed(2)}</span>
+                      <span>{formatNumber(Number(data.ndvi_score.toFixed(2)), language)}</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div 
@@ -118,11 +118,11 @@ export default function MapPage() {
                   <div className="grid grid-cols-2 gap-2 text-sm mt-3 pt-3 border-t">
                     <div className="flex items-center gap-1.5 text-gray-600">
                       <CloudRain className="h-4 w-4 text-blue-500" />
-                      Risk: {data.drought_risk}
+                      {t('Risk:', language)} {t(data.drought_risk, language)}
                     </div>
                     <div className="flex items-center gap-1.5 text-gray-600">
                       <ThermometerSun className="h-4 w-4 text-orange-500" />
-                      {data.primary_crop}
+                      {t(data.primary_crop, language)}
                     </div>
                   </div>
                 </div>

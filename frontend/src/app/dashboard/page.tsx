@@ -69,9 +69,13 @@ export default function DashboardPage() {
     loadData();
   }, []);
 
+  useEffect(() => {
+    if (stats) loadReport();
+  }, [language]);
+
   const loadReport = async () => {
     setLoadingReport(true);
-    const rep = await getDashboardReport();
+    const rep = await getDashboardReport(language);
     setReport(rep || "No report data available at this time.");
     setLoadingReport(false);
   };
@@ -122,7 +126,7 @@ export default function DashboardPage() {
               <option value="ALL">National Overview (All States)</option>
               {states.map((s) => (
                 <option key={s.code} value={s.code}>
-                  {s.name} ({s.code})
+                  {t(s.name, language)} ({s.code})
                 </option>
               ))}
             </select>
@@ -143,7 +147,7 @@ export default function DashboardPage() {
               <div>
                 <p className="text-sm font-medium text-gray-500">{t('Total Diagnoses', language)}</p>
                 <h3 className="text-2xl font-bold text-gray-900">
-                  {formatNumber(stats.total_diagnoses)}
+                  {formatNumber(stats.total_diagnoses, language)}
                 </h3>
               </div>
             </div>
@@ -161,7 +165,7 @@ export default function DashboardPage() {
               <div>
                 <p className="text-sm font-medium text-gray-500">{t('Active Outbreaks', language)}</p>
                 <h3 className="text-2xl font-bold text-gray-900">
-                  {stats.active_outbreaks}
+                  {formatNumber(stats.active_outbreaks, language)}
                 </h3>
               </div>
             </div>
@@ -176,7 +180,7 @@ export default function DashboardPage() {
               <div>
                 <p className="text-sm font-medium text-gray-500">{t('Farmers Reached', language)}</p>
                 <h3 className="text-2xl font-bold text-gray-900">
-                  {formatNumber(stats.farmers_reached)}
+                  {formatNumber(stats.farmers_reached, language)}
                 </h3>
               </div>
             </div>
@@ -191,7 +195,7 @@ export default function DashboardPage() {
               <div>
                 <p className="text-sm font-medium text-gray-500">{t('Languages Served', language)}</p>
                 <h3 className="text-2xl font-bold text-gray-900">
-                  {stats.languages_served}
+                  {formatNumber(stats.languages_served, language)}
                 </h3>
               </div>
             </div>
@@ -237,7 +241,7 @@ export default function DashboardPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4 text-gray-600">
-                          {formatNumber(ob.reports_count)}
+                          {formatNumber(ob.reports_count, language)}
                         </td>
                         <td className="px-6 py-4 text-gray-500">{ob.date}</td>
                       </tr>
@@ -253,7 +257,7 @@ export default function DashboardPage() {
               <div className="h-72 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
-                    data={filteredHealth}
+                    data={filteredHealth.map(h => ({...h, region: t(h.region, language)}))}
                     margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
                   >
                     <CartesianGrid
@@ -367,16 +371,16 @@ export default function DashboardPage() {
                       </span>
                       <div>
                         <p className="font-bold text-gray-900 text-sm">
-                          {s.name}
+                          {t(s.name, language)}
                         </p>
                         <p className="text-xs text-gray-500">
-                          {t('Top:', language)} {s.top_crop}
+                          {t('Top:', language)} {t(s.top_crop, language)}
                         </p>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-semibold text-gray-900">
-                        {formatNumber(s.farmers_reached)}
+                        {formatNumber(s.farmers_reached, language)}
                       </p>
                       <p
                         className={cn(
@@ -386,7 +390,7 @@ export default function DashboardPage() {
                             : "text-green-600",
                         )}
                       >
-                        {s.active_alerts} Alerts
+                        {formatNumber(s.active_alerts, language)} {t('Alerts', language)}
                       </p>
                     </div>
                   </div>
@@ -409,17 +413,17 @@ export default function DashboardPage() {
                         "px-2 py-0.5 rounded text-xs font-medium",
                         getSeverityColor(sig.severity || 'info')
                       )}>
-                        {sig.severity?.toUpperCase() || 'INFO'}
+                        {t(sig.severity?.toUpperCase() || 'INFO', language)}
                       </span>
                     </div>
                     <p className="text-gray-700">{t(sig.message, language)}</p>
                     <div className="text-xs text-gray-400 mt-2 text-right">
-                      {new Date(sig.timestamp).toLocaleString('en-IN')}
+                      {new Date(sig.timestamp).toLocaleString(`${language}-IN`)}
                     </div>
                   </div>
                 ))}
                 {signals.length === 0 && (
-                  <p className="text-gray-500 text-sm text-center py-4">No active cross-state signals.</p>
+                  <p className="text-gray-500 text-sm text-center py-4">{t('No active cross-state signals.', language)}</p>
                 )}
               </div>
             </div>

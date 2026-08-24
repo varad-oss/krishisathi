@@ -5,16 +5,29 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatDate(date: string | Date): string {
-  return new Intl.DateTimeFormat('en-US', {
+export function formatDate(date: string | Date, lang: string = 'en'): string {
+  const nu = getNumberingSystem(lang);
+  return new Intl.DateTimeFormat(`${lang}-IN-u-nu-${nu}`, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
   }).format(new Date(date));
 }
 
-export function formatNumber(num: number): string {
-  return new Intl.NumberFormat('en-IN', {
+export function getNumberingSystem(lang: string): string {
+  const map: Record<string, string> = {
+    hi: 'deva', mr: 'deva',
+    ta: 'tamldec', te: 'telu',
+    bn: 'beng', kn: 'knda',
+    gu: 'gujr', pa: 'guru',
+    ml: 'mlym'
+  };
+  return map[lang] || 'latn';
+}
+
+export function formatNumber(num: number, lang: string = 'en'): string {
+  const nu = getNumberingSystem(lang);
+  return new Intl.NumberFormat(`${lang}-IN-u-nu-${nu}`, {
     notation: 'compact',
     compactDisplay: 'short',
   }).format(num);

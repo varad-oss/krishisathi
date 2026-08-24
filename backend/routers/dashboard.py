@@ -49,7 +49,7 @@ async def get_stats():
 
 
 @router.get("/report")
-async def get_dashboard_report():
+async def get_dashboard_report(language: str = 'en'):
     report_data = {
         "stats": MOCK_STATS,
         "period": "August 14-21, 2026",
@@ -59,7 +59,7 @@ async def get_dashboard_report():
             "Cross-state advisory sharing with Gujarat on soybean diseases",
         ],
     }
-    report_text = gemini_service.generate_dashboard_report(report_data)
+    report_text = gemini_service.generate_dashboard_report(report_data, language)
     return {
         "report_text": report_text,
         "generated_at": datetime.utcnow().isoformat() + "Z",
