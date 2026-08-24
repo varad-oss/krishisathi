@@ -115,13 +115,17 @@ export default function ChatPage() {
   
   const handleSend = async (text: string) => {
 
-    if (!text.trim()) return;
+    if (!text.trim() && !imageAttachment) return;
+    
+    const currentImage = imageAttachment;
+    setImageAttachment(null);
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
       content: text,
-      timestamp: new Date()
+      timestamp: new Date(),
+      imageUrl: currentImage || undefined
     };
 
     setMessages(prev => [...prev, userMessage]);
@@ -129,7 +133,8 @@ export default function ChatPage() {
     setIsLoading(true);
 
     try {
-      const response = await getAdvisory(text, activeLocation.lat, activeLocation.lng, language);
+      const imgBase64 = currentImage ? currentImage.split(',')[1] : undefined;
+      const response = await getAdvisory(text, activeLocation.lat, activeLocation.lng, activeLocation.crop, language, imgBase64);
       
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),

@@ -82,13 +82,24 @@ export async function getAdvisory(
   query: string, 
   lat: number, 
   lng: number, 
-  language: string
+  cropType: string | undefined,
+  language: string,
+  imageBase64?: string
 ): Promise<AdvisoryResponse> {
   try {
+    const payload: any = {
+      query,
+      latitude: lat,
+      longitude: lng,
+      language
+    };
+    if (cropType) payload.crop_type = cropType;
+    if (imageBase64) payload.image_base64 = imageBase64;
+    
     const response = await fetch(`${API_BASE}/api/advisory`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query, latitude: lat, longitude: lng, language }),
+      body: JSON.stringify(payload),
     });
     if (!response.ok) return mockAdvisory;
     const data = await response.json();
