@@ -1,4 +1,4 @@
-# 🌾 KrishiSathi (कृषिसाथी) — AI-Powered Agriculture Intelligence for BRICS Nations
+# 🌾 KrishiSathi — AI-Powered Agriculture Intelligence for BRICS Nations
 
 > **Built for [Build with AI: Code for Communities — Second Edition](https://hackathon-link) | Google Cloud Hackathon 2026**
 
