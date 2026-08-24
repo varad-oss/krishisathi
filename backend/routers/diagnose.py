@@ -49,18 +49,36 @@ async def process_diagnosis(image_bytes: bytes, crop_type: str, latitude: float,
     
     # Translate strings if language is not English
     if language != 'en':
-        diagnosis_data["disease_name"] = translation_service.translate_text(diagnosis_data["disease_name"], 'en', language)
-        diagnosis_data["affected_part"] = translation_service.translate_text(diagnosis_data["affected_part"], 'en', language)
-        diagnosis_data["severity"] = translation_service.translate_text(diagnosis_data["severity"], 'en', language)
-        diagnosis_data["spread_risk"] = translation_service.translate_text(diagnosis_data["spread_risk"], 'en', language)
-        diagnosis_data["image_analysis_summary"] = translation_service.translate_text(diagnosis_data["image_analysis_summary"], 'en', language)
-        diagnosis_data["advisory_text"] = translation_service.translate_text(diagnosis_data["advisory_text"], 'en', language)
+        import json
+        fields_to_translate = {
+            "disease_name": diagnosis_data.get("disease_name"),
+            "affected_part": diagnosis_data.get("affected_part"),
+            "severity": diagnosis_data.get("severity"),
+            "spread_risk": diagnosis_data.get("spread_risk"),
+            "image_analysis_summary": diagnosis_data.get("image_analysis_summary"),
+            "advisory_text": diagnosis_data.get("advisory_text"),
+            "treatment": diagnosis_data.get("treatment")
+        }
         
-        for key in diagnosis_data.get("treatment", {}):
-            diagnosis_data["treatment"][key] = [
-                translation_service.translate_text(step, 'en', language)
-                for step in diagnosis_data["treatment"][key]
-            ]
+        # We can translate a JSON string in one shot to save API calls
+        json_str = json.dumps(fields_to_translate)
+        
+        translated_json_str = translation_service.translate_text(json_str, 'en', language)
+        # Strip markdown if present
+        if translated_json_str.startswith("```"):
+            translated_json_str = translated_json_str.split("\n", 1)[1]
+            if translated_json_str.endswith("```"):
+                translated_json_str = translated_json_str[:-3]
+        
+        try:
+            translated_dict = json.loads(translated_json_str)
+            for k, v in translated_dict.items():
+                if v and k in diagnosis_data:
+                    diagnosis_data[k] = v
+        except Exception as e:
+            print(f"Failed to parse batched translation JSON: {e}")
+            # Do nothing, leave it in English if it fails parsing
+
             
     diagnosis_data["language"] = language
     

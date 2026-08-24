@@ -180,7 +180,7 @@ export default function ChatPage() {
                   ? "bg-green-200 text-green-800"
                   : "bg-amber-200 text-amber-800"
               )}>
-                {(weatherData?.soil_moisture ?? 0) > 0.20 || (weatherData?.rainfall ?? 0) > 10 ? 'Optimal' : 'Needs Water'}
+                {(weatherData?.soil_moisture ?? 0) > 0.20 || (weatherData?.rainfall ?? 0) > 10 ? t('Optimal', language) : t('Needs Water', language)}
               </span>
             </div>
           </div>
@@ -201,7 +201,7 @@ export default function ChatPage() {
                 ndviData?.health_status === 'Poor' ? "bg-red-200 text-red-800" :
                 "bg-yellow-200 text-yellow-800"
               )}>
-                {ndviData?.health_status || 'Scanning'}
+                {t(ndviData?.health_status || 'Scanning', language)}
               </span>
             </div>
           </div>
@@ -212,7 +212,7 @@ export default function ChatPage() {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
                 </svg>
-                <h3 className="font-semibold text-sm">Hyper-Local Threats</h3>
+                <h3 className="font-semibold text-sm">{t("Hyper-Local Threats", language)}</h3>
               </div>
               <div className="space-y-3 max-h-48 overflow-y-auto custom-scrollbar pr-1">
                 {alerts.map((alert, idx) => (
@@ -229,7 +229,7 @@ export default function ChatPage() {
         
         <div className="mt-auto pt-4 border-t">
           <p className="text-xs text-gray-500 text-center">
-            AI advisories are augmented with live data from Open-Meteo and Earth Engine.
+            {t("AI advisories are augmented with live data from Open-Meteo and Earth Engine.", language)}
           </p>
         </div>
       </div>
@@ -244,7 +244,7 @@ export default function ChatPage() {
               <Bot className="h-6 w-6" />
             </div>
             <div>
-              <h2 className="font-bold text-gray-900">Regenerative Advisory AI</h2>
+              <h2 className="font-bold text-gray-900">{t("Regenerative Advisory AI", language)}</h2>
               <p className="text-xs text-green-600 font-medium flex items-center gap-1">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
@@ -307,7 +307,7 @@ export default function ChatPage() {
               </div>
               <div className="rounded-2xl rounded-tl-sm bg-gray-100 px-5 py-4 border border-gray-200 flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin text-green-600" />
-                <span className="text-sm text-gray-500">Synthesizing local data...</span>
+                <span className="text-sm text-gray-500">{t("Synthesizing local data...", language)}</span>
               </div>
             </div>
           )}
@@ -321,7 +321,7 @@ export default function ChatPage() {
             {QUICK_ACTIONS.map((action, idx) => (
               <button
                 key={idx}
-                onClick={() => handleSend(action)}
+                onClick={() => handleSend(t(action, language))}
                 className="whitespace-nowrap text-xs font-medium bg-green-50 text-green-700 px-3 py-1.5 rounded-full border border-green-200 hover:bg-green-100 transition-colors"
               >
                 {t(action, language)}

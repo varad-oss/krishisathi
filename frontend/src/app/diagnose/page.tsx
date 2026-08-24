@@ -118,8 +118,8 @@ export default function DiagnosePage() {
                     <Upload className="h-8 w-8 text-gray-400" />
                   </div>
                   <div>
-                    <p className="text-lg font-semibold text-gray-700">Click to upload or drag & drop</p>
-                    <p className="text-sm text-gray-500">SVG, PNG, JPG or GIF (max. 10MB)</p>
+                    <p className="text-lg font-semibold text-gray-700">{t("Click to upload or drag & drop", language)}</p>
+                    <p className="text-sm text-gray-500">{t("SVG, PNG, JPG or GIF (max. 10MB)", language)}</p>
                   </div>
                 </div>
               )}
@@ -177,12 +177,12 @@ export default function DiagnosePage() {
               {isAnalyzing ? (
                 <>
                   <div className="h-5 w-5 animate-spin rounded-full border-2 border-green-700 border-t-transparent"></div>
-                  AI is analyzing your crop...
+                  {t("AI is analyzing your crop...", language)}
                 </>
               ) : (
                 <>
                   <Activity className="h-5 w-5" />
-                  Analyze Photo
+                  {t("Analyze Photo", language)}
                 </>
               )}
             </button>
@@ -244,7 +244,7 @@ export default function DiagnosePage() {
                 {/* Immediate Actions */}
                 <div className="space-y-3 bg-red-50/50 p-4 rounded-xl border border-red-100">
                   <h3 className="font-bold flex items-center gap-2 text-red-900">
-                    <AlertTriangle className="h-5 w-5" /> Immediate Actions
+                    <AlertTriangle className="h-5 w-5" /> {t("Immediate Actions", language)}
                   </h3>
                   <ul className="space-y-2 list-disc list-inside text-gray-700">
                     {result.treatment_plan.immediate_actions.map((action, i) => (
@@ -256,7 +256,7 @@ export default function DiagnosePage() {
                 {/* Organic Treatment */}
                 <div className="space-y-3 bg-green-50/50 p-4 rounded-xl border border-green-100">
                   <h3 className="font-bold flex items-center gap-2 text-green-900">
-                    <ShieldCheck className="h-5 w-5" /> Organic Treatment
+                    <ShieldCheck className="h-5 w-5" /> {t("Organic Treatment", language)}
                   </h3>
                   <ul className="space-y-2 list-disc list-inside text-gray-700">
                     {result.treatment_plan.organic_treatment.map((action, i) => (
@@ -268,7 +268,7 @@ export default function DiagnosePage() {
                 {/* Chemical Treatment */}
                 <div className="space-y-3 bg-blue-50/50 p-4 rounded-xl border border-blue-100">
                   <h3 className="font-bold flex items-center gap-2 text-blue-900">
-                    <Info className="h-5 w-5" /> Chemical Treatment
+                    <Info className="h-5 w-5" /> {t("Chemical Treatment", language)}
                   </h3>
                   <ul className="space-y-2 list-disc list-inside text-gray-700">
                     {result.treatment_plan.chemical_treatment.map((action, i) => (
@@ -280,7 +280,7 @@ export default function DiagnosePage() {
                 {/* Prevention */}
                 <div className="space-y-3 bg-purple-50/50 p-4 rounded-xl border border-purple-100">
                   <h3 className="font-bold flex items-center gap-2 text-purple-900">
-                    <MapPin className="h-5 w-5" /> Prevention & Spread Risk
+                    <MapPin className="h-5 w-5" /> {t("Prevention & Spread Risk", language)}
                   </h3>
                   <p className="text-sm font-medium text-gray-900 mb-2">{result.spread_risk}</p>
                   <ul className="space-y-2 list-disc list-inside text-gray-700">
@@ -309,14 +309,14 @@ export default function DiagnosePage() {
                   className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold rounded-lg transition-colors"
                 >
                   <Activity className="h-4 w-4" /> {/* Reusing Activity icon for audio/speaker since Volume/Speaker isn't imported */}
-                  Read Aloud
+                  {t("Read Aloud", language)}
                 </button>
                 <button 
                   onClick={handleShare}
                   className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 hover:bg-green-100 font-semibold rounded-lg transition-colors"
                 >
                   <Share2 className="h-4 w-4" />
-                  Share via WhatsApp
+                  {t("Share via WhatsApp", language)}
                 </button>
               </div>
 

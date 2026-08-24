@@ -14,11 +14,11 @@ export default function Home() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center animate-fade-in">
           <div className="inline-flex items-center gap-2 rounded-full bg-green-100 px-4 py-2 text-sm font-medium text-green-800 mb-8">
             <span className="flex h-2 w-2 rounded-full bg-green-600"></span>
-            Interoperable Digital Agriculture Network
+            {t("Interoperable Digital Agriculture Network", language)}
           </div>
           
           <h1 className="mx-auto max-w-4xl text-5xl font-extrabold tracking-tight text-gray-900 sm:text-6xl lg:text-7xl">
-            KrishiSathi
+            {t("KrishiSathi", language)}
             <span className="block text-3xl sm:text-4xl lg:text-5xl mt-2 text-green-700">
               {t("Climate-Resilient Farming Intelligence", language)}
             </span>
