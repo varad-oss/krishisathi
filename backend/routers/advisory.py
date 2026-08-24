@@ -67,6 +67,54 @@ async def get_advisory(request: AdvisoryRequest):
         logger.error(f"Error in get_advisory: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/followup")
+async def get_followup_advisory(request: AdvisoryRequest, disease_name: str = '', severity: str = '', crop_type: str = ''):
+    """
+    Follow-up advisory that includes disease reference grounding.
+    Unlike the generic advisory, this NEVER returns a silent mock fallback — 
+    it raises an HTTP error so the frontend can show a real error state.
+    """
+    try:
+        from services.disease_reference_service import disease_reference_service
+        
+        # Get grounding context from the orphaned disease reference data
+        grounding = disease_reference_service.get_grounding_context(crop_type, '')
+        
+        # Build enriched query with diagnosis context
+        context_prefix = f"The farmer's crop has been diagnosed with {disease_name} (severity: {severity}). "
+        context_prefix += f"Reference data: {grounding}\n\n"
+        enriched_query = context_prefix + "Farmer's follow-up question: " + request.query
+        
+        weather = await weather_service.get_current_weather(request.latitude, request.longitude)
+        
+        query_en = enriched_query
+        if request.language != 'en':
+            query_en = translation_service.translate_text(enriched_query, request.language, 'en')
+        
+        context = {
+            "weather": weather,
+            "crop_type": crop_type or request.crop_type,
+            "location": {"lat": request.latitude, "lng": request.longitude},
+            "diagnosis_context": f"{disease_name} ({severity})"
+        }
+        
+        advisory_en = gemini_service.generate_advisory(query_en, context)
+        
+        advisory_final = advisory_en
+        if request.language != 'en':
+            advisory_final = translation_service.translate_text(advisory_en, 'en', request.language)
+        
+        return AdvisoryResponse(
+            advisory_text=advisory_final,
+            advisory_type="followup",
+            data_sources=["weather", "gemini", "disease_reference"],
+            language=request.language,
+            translated_text=advisory_final if request.language != 'en' else None
+        )
+    except Exception as e:
+        logger.error(f"Error in followup advisory: {e}")
+        raise HTTPException(status_code=500, detail=f"Advisory service unavailable: {str(e)}")
+
 @router.post("/voice", response_model=VoiceAdvisoryResponse)
 async def get_voice_advisory(request: VoiceAdvisoryRequest):
     try:

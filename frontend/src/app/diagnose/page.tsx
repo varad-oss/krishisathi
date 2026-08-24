@@ -1,13 +1,16 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Camera, Upload, MapPin, AlertTriangle, ShieldCheck, Activity, Share2, Info } from 'lucide-react';
+import { Camera, Upload, MapPin, AlertTriangle, ShieldCheck, Activity, Share2, Info, MessageCircle, Send, Loader2, Mic, MicOff, Volume2, AlertCircle } from 'lucide-react';
 import { cn, getSeverityColor, getConfidenceLabel } from '@/lib/utils';
-import { diagnoseCrop } from '@/lib/api';
+import { diagnoseCrop, getFollowUpAdvisory } from '@/lib/api';
 import { DiagnosisResponse } from '@/lib/types';
 import { SUPPORTED_LANGUAGES } from '@/lib/languages';
 import { useLanguage } from '@/lib/LanguageContext';
 import { t } from '@/lib/translations';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { speakText, createSpeechRecognition, isSpeechRecognitionSupported } from '@/lib/speech';
 
 const CROP_TYPES = ['Wheat', 'Rice', 'Tomato', 'Potato', 'Corn', 'Soybean', 'Cotton', 'Sugarcane', 'Other'];
 
@@ -21,6 +24,14 @@ export default function DiagnosePage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<DiagnosisResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const [showFollowUp, setShowFollowUp] = useState(false);
+  const [followUpMessages, setFollowUpMessages] = useState<{role: string, content: string}[]>([]);
+  const [followUpInput, setFollowUpInput] = useState('');
+  const [followUpLoading, setFollowUpLoading] = useState(false);
+  const [followUpError, setFollowUpError] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -85,6 +96,59 @@ export default function DiagnosePage() {
     if (!result) return;
     const text = `KrishiSathi Alert 🌾\nDisease: ${result.disease_name}\nSeverity: ${result.severity}\nQuick Tip: ${result.treatment_plan.immediate_actions[0]}\nMore info at: krishisathi.app`;
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const FOLLOWUP_SUGGESTIONS = [
+    "What organic alternatives can I use?",
+    "How long will treatment take?",
+    "Is this disease contagious to nearby crops?",
+    "What resistant varieties should I plant next season?"
+  ];
+
+  const handleFollowUpSend = async (text: string) => {
+    if (!text.trim() || !result) return;
+    
+    setFollowUpMessages(prev => [...prev, { role: 'user', content: text }]);
+    setFollowUpInput('');
+    setFollowUpLoading(true);
+    setFollowUpError(false);
+    
+    const response = await getFollowUpAdvisory(
+      text,
+      result.disease_name,
+      result.severity,
+      cropType,
+      location?.lat || 28.6139,
+      location?.lng || 77.2090,
+      language
+    );
+    
+    if (response && response.advisory_text) {
+      setFollowUpMessages(prev => [...prev, { role: 'assistant', content: response.advisory_text }]);
+    } else {
+      setFollowUpError(true);
+      setFollowUpMessages(prev => [...prev, { role: 'error', content: t('Unable to reach the advisor right now. Please try again.', language) }]);
+    }
+    setFollowUpLoading(false);
+  };
+
+  const startFollowUpListening = () => {
+    const recognition = createSpeechRecognition(language);
+    if (!recognition) return;
+    recognitionRef.current = recognition;
+    setIsListening(true);
+    recognition.onresult = (event: any) => {
+      const transcript = Array.from(event.results).map((r: any) => r[0].transcript).join('');
+      setFollowUpInput(transcript);
+    };
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
+    recognition.start();
+  };
+
+  const stopFollowUpListening = () => {
+    if (recognitionRef.current) { recognitionRef.current.stop(); recognitionRef.current = null; }
+    setIsListening(false);
   };
 
   return (
@@ -295,16 +359,8 @@ export default function DiagnosePage() {
               <div className="pt-4 border-t flex justify-end gap-3">
                 <button 
                   onClick={() => {
-                    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-                      const text = `Diagnosis: ${result.disease_name}. Severity: ${result.severity}. Immediate actions: ${result.treatment_plan.immediate_actions.join(', ')}`;
-                      const utterance = new SpeechSynthesisUtterance(text);
-                      // Try to match selected language, fallback to browser default
-                      utterance.lang = language === 'hi' ? 'hi-IN' : language === 'mr' ? 'mr-IN' : 'en-IN';
-                      window.speechSynthesis.cancel(); // stop any ongoing speech
-                      window.speechSynthesis.speak(utterance);
-                    } else {
-                      alert("Text-to-speech is not supported in your browser.");
-                    }
+                    const text = `${result.disease_name}. ${result.severity}. ${result.treatment_plan.immediate_actions.join(', ')}`;
+                    speakText(text, language);
                   }}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold rounded-lg transition-colors"
                 >
@@ -318,6 +374,111 @@ export default function DiagnosePage() {
                   <Share2 className="h-4 w-4" />
                   {t("Share via WhatsApp", language)}
                 </button>
+              </div>
+
+              {/* Follow-Up Chat */}
+              <div className="pt-6 border-t mt-6">
+                <button
+                  onClick={() => setShowFollowUp(!showFollowUp)}
+                  className="flex items-center gap-2 text-green-700 hover:text-green-800 font-semibold transition-colors"
+                >
+                  <MessageCircle className="h-5 w-5" />
+                  {showFollowUp ? t('Hide Follow-Up Chat', language) : t('Ask Follow-Up Questions', language)}
+                </button>
+                
+                {showFollowUp && (
+                  <div className="mt-4 border rounded-xl overflow-hidden">
+                    {/* Follow-up messages */}
+                    <div className="max-h-80 overflow-y-auto p-4 space-y-3 bg-gray-50">
+                      {followUpMessages.length === 0 && (
+                        <p className="text-sm text-gray-500 text-center py-4">
+                          {t('Ask any question about this diagnosis. Your question will be grounded with verified disease reference data.', language)}
+                        </p>
+                      )}
+                      {followUpMessages.map((msg, idx) => (
+                        <div key={idx} className={cn(
+                          "flex gap-2",
+                          msg.role === 'user' ? "justify-end" : "justify-start"
+                        )}>
+                          <div className={cn(
+                            "max-w-[80%] rounded-xl px-4 py-2 text-sm",
+                            msg.role === 'user'
+                              ? "bg-green-700 text-white"
+                              : msg.role === 'error'
+                                ? "bg-red-50 text-red-700 border border-red-200 flex items-center gap-2"
+                                : "bg-white border border-gray-200 text-gray-800"
+                          )}>
+                            {msg.role === 'error' && <AlertCircle className="h-4 w-4 flex-shrink-0" />}
+                            {msg.role === 'assistant' ? (
+                              <div className="prose prose-sm max-w-none">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                              </div>
+                            ) : (
+                              <p>{msg.content}</p>
+                            )}
+                            {msg.role === 'assistant' && (
+                              <button
+                                onClick={() => speakText(msg.content, language)}
+                                className="mt-1 flex items-center gap-1 text-xs text-gray-400 hover:text-green-600"
+                              >
+                                <Volume2 className="h-3 w-3" /> {t('Read Aloud', language)}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {followUpLoading && (
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                          <Loader2 className="h-4 w-4 animate-spin" /> {t('Analyzing with disease reference data...', language)}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Quick suggestions */}
+                    <div className="px-4 py-2 border-t bg-white flex overflow-x-auto gap-2">
+                      {FOLLOWUP_SUGGESTIONS.map((q, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => handleFollowUpSend(t(q, language))}
+                          className="whitespace-nowrap text-xs bg-green-50 text-green-700 px-3 py-1.5 rounded-full border border-green-200 hover:bg-green-100 transition-colors"
+                        >
+                          {t(q, language)}
+                        </button>
+                      ))}
+                    </div>
+                    
+                    {/* Input */}
+                    <form
+                      onSubmit={(e) => { e.preventDefault(); handleFollowUpSend(followUpInput); }}
+                      className="flex items-center gap-2 p-3 border-t bg-white"
+                    >
+                      <input
+                        type="text"
+                        value={followUpInput}
+                        onChange={(e) => setFollowUpInput(e.target.value)}
+                        placeholder={t('Ask about this diagnosis...', language)}
+                        className="flex-1 text-sm rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-1 focus:ring-green-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={isListening ? stopFollowUpListening : startFollowUpListening}
+                        className={cn(
+                          "h-9 w-9 flex items-center justify-center rounded-lg transition-colors",
+                          isListening ? "bg-red-500 text-white animate-pulse" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        )}
+                      >
+                        {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={!followUpInput.trim() || followUpLoading}
+                        className="h-9 w-9 flex items-center justify-center rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:bg-gray-300"
+                      >
+                        <Send className="h-4 w-4" />
+                      </button>
+                    </form>
+                  </div>
+                )}
               </div>
 
             </div>

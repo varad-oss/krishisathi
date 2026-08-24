@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Loader2, Cloud, Droplets, MapPin, Satellite } from 'lucide-react';
+import { Send, Bot, User, Loader2, Cloud, Droplets, MapPin, Satellite, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
+import { speakText, stopSpeaking, createSpeechRecognition, isSpeechRecognitionSupported } from '@/lib/speech';
 import { getAdvisory, getWeather, getCropHealth, getPersonalizedAlerts } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { SUPPORTED_LANGUAGES } from '@/lib/languages';
@@ -39,6 +40,10 @@ export default function ChatPage() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  const [isListening, setIsListening] = useState(false);
+  const [autoRead, setAutoRead] = useState(false);
+  const recognitionRef = useRef<any>(null);
   
   // Data Context State
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
@@ -123,6 +128,51 @@ export default function ChatPage() {
       setIsLoading(false);
     }
   };
+
+  const startListening = () => {
+    const recognition = createSpeechRecognition(language);
+    if (!recognition) {
+      alert('Voice input is not supported in your browser. Please use Chrome or Brave.');
+      return;
+    }
+    recognitionRef.current = recognition;
+    setIsListening(true);
+
+    recognition.onresult = (event: any) => {
+      const transcript = Array.from(event.results)
+        .map((result: any) => result[0].transcript)
+        .join('');
+      setInput(transcript);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error);
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.start();
+  };
+
+  const stopListening = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+    setIsListening(false);
+  };
+
+  useEffect(() => {
+    if (autoRead && messages.length > 0) {
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg.role === 'assistant' && lastMsg.id !== '1') {
+        speakText(lastMsg.content, language);
+      }
+    }
+  }, [messages, autoRead]);
 
   return (
     <div className="flex-1 bg-gray-50 flex flex-col md:flex-row h-[calc(100vh-4rem)]">
@@ -255,13 +305,26 @@ export default function ChatPage() {
               </p>
             </div>
           </div>
-          <select 
-            value={language}
-            onChange={(e) => setLanguage(e.target.value)}
-            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm focus:border-green-500 focus:outline-none"
-          >
-            {SUPPORTED_LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.nativeName}</option>)}
-          </select>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => { setAutoRead(!autoRead); if (autoRead) stopSpeaking(); }}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
+                autoRead ? "bg-green-100 text-green-700 border border-green-300" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+              )}
+              title={autoRead ? t('Auto-read ON', language) : t('Auto-read OFF', language)}
+            >
+              {autoRead ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+              {t('Voice', language)}
+            </button>
+            <select 
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm focus:border-green-500 focus:outline-none"
+            >
+              {SUPPORTED_LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.nativeName}</option>)}
+            </select>
+          </div>
         </div>
 
         {/* Messages Area */}
@@ -291,6 +354,16 @@ export default function ChatPage() {
                       {t(msg.content, language)}
                     </ReactMarkdown>
                   </div>
+                )}
+                {msg.role === 'assistant' && msg.id !== '1' && (
+                  <button
+                    onClick={() => speakText(msg.content, language)}
+                    className="mt-2 flex items-center gap-1 text-xs text-gray-400 hover:text-green-600 transition-colors"
+                    title={t('Read Aloud', language)}
+                  >
+                    <Volume2 className="h-3.5 w-3.5" />
+                    {t('Read Aloud', language)}
+                  </button>
                 )}
                 <p className={cn(
                   "text-[10px] mt-2 text-right",
@@ -347,6 +420,20 @@ export default function ChatPage() {
                 }
               }}
             />
+            <button
+              type="button"
+              onClick={isListening ? stopListening : startListening}
+              disabled={isLoading}
+              className={cn(
+                "h-[44px] w-[44px] flex-shrink-0 flex items-center justify-center rounded-xl transition-colors",
+                isListening
+                  ? "bg-red-500 text-white animate-pulse hover:bg-red-600"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              )}
+              title={isListening ? t('Stop recording', language) : t('Speak', language)}
+            >
+              {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+            </button>
             <button
               type="submit"
               disabled={!input.trim() || isLoading}

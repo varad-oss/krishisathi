@@ -103,6 +103,37 @@ export async function getAdvisory(
   }
 }
 
+export async function getFollowUpAdvisory(
+  question: string,
+  diseaseName: string,
+  severity: string,
+  cropType: string,
+  lat: number,
+  lng: number,
+  language: string
+): Promise<{ advisory_text: string } | null> {
+  try {
+    const response = await fetch(`${API_BASE}/api/advisory/followup?disease_name=${encodeURIComponent(diseaseName)}&severity=${encodeURIComponent(severity)}&crop_type=${encodeURIComponent(cropType)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: question,
+        latitude: lat,
+        longitude: lng,
+        language: language,
+      }),
+    });
+    if (!response.ok) {
+      // Explicit failure — do NOT fall back to mock data
+      return null;
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Follow-up advisory failed:', error);
+    return null; // null signals failure to the UI, distinct from mock data
+  }
+}
+
 export async function getWeather(lat: number, lng: number): Promise<WeatherData> {
   return fetchWithFallback<WeatherData>(
     `${API_BASE}/api/weather?lat=${lat}&lng=${lng}`,
