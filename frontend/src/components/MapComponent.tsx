@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { APIProvider, Map, AdvancedMarker, Pin, InfoWindow } from '@vis.gl/react-google-maps';
+import { APIProvider, Map, Marker, InfoWindow } from '@vis.gl/react-google-maps';
 import { getOutbreaks } from '@/lib/api';
 import { OutbreakData } from '@/lib/types';
 import { getSeverityColor, cn } from '@/lib/utils';
@@ -15,40 +15,21 @@ export default function MapComponent() {
     getOutbreaks().then(setOutbreaks);
   }, []);
 
-  const getMarkerColor = (severity: string) => {
-    switch ((severity || '').toLowerCase()) {
-      case 'low': return '#22c55e'; // green-500
-      case 'moderate': return '#eab308'; // yellow-500
-      case 'severe':
-      case 'high': return '#f97316'; // orange-500
-      case 'critical': return '#ef4444'; // red-500
-      default: return '#6b7280'; // gray-500
-    }
-  };
-
   return (
     <div className="w-full h-full min-h-[500px] rounded-2xl overflow-hidden shadow-inner border border-gray-200">
       <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "DEMO_KEY"}>
         <Map
           defaultCenter={{ lat: 22.0, lng: 78.0 }} // Center of India
           defaultZoom={5}
-          mapId="DEMO_MAP_ID"
           disableDefaultUI={false}
           gestureHandling={'greedy'}
         >
           {outbreaks.filter(o => o.lat != null && o.lng != null).map((outbreak) => (
-            <AdvancedMarker
+            <Marker
               key={outbreak.id}
               position={{ lat: outbreak.lat!, lng: outbreak.lng! }}
               onClick={() => setSelectedOutbreak(outbreak)}
-            >
-              <Pin 
-                background={getMarkerColor(outbreak.severity)}
-                borderColor={'#ffffff'}
-                glyphColor={'#ffffff'}
-              />
-              {/* Optional: Add a circle overlay to represent affected_area_km2 using standard google.maps.Circle but AdvancedMarker is cleaner for now */}
-            </AdvancedMarker>
+            />
           ))}
 
           {selectedOutbreak && selectedOutbreak.lat != null && selectedOutbreak.lng != null && (

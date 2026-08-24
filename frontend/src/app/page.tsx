@@ -9,34 +9,35 @@ export default function Home() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center animate-fade-in">
           <div className="inline-flex items-center gap-2 rounded-full bg-green-100 px-4 py-2 text-sm font-medium text-green-800 mb-8">
             <span className="flex h-2 w-2 rounded-full bg-green-600"></span>
-            India Agriculture Intelligence Network
+            Interoperable Digital Agriculture Network
           </div>
           
           <h1 className="mx-auto max-w-4xl text-5xl font-extrabold tracking-tight text-gray-900 sm:text-6xl lg:text-7xl">
             KrishiSathi
             <span className="block text-3xl sm:text-4xl lg:text-5xl mt-2 text-green-700">
-              AI-Powered Agriculture Intelligence
+              Climate-Resilient Farming Intelligence
             </span>
           </h1>
           
-          <p className="mx-auto mt-6 max-w-2xl text-lg text-gray-600 sm:text-xl">
-            From photo to diagnosis in 5 seconds. Helping 150M+ smallholder farmers across Indian states with real-time AI-driven crop protection, advisory, and early warning systems.
+          <p className="mx-auto mt-6 max-w-3xl text-lg text-gray-600 sm:text-xl">
+            A scalable digital public good enabling Indian states to share agricultural data models. 
+            Delivering real-time, localized agro-advisories, regenerative crop recommendations based on satellite data, soil health, and weather forecasting.
           </p>
           
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/diagnose"
+              href="/chat"
               className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-lg bg-green-700 px-8 py-4 text-lg font-semibold text-white shadow-lg shadow-green-700/30 transition-all hover:bg-green-800 hover:-translate-y-1"
             >
-              <Camera className="h-5 w-5" />
-              Diagnose Crop Disease
+              <MessageSquare className="h-5 w-5" />
+              Get Regenerative Advisory
             </Link>
             <Link
-              href="/chat"
+              href="/diagnose"
               className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-lg bg-white border-2 border-gray-200 px-8 py-4 text-lg font-semibold text-gray-700 transition-all hover:border-green-600 hover:text-green-700 hover:-translate-y-1"
             >
-              <MessageSquare className="h-5 w-5" />
-              Get Advisory
+              <Camera className="h-5 w-5" />
+              Crop Diagnostic Tool
             </Link>
           </div>
         </div>
@@ -46,15 +47,15 @@ export default function Home() {
       <section className="py-24 bg-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">How It Works</h2>
-            <p className="mt-4 text-lg text-gray-600">Three simple steps to protect your yield</p>
+            <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">Comprehensive Agricultural Network</h2>
+            <p className="mt-4 text-lg text-gray-600">Strengthening cooperation on sustainable food production</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             {[
-              { icon: Camera, title: "1. Snap a Photo", desc: "Take a clear picture of the infected leaf or crop area using your smartphone." },
-              { icon: Sprout, title: "2. AI Analyzes", desc: "Google Gemini AI instantly identifies the disease, cross-referencing local conditions." },
-              { icon: ShieldAlert, title: "3. Get Treatment", desc: "Receive an immediate, localized, and organic-first treatment plan in your language." }
+              { icon: Globe2, title: "1. Data Aggregation", desc: "We ingest live satellite NDVI data, Open-Meteo weather forecasts, and regional soil health metrics." },
+              { icon: Sprout, title: "2. Regenerative AI", desc: "Gemini 2.5 generates hyper-localized, regenerative crop recommendations tailored to your exact microclimate." },
+              { icon: ShieldAlert, title: "3. Interoperable Sync", desc: "Data models and disease outbreak patterns are shared securely across Indian states to strengthen national resilience." }
             ].map((step, idx) => (
               <div key={idx} className="flex flex-col items-center text-center group">
                 <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-green-100 text-green-700 transition-all group-hover:scale-110 group-hover:bg-green-600 group-hover:text-white mb-6">

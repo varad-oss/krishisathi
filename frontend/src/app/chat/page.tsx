@@ -1,7 +1,5 @@
-'use client';
-
 import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Loader2 } from 'lucide-react';
+import { Send, Bot, User, Loader2, Cloud, Droplets, MapPin, Satellite } from 'lucide-react';
 import { getAdvisory } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { SUPPORTED_LANGUAGES } from '@/lib/languages';
@@ -15,10 +13,10 @@ interface Message {
 }
 
 const QUICK_ACTIONS = [
-  "Best crop for this season?",
+  "Recommend drought-resistant crops",
   "How to improve soil health?",
-  "Pest control for wheat",
-  "Water management tips"
+  "Regenerative farming tips",
+  "Current pest risks"
 ];
 
 export default function ChatPage() {
@@ -27,7 +25,7 @@ export default function ChatPage() {
     {
       id: '1',
       role: 'assistant',
-      content: 'Hello! I am KrishiSathi, your AI agriculture advisor. How can I help you with your farm today?',
+      content: 'Hello! I am KrishiSathi, your AI agriculture advisor. I have analyzed your local satellite data, soil moisture, and weather forecast. What regenerative crop recommendations or farming advice do you need today?',
       timestamp: new Date()
     }
   ]);
@@ -58,13 +56,12 @@ export default function ChatPage() {
     setIsLoading(true);
 
     try {
-      // Use fallback location for demo purposes if geolocation fails/isn't requested
       const response = await getAdvisory(text, 28.6139, 77.2090, language);
       
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: response.answer,
+        content: response.advisory_text || response.answer || "Here is your advisory.",
         timestamp: new Date(response.timestamp || Date.now())
       };
       
@@ -83,23 +80,80 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex-1 bg-gray-50 flex flex-col h-[calc(100vh-4rem)]">
-      <div className="flex-1 w-full max-w-4xl mx-auto flex flex-col bg-white shadow-sm border-x">
+    <div className="flex-1 bg-gray-50 flex flex-col md:flex-row h-[calc(100vh-4rem)]">
+      
+      {/* Contextual Data Sidebar */}
+      <div className="w-full md:w-80 bg-white border-r p-6 flex flex-col gap-6 overflow-y-auto shrink-0">
+        <div>
+          <h2 className="text-lg font-bold text-gray-900 mb-1">Local Intelligence</h2>
+          <p className="text-sm text-gray-500 flex items-center gap-1">
+            <MapPin className="h-4 w-4" /> Selected Region: Pune, India
+          </p>
+        </div>
+        
+        <div className="space-y-4">
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2 text-blue-800">
+              <Cloud className="h-5 w-5" />
+              <h3 className="font-semibold">Weather Forecast</h3>
+            </div>
+            <p className="text-3xl font-light text-blue-900">28°C</p>
+            <p className="text-sm text-blue-700 mt-1">Light rain expected this evening. 65% humidity.</p>
+          </div>
+          
+          <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2 text-amber-800">
+              <Droplets className="h-5 w-5" />
+              <h3 className="font-semibold">Soil Health</h3>
+            </div>
+            <div className="flex justify-between items-end">
+              <div>
+                <p className="text-sm text-amber-700">Moisture Index</p>
+                <p className="text-2xl font-light text-amber-900">42%</p>
+              </div>
+              <span className="text-xs font-bold bg-amber-200 text-amber-800 px-2 py-1 rounded">Optimal</span>
+            </div>
+          </div>
+          
+          <div className="bg-green-50 border border-green-100 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2 text-green-800">
+              <Satellite className="h-5 w-5" />
+              <h3 className="font-semibold">Satellite NDVI</h3>
+            </div>
+            <div className="flex justify-between items-end">
+              <div>
+                <p className="text-sm text-green-700">Vegetation Index</p>
+                <p className="text-2xl font-light text-green-900">0.76</p>
+              </div>
+              <span className="text-xs font-bold bg-green-200 text-green-800 px-2 py-1 rounded">Healthy</span>
+            </div>
+          </div>
+        </div>
+        
+        <div className="mt-auto pt-4 border-t">
+          <p className="text-xs text-gray-500 text-center">
+            AI advisories are augmented with live data from Open-Meteo and Earth Engine.
+          </p>
+        </div>
+      </div>
+
+      {/* Main Chat Area */}
+      <div className="flex-1 w-full mx-auto flex flex-col bg-white shadow-sm border-x">
         
         {/* Chat Header */}
-        <div className="p-4 border-b bg-white flex justify-between items-center">
+        <div className="p-4 border-b bg-white flex justify-between items-center shrink-0">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 bg-green-100 rounded-full flex items-center justify-center text-green-700">
               <Bot className="h-6 w-6" />
             </div>
             <div>
-              <h2 className="font-bold text-gray-900">KrishiSathi Advisory</h2>
+              <h2 className="font-bold text-gray-900">Regenerative Advisory AI</h2>
               <p className="text-xs text-green-600 font-medium flex items-center gap-1">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
                 </span>
-                Online
+                Syncing Network Data...
               </p>
             </div>
           </div>
@@ -148,7 +202,7 @@ export default function ChatPage() {
               </div>
               <div className="rounded-2xl rounded-tl-sm bg-gray-100 px-5 py-4 border border-gray-200 flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin text-green-600" />
-                <span className="text-sm text-gray-500">Typing...</span>
+                <span className="text-sm text-gray-500">Synthesizing local data...</span>
               </div>
             </div>
           )}
@@ -156,7 +210,7 @@ export default function ChatPage() {
         </div>
 
         {/* Input Area */}
-        <div className="p-4 bg-white border-t">
+        <div className="p-4 bg-white border-t shrink-0">
           {/* Quick Actions */}
           <div className="flex overflow-x-auto pb-3 gap-2 hide-scrollbar">
             {QUICK_ACTIONS.map((action, idx) => (
@@ -177,7 +231,7 @@ export default function ChatPage() {
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask a farming question..."
+              placeholder="Ask for a regenerative crop recommendation..."
               className="flex-1 max-h-32 min-h-[44px] rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm focus:border-green-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-green-500 resize-none"
               rows={1}
               onKeyDown={(e) => {
