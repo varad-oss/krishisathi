@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Loader2, Cloud, Droplets, MapPin, Satellite } from 'lucide-react';
 import { getAdvisory } from '@/lib/api';
