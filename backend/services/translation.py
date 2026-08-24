@@ -19,10 +19,22 @@ class TranslationService:
             return text
             
         if not self.enabled:
-            return f"[Translated to {target_lang}]: {text}"
+            return f"[Translated to {target_lang}]: {text}"""
+            
+        language_map = {
+            'en': 'English', 'hi': 'Hindi', 'mr': 'Marathi', 'ta': 'Tamil', 
+            'te': 'Telugu', 'bn': 'Bengali', 'kn': 'Kannada', 'gu': 'Gujarati', 
+            'pa': 'Punjabi', 'ml': 'Malayalam'
+        }
+        
+        full_source = language_map.get(source_lang, source_lang)
+        full_target = language_map.get(target_lang, target_lang)
             
         try:
-            prompt = f"Translate the following text from {source_lang} to {target_lang}. Only output the translated text, nothing else.\n\nText: {text}"
+            prompt = f"""CRITICAL INSTRUCTION: You are a professional translator. Translate the following text from {full_source} to {full_target}. You MUST output ONLY the translated text in the native script of {full_target} and absolutely nothing else. Do not use romanized text unless the target is English.
+
+Text:
+{text}"""
             response = self.client.models.generate_content(
                 model='gemini-flash-lite-latest',
                 contents=[prompt],
@@ -33,7 +45,7 @@ class TranslationService:
             return response.text.strip()
         except Exception as e:
             logger.error(f"Translation error: {e}")
-            return f"[Fallback translated to {target_lang}]: {text}"
+            return f"[Fallback translated to {target_lang}]: {text}"""
 
     def get_supported_languages(self) -> list:
         return [
