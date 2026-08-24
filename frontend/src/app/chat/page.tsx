@@ -2,10 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Loader2, Cloud, Droplets, MapPin, Satellite } from 'lucide-react';
-import { getAdvisory } from '@/lib/api';
+import { getAdvisory, getWeather, getCropHealth } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { SUPPORTED_LANGUAGES } from '@/lib/languages';
 import { useLanguage } from '@/lib/LanguageContext';
+import { WeatherData, CropHealthData } from '@/lib/types';
 
 interface Message {
   id: string;
@@ -34,6 +35,24 @@ export default function ChatPage() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Data Context State
+  const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
+  const [ndviData, setNdviData] = useState<CropHealthData | null>(null);
+  
+  // Default coordinates (Pune, Maharashtra)
+  const defaultLat = 18.5204;
+  const defaultLng = 73.8567;
+
+  useEffect(() => {
+    // Fetch real weather and satellite context on load
+    getWeather(defaultLat, defaultLng).then(setWeatherData);
+    getCropHealth().then(data => {
+      // Find Maharashtra or use first available
+      const localData = data.find(d => d.region.includes('Maharashtra')) || data[0];
+      setNdviData(localData);
+    });
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -58,7 +77,7 @@ export default function ChatPage() {
     setIsLoading(true);
 
     try {
-      const response = await getAdvisory(text, 28.6139, 77.2090, language);
+      const response = await getAdvisory(text, defaultLat, defaultLng, language);
       
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -89,7 +108,7 @@ export default function ChatPage() {
         <div>
           <h2 className="text-lg font-bold text-gray-900 mb-1">Local Intelligence</h2>
           <p className="text-sm text-gray-500 flex items-center gap-1">
-            <MapPin className="h-4 w-4" /> Selected Region: Pune, India
+            <MapPin className="h-4 w-4" /> Selected Region: {weatherData?.location || "Pune, India"}
           </p>
         </div>
         
@@ -99,21 +118,26 @@ export default function ChatPage() {
               <Cloud className="h-5 w-5" />
               <h3 className="font-semibold">Weather Forecast</h3>
             </div>
-            <p className="text-3xl font-light text-blue-900">28°C</p>
-            <p className="text-sm text-blue-700 mt-1">Light rain expected this evening. 65% humidity.</p>
+            <p className="text-3xl font-light text-blue-900">{weatherData?.temp ? `${weatherData.temp}°C` : '...'}</p>
+            <p className="text-sm text-blue-700 mt-1 capitalize">{weatherData?.description || 'Fetching local conditions...'}</p>
+            {weatherData?.humidity && (
+              <p className="text-xs text-blue-600 mt-1">{weatherData.humidity}% humidity • {weatherData.wind} km/h wind</p>
+            )}
           </div>
           
           <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-2 text-amber-800">
               <Droplets className="h-5 w-5" />
-              <h3 className="font-semibold">Soil Health</h3>
+              <h3 className="font-semibold">Soil Moisture</h3>
             </div>
             <div className="flex justify-between items-end">
               <div>
-                <p className="text-sm text-amber-700">Moisture Index</p>
-                <p className="text-2xl font-light text-amber-900">42%</p>
+                <p className="text-sm text-amber-700">Recent Rainfall</p>
+                <p className="text-2xl font-light text-amber-900">{weatherData?.rainfall ?? '...'} mm</p>
               </div>
-              <span className="text-xs font-bold bg-amber-200 text-amber-800 px-2 py-1 rounded">Optimal</span>
+              <span className="text-xs font-bold bg-amber-200 text-amber-800 px-2 py-1 rounded">
+                {weatherData && weatherData.rainfall > 10 ? 'Optimal' : 'Needs Water'}
+              </span>
             </div>
           </div>
           
@@ -125,9 +149,16 @@ export default function ChatPage() {
             <div className="flex justify-between items-end">
               <div>
                 <p className="text-sm text-green-700">Vegetation Index</p>
-                <p className="text-2xl font-light text-green-900">0.76</p>
+                <p className="text-2xl font-light text-green-900">{ndviData?.ndvi_score || '...'}</p>
               </div>
-              <span className="text-xs font-bold bg-green-200 text-green-800 px-2 py-1 rounded">Healthy</span>
+              <span className={cn(
+                "text-xs font-bold px-2 py-1 rounded",
+                ndviData?.health_status === 'Good' ? "bg-green-200 text-green-800" :
+                ndviData?.health_status === 'Poor' ? "bg-red-200 text-red-800" :
+                "bg-yellow-200 text-yellow-800"
+              )}>
+                {ndviData?.health_status || 'Scanning'}
+              </span>
             </div>
           </div>
         </div>
