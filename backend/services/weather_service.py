@@ -1,4 +1,7 @@
 import httpx
+import logging
+
+logger = logging.getLogger(__name__)
 
 class WeatherService:
     def __init__(self):
@@ -7,7 +10,7 @@ class WeatherService:
     async def get_current_weather(self, lat: float, lng: float) -> dict:
         try:
             async with httpx.AsyncClient() as client:
-                url = f"{self.base_url}?latitude={lat}&longitude={lng}&current_weather=true&hourly=relative_humidity_2m,precipitation&timezone=auto"
+                url = f"{self.base_url}?latitude={lat}&longitude={lng}&current_weather=true&hourly=relative_humidity_2m,precipitation,soil_moisture_0_to_7cm&timezone=auto"
                 response = await client.get(url, timeout=10.0)
                 response.raise_for_status()
                 data = response.json()
@@ -16,25 +19,29 @@ class WeatherService:
                 temp = current.get("temperature", 28.5)
                 wind = current.get("windspeed", 12.5)
                 
-                # Extract current humidity and precipitation from hourly data (using first hour as proxy)
                 humidity = 65
                 rainfall = 0.0
+                soil_moisture = 0.3 # Default volumetric
+                
                 if "hourly" in data:
                     if "relative_humidity_2m" in data["hourly"] and len(data["hourly"]["relative_humidity_2m"]) > 0:
                         humidity = data["hourly"]["relative_humidity_2m"][0]
                     if "precipitation" in data["hourly"] and len(data["hourly"]["precipitation"]) > 0:
                         rainfall = data["hourly"]["precipitation"][0]
+                    if "soil_moisture_0_to_7cm" in data["hourly"] and len(data["hourly"]["soil_moisture_0_to_7cm"]) > 0:
+                        soil_moisture = data["hourly"]["soil_moisture_0_to_7cm"][0]
                 
                 return {
                     "temp": temp,
                     "humidity": humidity,
                     "rainfall": rainfall,
                     "wind": wind,
+                    "soil_moisture": soil_moisture,
                     "description": self._get_weather_desc(current.get("weathercode", 0)),
                     "source": "Open-Meteo Live API"
                 }
         except Exception as e:
-            print(f"Weather API error: {e}")
+            logger.error(f"Weather API error: {e}")
             return self._mock_current_weather()
 
     async def get_forecast(self, lat: float, lng: float, days: int = 7) -> list:
@@ -58,15 +65,14 @@ class WeatherService:
                         "temp_max": t_max[i] if i < len(t_max) else 30.0,
                         "temp_min": t_min[i] if i < len(t_min) else 22.0,
                         "description": self._get_weather_desc(w_codes[i] if i < len(w_codes) else 0),
-                        "humidity": 60 # Not natively in daily, using static estimate
+                        "humidity": 60 
                     })
                 return forecast
         except Exception as e:
-            print(f"Forecast API error: {e}")
+            logger.error(f"Forecast API error: {e}")
             return self._mock_forecast(days)
 
     def _get_weather_desc(self, code: int) -> str:
-        # WMO Weather interpretation codes
         if code == 0: return "Clear sky"
         if code in [1, 2, 3]: return "Partly cloudy"
         if code in [45, 48]: return "Fog"

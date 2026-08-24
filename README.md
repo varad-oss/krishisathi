@@ -46,15 +46,16 @@
 │       │             │            │             │      │
 │  ┌────▼─────────────▼────────────▼─────────────▼──┐  │
 │  │           AI Intelligence Core                  │  │
-│  │  Gemini 2.5 Flash │ Vertex AI │ Earth Engine   │  │
-│  │  Translation API  │ STT/TTS  │ BigQuery ML    │  │
+│  │  Gemini 2.5 Flash │ Gemini 2.5 Pro            │  │
+│  │  Function-Calling Agent │ RAG Grounding        │  │
+│  │  Gemini Translation │ gTTS │ Earth Engine      │  │
 │  └────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────┘
          │                  │                  │
          ▼                  ▼                  ▼
 ┌─────────────────────────────────────────────────────┐
 │                  Data Sources                        │
-│  FAO  │  Copernicus  │  OpenWeather  │  Soil Health  │
+│  Open-Meteo  │  Sentinel-2  │  PlantVillage  │ KVK  │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -146,20 +147,25 @@ graph TD
     class BigQuery,Firestore,StateNodes data;
 ```
 
-## 🌐 Cross-State Applicability
+## 🌐 Cross-State Coverage
 
-KrishiSathi is designed as a **Digital Public Good** that works across all Indian states:
+KrishiSathi is designed as a **Digital Public Good** deployed across Indian states:
 
-| 🇮🇳 India | 🇧🇷 Brazil | 🇷🇺 Russia | 🇨🇳 China | 🇿🇦 South Africa |
-|---|---|---|---|---|
-| Hindi, Marathi, Tamil, Telugu, Bengali | Portuguese | Russian | Mandarin | English, Zulu |
-| IMD Weather | INMET | Roshydromet | CMA | SAWS |
-| Rice, Wheat, Cotton | Soybean, Coffee | Wheat, Barley | Rice, Corn | Maize, Sugarcane |
+| State | Language | Primary Crops | KVKs Active |
+|---|---|---|---|
+| 🟢 Punjab | Punjabi | Wheat, Rice, Cotton | ✅ |
+| 🟢 Maharashtra | Marathi | Cotton, Sugarcane, Soybean | ✅ |
+| 🟢 Karnataka | Kannada | Rice, Ragi, Coffee | ✅ |
+| 🟢 Tamil Nadu | Tamil | Rice, Banana, Groundnut | ✅ |
+| 🟢 Uttar Pradesh | Hindi | Wheat, Rice, Potato | ✅ |
+| 🟢 Madhya Pradesh | Hindi | Soybean, Wheat, Maize | ✅ |
+| 🟢 Gujarat | Gujarati | Cotton, Groundnut, Cumin | ✅ |
+| 🟢 West Bengal | Bengali | Rice, Jute, Tea | ✅ |
 
-Adding a new country requires only:
-1. Language code configuration
-2. Weather API endpoint
-3. Crop database for the region
+Adding a new state requires only:
+1. State configuration entry in `/api/states/{code}/config`
+2. Crop-disease reference mappings in `disease_reference.json`
+3. KVK location data for the state's districts
 
 ## 🛠️ Technology Stack
 
@@ -216,11 +222,43 @@ KrishiSathi is designed to run entirely on free tiers, specifically targeting th
 3. **Database:** Use Firestore in Native Mode (Default database is free tier).
 4. **Data Warehouse:** Use BigQuery Sandbox (no credit card required, tables expire after 60 days).
 
-### Option B: Fallback (Vercel & Render)
-If Cloud Run is unavailable:
-- **Frontend:** Import the `frontend` folder into Vercel.
-- **Backend:** Deploy the `backend` folder to Render (Free Web Service) or Railway.
+### 🚀 How a New State Integrates
+
+Adding a new state to the KrishiSathi network does not require code changes. The platform is designed to be configured entirely via the `/api/states/{code}/config` endpoint and corresponding data files.
+
+### 1. State Configuration
+When a new state joins, its profile is added to the backend configuration. This tells the system what crops to track, what language to default to, and where to center the map.
+Example configuration for Punjab:
+```json
+{
+  "code": "PB",
+  "name": "Punjab",
+  "capital": "Chandigarh",
+  "lat": 31.1471,
+  "lng": 75.3412,
+  "default_language": "pa",
+  "primary_crops": ["Wheat", "Rice", "Cotton"],
+  "top_crop": "Wheat",
+  "districts": 23,
+  "arable_land_mha": 4.2
+}
+```
+
+### 2. Disease Reference Data
+The state agricultural department provides mapping of common diseases and treatments for their primary crops. This data is added to `data/disease_reference.json` and acts as the RAG grounding context for the Gemini diagnosis agent.
+
+### 3. KVK Network Data
+The coordinates and contact details of the state's Krishi Vigyan Kendras (KVKs) are added to `data/kvk_locations.json` to enable the "Find Nearest KVK" feature.
+
+Once these three steps are complete, the state automatically appears in the Policymaker Dashboard's state switcher, starts participating in cross-state signal exchange, and its farmers can interact with the advisory AI in their native language.
+
+## 📖 API Documentation
+
+KrishiSathi's backend provides a fully documented OpenAPI schema. When running locally, you can explore the endpoints and test them directly.
+
+- **Swagger UI**: [http://localhost:8001/docs](http://localhost:8001/docs)
+- **ReDoc**: [http://localhost:8001/redoc](http://localhost:8001/redoc)
 
 ---
 
-Built with ❤️ for the Indian AgriTech Hackathon.
+Built with ❤️ using **Google Gemini 2.5**, **FastAPI**, and **Next.js**.

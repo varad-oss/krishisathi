@@ -13,7 +13,11 @@ const MapComponent = dynamic(() => import('@/components/MapComponent'), {
   loading: () => <div className="h-full w-full bg-blue-50/50 flex items-center justify-center">Loading interactive map...</div>
 });
 
+import { useLanguage } from "@/lib/LanguageContext";
+import { t } from "@/lib/translations";
+
 export default function MapPage() {
+  const { language } = useLanguage();
   const [healthData, setHealthData] = useState<CropHealthData[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [outbreaks, setOutbreaks] = useState<OutbreakData[]>([]);
@@ -43,10 +47,10 @@ export default function MapPage() {
             <MapPin className="h-5 w-5 text-green-600" />
             Disease Outbreaks
           </h2>
-          <p className="text-xs text-gray-500 mt-1">Live tracking across Indian states</p>
+          <p className="text-xs text-gray-500 mt-1">{t("Live tracking across Indian states", language)}</p>
           
           <div className="mt-4 space-y-2">
-            <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Severity Legend</p>
+            <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider">{t("Severity Legend", language)}</p>
             <div className="flex items-center gap-2 text-xs">
               <div className="h-3 w-3 rounded-full bg-red-500 opacity-60 border border-red-500"></div> Critical
             </div>
@@ -89,7 +93,7 @@ export default function MapPage() {
 
           {/* Regional Health Data */}
           <div>
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Regional NDVI Data</h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-4">{t("Regional NDVI Data", language)}</h3>
             <div className="space-y-4">
               {healthData.map((data, idx) => (
                 <div key={idx} className="p-4 bg-gray-50 rounded-xl border border-gray-100">

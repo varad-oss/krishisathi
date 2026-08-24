@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 import os
 from typing import List
 
@@ -18,8 +21,8 @@ class EarthEngineService:
                 ee.Initialize()
                 self.initialized = True
             except Exception as e:
-                print(f"Earth Engine initialization failed: {e}")
-                print("Falling back to simulated NDVI estimation pipeline.")
+                logger.info(f"Earth Engine initialization failed: {e}")
+                logger.info("Falling back to simulated NDVI estimation pipeline.")
 
     def calculate_regional_ndvi(self, region_geometry, start_date: str, end_date: str) -> float:
         """
@@ -60,7 +63,7 @@ class EarthEngineService:
             return result.get('NDVI', 0.0)
             
         except Exception as e:
-            print(f"Earth Engine calculation error: {e}")
+            logger.info(f"Earth Engine calculation error: {e}")
             return self._simulate_ndvi()
 
     def _simulate_ndvi(self) -> float:

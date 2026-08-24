@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 import json
 import os
 import datetime
@@ -22,7 +25,7 @@ class BigQueryService:
                 self.client = bigquery.Client(project=self.project_id)
                 self.table_ref = f"{self.project_id}.{self.dataset_id}.{self.table_id}"
             except Exception as e:
-                print(f"BigQuery init error: {e}")
+                logger.info(f"BigQuery init error: {e}")
                 self.client = None
 
     async def log_diagnosis(self, data: Dict[str, Any]):
@@ -61,7 +64,7 @@ class BigQueryService:
                 # We don't await job.result() to keep the API fast, it runs in background
                 # But for the hackathon prototype, we will just silently pass
             except Exception as e:
-                print(f"Failed to log to BigQuery, falling back to local: {e}")
+                logger.info(f"Failed to log to BigQuery, falling back to local: {e}")
                 self._fallback_log(data)
         else:
             self._fallback_log(data)
@@ -74,6 +77,6 @@ class BigQueryService:
             with open(f"{log_dir}/diagnoses.jsonl", "a") as f:
                 f.write(json.dumps(data) + "\n")
         except Exception as e:
-            print(f"Fallback logging failed: {e}")
+            logger.info(f"Fallback logging failed: {e}")
 
 bq_service = BigQueryService()

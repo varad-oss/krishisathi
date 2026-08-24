@@ -16,7 +16,10 @@ export interface TreatmentPlan {
 
 export interface AdvisoryResponse {
   query: string;
-  answer: string;
+  answer?: string;
+  advisory_text?: string;
+  language?: string;
+  translated_text?: string;
   timestamp: string;
   location?: {
     lat: number;
@@ -25,10 +28,15 @@ export interface AdvisoryResponse {
 }
 
 export interface WeatherData {
-  temperature: number;
+  temp: number;
   humidity: number;
-  condition: string;
-  forecast: ForecastDay[];
+  rainfall: number;
+  wind: number;
+  soil_moisture?: number;
+  description: string;
+  source?: string;
+  location?: string;
+  forecast?: ForecastDay[];
 }
 
 export interface ForecastDay {

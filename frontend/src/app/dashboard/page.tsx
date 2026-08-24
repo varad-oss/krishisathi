@@ -36,13 +36,18 @@ import {
 } from "lucide-react";
 import { formatNumber, getSeverityColor, cn } from "@/lib/utils";
 
+import { useLanguage } from "@/lib/LanguageContext";
+import { t } from "@/lib/translations";
+
 export default function DashboardPage() {
+  const { language } = useLanguage();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [outbreaks, setOutbreaks] = useState<OutbreakData[]>([]);
   const [states, setStates] = useState<IndianState[]>([]);
   const [healthData, setHealthData] = useState<CropHealthData[]>([]);
   const [report, setReport] = useState<string>("");
   const [loadingReport, setLoadingReport] = useState(false);
+  const [selectedState, setSelectedState] = useState<string>("ALL");
   const [signals, setSignals] = useState<any[]>([]);
 
   useEffect(() => {
@@ -67,7 +72,7 @@ export default function DashboardPage() {
   const loadReport = async () => {
     setLoadingReport(true);
     const rep = await getDashboardReport();
-    setReport(rep);
+    setReport(rep || "No report data available at this time.");
     setLoadingReport(false);
   };
 
@@ -80,6 +85,24 @@ export default function DashboardPage() {
         </div>
       </div>
     );
+
+  const selectedStateName = states.find(s => s.code === selectedState)?.name;
+
+  const filteredOutbreaks = selectedState === "ALL" 
+    ? outbreaks 
+    : outbreaks.filter(ob => ob.region === selectedStateName);
+
+  const filteredStates = selectedState === "ALL" 
+    ? states 
+    : states.filter(s => s.code === selectedState);
+
+  const filteredSignals = selectedState === "ALL" 
+    ? signals 
+    : signals.filter(sig => sig.from_state === selectedState || sig.to_state === selectedState || !sig.to_state);
+
+  const filteredHealth = selectedState === "ALL"
+    ? healthData
+    : healthData.filter(h => h.region === selectedStateName || h.region === selectedState);
 
   return (
     <div className="flex-1 bg-gray-50 py-8">
@@ -94,9 +117,23 @@ export default function DashboardPage() {
               Real-time agriculture intelligence across Indian states
             </p>
           </div>
-          <div className="bg-white px-4 py-2 rounded-lg border shadow-sm text-sm font-medium text-gray-600 flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-green-500"></span> Live
-            Data Feed
+          <div className="flex items-center gap-4">
+            <select
+              value={selectedState}
+              onChange={(e) => setSelectedState(e.target.value)}
+              className="bg-white px-4 py-2 rounded-lg border shadow-sm text-sm font-medium text-gray-700 outline-none focus:ring-2 focus:ring-green-500"
+            >
+              <option value="ALL">National Overview (All States)</option>
+              {states.map((s) => (
+                <option key={s.code} value={s.code}>
+                  {s.name} ({s.code})
+                </option>
+              ))}
+            </select>
+            <div className="bg-white px-4 py-2 rounded-lg border shadow-sm text-sm font-medium text-gray-600 flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-green-500"></span> Live
+              Data Feed
+            </div>
           </div>
         </div>
 
@@ -155,7 +192,7 @@ export default function DashboardPage() {
                 </h3>
               </div>
             </div>
-            <div className="text-sm text-gray-500">Across 8 states</div>
+            <div className="text-sm text-gray-500">{t(t("Across 8 states", language), language)}</div>
           </div>
 
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
@@ -172,7 +209,7 @@ export default function DashboardPage() {
                 </h3>
               </div>
             </div>
-            <div className="text-sm text-gray-500">Native language support</div>
+            <div className="text-sm text-gray-500">{t(t("Native language support", language), language)}</div>
           </div>
         </div>
 
@@ -191,15 +228,15 @@ export default function DashboardPage() {
                 <table className="w-full text-left text-sm">
                   <thead className="bg-gray-50 text-gray-600 font-medium border-b">
                     <tr>
-                      <th className="px-6 py-3">Disease</th>
-                      <th className="px-6 py-3">Region</th>
-                      <th className="px-6 py-3">Severity</th>
-                      <th className="px-6 py-3">Reports</th>
-                      <th className="px-6 py-3">Date</th>
+                      <th className="px-6 py-3">{t(t("Disease", language), language)}</th>
+                      <th className="px-6 py-3">{t(t("Region", language), language)}</th>
+                      <th className="px-6 py-3">{t(t("Severity", language), language)}</th>
+                      <th className="px-6 py-3">{t(t("Reports", language), language)}</th>
+                      <th className="px-6 py-3">{t(t("Date", language), language)}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {outbreaks.map((ob) => (
+                    {filteredOutbreaks.map((ob) => (
                       <tr key={ob.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 font-medium text-gray-900">
                           {ob.disease}
@@ -234,7 +271,7 @@ export default function DashboardPage() {
               <div className="h-72 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
-                    data={healthData}
+                    data={filteredHealth}
                     margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
                   >
                     <CartesianGrid
@@ -262,7 +299,7 @@ export default function DashboardPage() {
                       }}
                     />
                     <Bar dataKey="ndvi_score" radius={[4, 4, 0, 0]}>
-                      {healthData.map((entry, index) => (
+                      {filteredHealth.map((entry, index) => (
                         <Cell
                           key={`cell-${index}`}
                           fill={
@@ -301,7 +338,7 @@ export default function DashboardPage() {
                   />
                 </button>
               </div>
-              <div className="p-6">
+              <div className="p-6 max-h-[400px] overflow-y-auto pr-4 custom-scrollbar">
                 <div className="prose prose-invert prose-sm max-w-none">
                   {loadingReport ? (
                     <div className="flex flex-col items-center justify-center py-8 text-green-200">
@@ -310,18 +347,25 @@ export default function DashboardPage() {
                     </div>
                   ) : (
                     <div className="text-green-50 space-y-3">
-                      {report.split("\n").map((line, i) => (
-                        <p
-                          key={i}
-                          className={
-                            line.startsWith("##")
-                              ? "font-bold text-lg mt-4"
-                              : "text-green-50"
-                          }
-                        >
-                          {line.replace(/^#+\s*/, "")}
-                        </p>
-                      ))}
+                      {report.split("\n").map((line, i) => {
+                        if (!line.trim()) return null;
+                        return (
+                          <p
+                            key={i}
+                            className={
+                              line.startsWith("##")
+                                ? "font-bold text-lg mt-5 text-white"
+                                : line.startsWith("#")
+                                  ? "font-bold text-xl mt-6 text-white"
+                                  : line.startsWith("-") || line.startsWith("*")
+                                    ? "text-green-50 ml-4 border-l-2 border-green-700 pl-3"
+                                    : "text-green-50 leading-relaxed"
+                            }
+                          >
+                            {line.replace(/^#+\s*/, "").replace(/^[*-]\s*/, "").replace(/\*\*/g, "")}
+                          </p>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -333,8 +377,8 @@ export default function DashboardPage() {
               <h3 className="text-lg font-bold text-gray-900 mb-4">
                 Indian States Network
               </h3>
-              <div className="space-y-4">
-                {states.map((s) => (
+              <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                {filteredStates.map((s) => (
                   <div
                     key={s.code}
                     className="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors cursor-default"
@@ -379,7 +423,7 @@ export default function DashboardPage() {
                 Cross-State Signals
               </h3>
               <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
-                {signals.map((sig, idx) => (
+                {filteredSignals.map((sig, idx) => (
                   <div key={idx} className="p-4 rounded-xl border border-blue-50 bg-blue-50/30 text-sm">
                     <div className="flex justify-between items-center mb-2">
                       <span className="font-semibold text-blue-800">

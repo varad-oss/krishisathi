@@ -7,6 +7,7 @@ import { diagnoseCrop } from '@/lib/api';
 import { DiagnosisResponse } from '@/lib/types';
 import { SUPPORTED_LANGUAGES } from '@/lib/languages';
 import { useLanguage } from '@/lib/LanguageContext';
+import { t } from '@/lib/translations';
 
 const CROP_TYPES = ['Wheat', 'Rice', 'Tomato', 'Potato', 'Corn', 'Soybean', 'Cotton', 'Sugarcane', 'Other'];
 
@@ -88,12 +89,12 @@ export default function DiagnosePage() {
 
   return (
     <div className="flex-1 bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto space-y-8">
-        
-        {/* Header */}
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900">Crop Disease Diagnosis</h1>
-          <p className="mt-2 text-gray-600">Upload a photo of your crop to instantly identify diseases and get AI-powered treatment plans.</p>
+      <div className="max-w-4xl mx-auto space-y-6">
+        <div className="text-center space-y-2 mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900">{t(t("Crop Disease Diagnosis", language), language)}</h1>
+          <p className="text-gray-600 max-w-2xl mx-auto">
+            {t(t("Upload a photo of your crop to instantly identify diseases and get AI-powered treatment plans.", language), language)}
+          </p>
         </div>
 
         {/* Upload & Settings Section */}
@@ -142,17 +143,17 @@ export default function DiagnosePage() {
             {/* Controls */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Crop Type (Optional)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t(t("Crop Type (Optional)", language), language)}</label>
                 <select 
                   value={cropType}
                   onChange={(e) => setCropType(e.target.value)}
                   className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
                 >
-                  {CROP_TYPES.map(c => <option key={c} value={c}>{c}</option>)}
+                  {CROP_TYPES.map(c => <option key={c} value={c}>{t(c, language)}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Response Language</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t(t("Response Language", language), language)}</label>
                 <select 
                   value={language}
                   onChange={(e) => setLanguage(e.target.value)}

@@ -14,4 +14,7 @@ pydantic-settings
 python-dotenv
 Pillow
 twilio
+gtts
+earthengine-api
+scikit-learn
 

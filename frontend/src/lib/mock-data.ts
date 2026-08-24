@@ -44,9 +44,11 @@ export const mockAdvisory: AdvisoryResponse = {
 };
 
 export const mockWeather: WeatherData = {
-  temperature: 28,
-  humidity: 65,
-  condition: "Partly Cloudy",
+  temp: 28.5,
+  humidity: 76,
+  rainfall: 12.5,
+  wind: 8.2,
+  description: "Partly cloudy with scattered showers",
   forecast: [
     { date: "Tomorrow", high: 30, low: 24, condition: "Rain" },
     { date: "Day 3", high: 29, low: 23, condition: "Thunderstorms" }

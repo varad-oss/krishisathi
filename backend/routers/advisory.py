@@ -1,19 +1,37 @@
+import logging
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
+import io
+import base64
+from gtts import gTTS
+from google import genai
+from google.genai import types
+
 from models.advisory import AdvisoryRequest, AdvisoryResponse, VoiceAdvisoryRequest, VoiceAdvisoryResponse
 from services.gemini_service import gemini_service
 from services.weather_service import weather_service
 from services.translation import translation_service
-import base64
+from config import settings
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/advisory", tags=["Advisory"])
+
+def get_audio_mime_type(audio_bytes: bytes) -> str:
+    if audio_bytes.startswith(b'RIFF'):
+        return 'audio/wav'
+    elif audio_bytes.startswith(b'\x1A\x45\xdf\xa3'):
+        return 'audio/webm'
+    elif audio_bytes.startswith(b'OggS'):
+        return 'audio/ogg'
+    else:
+        return 'audio/mp3'
 
 @router.post("", response_model=AdvisoryResponse)
 async def get_advisory(request: AdvisoryRequest):
     try:
-        # Get weather context
         weather = await weather_service.get_current_weather(request.latitude, request.longitude)
         
-        # Translate query to English if needed
         query_en = request.query
         if request.language != 'en':
             query_en = translation_service.translate_text(request.query, request.language, 'en')
@@ -24,10 +42,14 @@ async def get_advisory(request: AdvisoryRequest):
             "location": {"lat": request.latitude, "lng": request.longitude}
         }
         
-        # Get advisory from Gemini
-        advisory_en = gemini_service.generate_advisory(query_en, context)
+        # Try agent first (Task T1.3)
+        try:
+            from services.agent_service import agent_service
+            advisory_en = agent_service.process_advisory(query_en, context)
+        except Exception as e:
+            logger.warning(f"Agent service failed, falling back to deterministic generation: {e}")
+            advisory_en = gemini_service.generate_advisory(query_en, context)
         
-        # Translate back if needed
         advisory_final = advisory_en
         translated_text = None
         if request.language != 'en':
@@ -42,45 +64,57 @@ async def get_advisory(request: AdvisoryRequest):
             translated_text=translated_text
         )
     except Exception as e:
+        logger.error(f"Error in get_advisory: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
-from fastapi.responses import StreamingResponse
-import io
-from gtts import gTTS
 
 @router.post("/voice", response_model=VoiceAdvisoryResponse)
 async def get_voice_advisory(request: VoiceAdvisoryRequest):
-    # In a real app, use Google Cloud Speech-to-Text here (needs billing)
-    # For zero-billing constraint, we mock STT or could use local models
-    mock_transcription = "What is the best time to water my wheat crops?"
-    
-    # Process like normal text advisory
-    advisory_req = AdvisoryRequest(
-        query=mock_transcription,
-        latitude=request.latitude,
-        longitude=request.longitude,
-        language=request.language
-    )
-    
-    advisory_response = await get_advisory(advisory_req)
-    
-    # Generate audio using gTTS
-    tts = gTTS(text=advisory_response.advisory_text, lang=request.language if request.language in ['en', 'hi', 'mr', 'ta', 'te', 'bn', 'pt', 'ru', 'zh'] else 'en')
-    fp = io.BytesIO()
-    tts.write_to_fp(fp)
-    audio_b64 = base64.b64encode(fp.getvalue()).decode('utf-8')
-    
-    return VoiceAdvisoryResponse(
-        transcribed_text=mock_transcription,
-        advisory=advisory_response,
-        audio_response_base64=audio_b64
-    )
+    try:
+        audio_bytes = base64.b64decode(request.audio_base64)
+        mime_type = get_audio_mime_type(audio_bytes)
+        
+        # 1. Native Gemini Audio Transcription
+        client = genai.Client(api_key=settings.GEMINI_API_KEY)
+        audio_part = types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)
+        
+        response = client.models.generate_content(
+            model='gemini-flash-lite-latest',
+            contents=[
+                audio_part, 
+                "Transcribe the audio exactly. Return only the transcribed text, nothing else."
+            ]
+        )
+        
+        transcribed_text = response.text.strip()
+        logger.info(f"Transcribed audio to: {transcribed_text}")
+        
+        advisory_req = AdvisoryRequest(
+            query=transcribed_text,
+            latitude=request.latitude,
+            longitude=request.longitude,
+            language=request.language
+        )
+        
+        advisory_response = await get_advisory(advisory_req)
+        
+        tts_lang = request.language if request.language in ['en', 'hi', 'mr', 'ta', 'te', 'bn', 'pt', 'ru', 'zh'] else 'en'
+        tts = gTTS(text=advisory_response.advisory_text, lang=tts_lang)
+        fp = io.BytesIO()
+        tts.write_to_fp(fp)
+        audio_b64 = base64.b64encode(fp.getvalue()).decode('utf-8')
+        
+        return VoiceAdvisoryResponse(
+            transcribed_text=transcribed_text,
+            advisory=advisory_response,
+            audio_response_base64=audio_b64
+        )
+    except Exception as e:
+        logger.error(f"Error in get_voice_advisory: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/tts")
 async def text_to_speech(text: str, lang: str = "en"):
-    """Generate audio file for WhatsApp webhook media URLs"""
     try:
-        # Check if lang is supported by gTTS, fallback to en
         safe_lang = lang if lang in ['en', 'hi', 'mr', 'ta', 'te', 'bn', 'pt', 'ru', 'zh'] else 'en'
         tts = gTTS(text=text, lang=safe_lang)
         fp = io.BytesIO()
@@ -88,4 +122,5 @@ async def text_to_speech(text: str, lang: str = "en"):
         fp.seek(0)
         return StreamingResponse(fp, media_type="audio/mpeg")
     except Exception as e:
+        logger.error(f"Error in text_to_speech: {e}")
         raise HTTPException(status_code=500, detail=str(e))

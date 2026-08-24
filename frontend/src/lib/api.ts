@@ -124,7 +124,7 @@ export async function getDashboardReport(): Promise<string> {
     const response = await fetch(`${API_BASE}/api/dashboard/report`);
     if (!response.ok) throw new Error('Failed to fetch report');
     const data = await response.json();
-    return data.report;
+    return data.report_text || data.report;
   } catch (error) {
     return "## Weekly Agriculture Intelligence Report\n\nBased on data across 8 Indian states, we are observing a 15% increase in Late Blight cases in Western Maharashtra due to heavy monsoon rainfall. Wheat rust remains a concern in Punjab and UP. Fall Armyworm migration tracking suggests Karnataka maize fields should prepare preventive measures. Cross-state data exchange between Punjab and UP has enabled early warning advisories in the Gangetic wheat belt.";
   }
@@ -203,4 +203,17 @@ export async function getExchangeSignals(): Promise<any> {
     { method: 'GET' },
     { signals: [] }
   );
+}
+
+export async function getPersonalizedAlerts(lat: number, lng: number, cropType?: string): Promise<any[]> {
+  const cropQuery = cropType ? `&crop_type=${encodeURIComponent(cropType)}` : '';
+  try {
+    const response = await fetch(`${API_BASE}/api/alerts/personalized?lat=${lat}&lng=${lng}${cropQuery}`);
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.alerts || [];
+  } catch (error) {
+    console.warn('Personalized Alerts API failed:', error);
+    return [];
+  }
 }

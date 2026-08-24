@@ -1,14 +1,17 @@
-from google.cloud import translate_v2 as translate
+import logging
+from google import genai
+from google.genai import types
 from config import settings
+
+logger = logging.getLogger(__name__)
 
 class TranslationService:
     def __init__(self):
         try:
-            # Assumes GOOGLE_APPLICATION_CREDENTIALS is set in env
-            self.translate_client = translate.Client()
+            self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
             self.enabled = True
         except Exception as e:
-            print(f"Google Cloud Translation not configured: {e}. Using mock/fallback.")
+            logger.error(f"Gemini client not configured for TranslationService: {e}. Using mock/fallback.")
             self.enabled = False
             
     def translate_text(self, text: str, source_lang: str, target_lang: str) -> str:
@@ -19,12 +22,17 @@ class TranslationService:
             return f"[Translated to {target_lang}]: {text}"
             
         try:
-            result = self.translate_client.translate(
-                text, target_language=target_lang, source_language=source_lang
+            prompt = f"Translate the following text from {source_lang} to {target_lang}. Only output the translated text, nothing else.\n\nText: {text}"
+            response = self.client.models.generate_content(
+                model='gemini-flash-lite-latest',
+                contents=[prompt],
+                config=types.GenerateContentConfig(
+                    temperature=0.1,
+                )
             )
-            return result['translatedText']
+            return response.text.strip()
         except Exception as e:
-            print(f"Translation error: {e}")
+            logger.error(f"Translation error: {e}")
             return f"[Fallback translated to {target_lang}]: {text}"
 
     def get_supported_languages(self) -> list:

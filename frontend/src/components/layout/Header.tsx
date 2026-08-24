@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { SUPPORTED_LANGUAGES } from '@/lib/languages';
 import { useLanguage } from '@/lib/LanguageContext';
+import { t } from '@/lib/translations';
 
 export default function Header() {
   const pathname = usePathname();
@@ -36,14 +37,14 @@ export default function Header() {
         <nav className="hidden md:flex items-center gap-8">
           {navLinks.map((link) => (
             <Link
-              key={link.name}
+              key={t(link.name, language)}
               href={link.path}
               className={cn(
                 "text-sm font-medium transition-colors hover:text-green-200",
                 pathname === link.path ? "text-green-200 font-semibold" : "text-white"
               )}
             >
-              {link.name}
+              {t(link.name, language)}
             </Link>
           ))}
           
@@ -100,7 +101,7 @@ export default function Header() {
           <div className="space-y-1 px-4 pb-3 pt-2">
             {navLinks.map((link) => (
               <Link
-                key={link.name}
+                key={t(link.name, language)}
                 href={link.path}
                 onClick={() => setIsMobileMenuOpen(false)}
                 className={cn(
@@ -110,11 +111,11 @@ export default function Header() {
                     : "text-green-100 hover:bg-green-700 hover:text-white"
                 )}
               >
-                {link.name}
+                {t(link.name, language)}
               </Link>
             ))}
             <div className="mt-4 pt-4 border-t border-green-700">
-              <p className="px-3 text-xs font-semibold text-green-300 uppercase tracking-wider mb-2">Language</p>
+              <p className="px-3 text-xs font-semibold text-green-300 uppercase tracking-wider mb-2">{t("Language", language)}</p>
               <div className="grid grid-cols-2 gap-2 px-2">
                 {SUPPORTED_LANGUAGES.map((lang) => (
                   <button
