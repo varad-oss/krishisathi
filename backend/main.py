@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'bot', 'webhook
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
-from routers import diagnose, advisory, alerts, weather, dashboard, states
+from routers import diagnose, advisory, alerts, weather, dashboard, states, debug
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -43,6 +43,7 @@ app.include_router(alerts.router)
 app.include_router(weather.router)
 app.include_router(dashboard.router)
 app.include_router(states.router)
+app.include_router(debug.router)
 
 # WhatsApp bot webhook (optional — requires Twilio)
 try:

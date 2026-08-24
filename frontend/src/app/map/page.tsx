@@ -36,7 +36,7 @@ export default function MapPage() {
     <div className="flex-1 bg-gray-50 flex flex-col md:flex-row h-[calc(100vh-64px)] overflow-hidden">
       {/* Main Map Area */}
       <div className="flex-1 relative border-r z-0">
-        <MapComponent outbreaks={outbreaks} />
+        <MapComponent />
         
         <div className="absolute top-4 left-14 z-[400] bg-white/90 backdrop-blur-sm p-4 rounded-xl shadow-md border border-gray-200 pointer-events-auto">
           <h2 className="font-bold text-gray-900 flex items-center gap-2">
