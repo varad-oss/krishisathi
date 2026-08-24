@@ -154,18 +154,7 @@ export default function DiagnosePage() {
 
   return (
     <div className="flex-1 bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-      {/* Global Stop Audio Button */}
-      {isSpeakingActive && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4">
-          <button
-            onClick={stopSpeaking}
-            className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-full shadow-lg hover:bg-red-700 transition-all font-medium"
-          >
-            <VolumeX className="h-4 w-4" />
-            {t('Stop Audio', language) || 'Stop Audio'}
-          </button>
-        </div>
-      )}
+      
 
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="text-center space-y-2 mb-8">
@@ -432,11 +421,12 @@ export default function DiagnosePage() {
                             )}
                             {msg.role === 'assistant' && (
                               <button
-                                onClick={() => speakText(msg.content, language)}
-                                className="mt-1 flex items-center gap-1 text-xs text-gray-400 hover:text-green-600"
-                              >
-                                <Volume2 className="h-3 w-3" /> {t('Read Aloud', language)}
-                              </button>
+                  onClick={() => isSpeakingActive ? stopSpeaking() : speakText(msg.content, language)}
+                  className={`mt-1 flex items-center gap-1 text-xs ${isSpeakingActive ? 'text-red-500 hover:text-red-600 font-medium' : 'text-gray-400 hover:text-green-600'}`}
+                >
+                  {isSpeakingActive ? <VolumeX className="h-3 w-3" /> : <Volume2 className="h-3 w-3" />}
+                  {isSpeakingActive ? t('Stop Reading', language) : t('Read Aloud', language)}
+                </button>
                             )}
                           </div>
                         </div>

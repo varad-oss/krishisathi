@@ -6,6 +6,7 @@ class AdvisoryRequest(BaseModel):
     latitude: float
     longitude: float
     crop_type: Optional[str] = None
+    image_base64: Optional[str] = None
     language: str = 'en'
 
 class AdvisoryResponse(BaseModel):

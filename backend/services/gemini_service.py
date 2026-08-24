@@ -99,7 +99,7 @@ class GeminiService:
             print(f"Error calling Gemini: {e}")
             return self._get_mock_diagnosis(crop_type)
 
-    def generate_advisory(self, query: str, context: dict) -> str:
+    def generate_advisory(self, query: str, context: dict, image_base64: str = None) -> str:
         if not self.client:
             return "Based on mock data, ensure proper irrigation and apply balanced NPK fertilizers."
             

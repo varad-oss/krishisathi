@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Loader2, Cloud, Droplets, MapPin, Satellite, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
+import { Send, Bot, User, Loader2, Cloud, Droplets, MapPin, Satellite, Mic, MicOff, Volume2, VolumeX, Image as ImageIcon, X } from 'lucide-react';
 import { speakText, stopSpeaking, startRecording, stopRecording, onSpeechStateChange } from '@/lib/speech';
 import { getAdvisory, getWeather, getCropHealth, getPersonalizedAlerts } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -17,6 +17,7 @@ interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  imageUrl?: string;
   timestamp: Date;
 }
 
@@ -38,6 +39,9 @@ export default function ChatPage() {
     }
   ]);
   const [input, setInput] = useState('');
+  const [imageAttachment, setImageAttachment] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
@@ -96,7 +100,21 @@ export default function ChatPage() {
     scrollToBottom();
   }, [messages, isLoading]);
 
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64String = event.target?.result as string;
+      setImageAttachment(base64String);
+    };
+    reader.readAsDataURL(file);
+  };
+  
   const handleSend = async (text: string) => {
+
     if (!text.trim()) return;
 
     const userMessage: Message = {
@@ -160,18 +178,7 @@ export default function ChatPage() {
 
   return (
     <div className="flex-1 bg-gray-50 flex flex-col md:flex-row h-[calc(100vh-4rem)]">
-      {/* Global Stop Audio Button */}
-      {isSpeakingActive && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4">
-          <button
-            onClick={stopSpeaking}
-            className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-full shadow-lg hover:bg-red-700 transition-all font-medium"
-          >
-            <VolumeX className="h-4 w-4" />
-            {t('Stop Audio', language) || 'Stop Audio'}
-          </button>
-        </div>
-      )}
+      
 
       
       {/* Contextual Data Sidebar */}
@@ -354,13 +361,13 @@ export default function ChatPage() {
                 )}
                 {msg.role === 'assistant' && msg.id !== '1' && (
                   <button
-                    onClick={() => speakText(msg.content, language)}
-                    className="mt-2 flex items-center gap-1 text-xs text-gray-400 hover:text-green-600 transition-colors"
-                    title={t('Read Aloud', language)}
-                  >
-                    <Volume2 className="h-3.5 w-3.5" />
-                    {t('Read Aloud', language)}
-                  </button>
+                  onClick={() => isSpeakingActive ? stopSpeaking() : speakText(msg.content, language)}
+                  className={`mt-2 flex items-center gap-1 text-xs transition-colors ${isSpeakingActive ? 'text-red-500 hover:text-red-600 font-medium' : 'text-gray-400 hover:text-green-600'}`}
+                  title={isSpeakingActive ? t('Stop Reading', language) : t('Read Aloud', language)}
+                >
+                  {isSpeakingActive ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+                  {isSpeakingActive ? t('Stop Reading', language) : t('Read Aloud', language)}
+                </button>
                 )}
                 <p className={cn(
                   "text-[10px] mt-2 text-right",

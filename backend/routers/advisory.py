@@ -74,10 +74,10 @@ async def get_advisory(request: AdvisoryRequest):
         # Try agent first (Task T1.3)
         try:
             from services.agent_service import agent_service
-            advisory_en = agent_service.process_advisory(query_en, context)
+            advisory_en = agent_service.process_advisory(query_en, context, image_base64=request.image_base64)
         except Exception as e:
             logger.warning(f"Agent service failed, falling back to deterministic generation: {e}")
-            advisory_en = gemini_service.generate_advisory(query_en, context)
+            advisory_en = gemini_service.generate_advisory(query_en, context, image_base64=request.image_base64)
         
         advisory_final = advisory_en
         translated_text = None
@@ -127,7 +127,7 @@ async def get_followup_advisory(request: AdvisoryRequest, disease_name: str = ''
             "diagnosis_context": f"{disease_name} ({severity})"
         }
         
-        advisory_en = gemini_service.generate_advisory(query_en, context)
+        advisory_en = gemini_service.generate_advisory(query_en, context, image_base64=request.image_base64)
         
         advisory_final = advisory_en
         if request.language != 'en':

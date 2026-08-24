@@ -72,7 +72,7 @@ class AgentService:
             self.client = None
             logger.warning("GEMINI_API_KEY not set for AgentService.")
 
-    def process_advisory(self, query: str, context: dict) -> str:
+    def process_advisory(self, query: str, context: dict, image_base64: str = None) -> str:
         if not self.client:
             raise Exception("Agent requires API key")
 
@@ -87,11 +87,19 @@ class AgentService:
         # Using gemini-flash-lite-latest for complex agent orchestration (to avoid rate limits)
         model = 'gemini-flash-lite-latest'
         
-        try:
+try:
             logger.info("Calling Gemini Agent...")
+            contents = [prompt]
+            if image_base64:
+                import base64
+                from google.genai import types
+                img_bytes = base64.b64decode(image_base64)
+                img_part = types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg")
+                contents.append(img_part)
+                
             response = self.client.models.generate_content(
                 model=model,
-                contents=prompt,
+                contents=contents,
                 config=types.GenerateContentConfig(
                     temperature=0.2,
                     tools=[get_weather_tool, get_kvk_tool, get_state_config_tool],
