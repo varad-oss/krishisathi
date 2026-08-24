@@ -75,6 +75,9 @@ export function speakText(text: string, langCode: string): void {
   currentAudio.onended = () => notifyStateChange(false);
   currentAudio.onerror = () => notifyStateChange(false);
   currentAudio.play().catch(e => {
+    if (e.name === 'AbortError') {
+      return; // Ignore aborts from rapid re-renders
+    }
     console.error("Audio playback failed:", e);
     notifyStateChange(false);
   });

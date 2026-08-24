@@ -192,12 +192,13 @@ async def get_voice_advisory(request: VoiceAdvisoryRequest):
 @router.get("/tts")
 async def text_to_speech(text: str, lang: str = "en"):
     try:
+        from fastapi import Response
         safe_lang = lang if lang in ['en', 'hi', 'mr', 'ta', 'te', 'bn', 'pt', 'ru', 'zh'] else 'en'
         tts = gTTS(text=text, lang=safe_lang)
         fp = io.BytesIO()
         tts.write_to_fp(fp)
-        fp.seek(0)
-        return StreamingResponse(fp, media_type="audio/mpeg")
+        audio_data = fp.getvalue()
+        return Response(content=audio_data, media_type="audio/mpeg")
     except Exception as e:
         logger.error(f"Error in text_to_speech: {e}")
         raise HTTPException(status_code=500, detail=str(e))
