@@ -196,3 +196,11 @@ export async function getAlerts(): Promise<Alert[]> {
     mockAlerts
   );
 }
+
+export async function getExchangeSignals(): Promise<any> {
+  return fetchWithFallback<any>(
+    `${API_BASE}/api/states/exchange/signals`,
+    { method: 'GET' },
+    { signals: [] }
+  );
+}

@@ -1,60 +1,80 @@
 import httpx
-from config import settings
 
 class WeatherService:
     def __init__(self):
-        self.api_key = settings.OPENWEATHER_API_KEY
-        self.base_url = "https://api.openweathermap.org/data/2.5"
+        self.base_url = "https://api.open-meteo.com/v1/forecast"
 
     async def get_current_weather(self, lat: float, lng: float) -> dict:
-        if not self.api_key:
-            return self._mock_current_weather()
-            
         try:
             async with httpx.AsyncClient() as client:
-                url = f"{self.base_url}/weather?lat={lat}&lon={lng}&appid={self.api_key}&units=metric"
-                response = await client.get(url)
+                url = f"{self.base_url}?latitude={lat}&longitude={lng}&current_weather=true&hourly=relative_humidity_2m,precipitation&timezone=auto"
+                response = await client.get(url, timeout=10.0)
                 response.raise_for_status()
                 data = response.json()
                 
+                current = data.get("current_weather", {})
+                temp = current.get("temperature", 28.5)
+                wind = current.get("windspeed", 12.5)
+                
+                # Extract current humidity and precipitation from hourly data (using first hour as proxy)
+                humidity = 65
+                rainfall = 0.0
+                if "hourly" in data:
+                    if "relative_humidity_2m" in data["hourly"] and len(data["hourly"]["relative_humidity_2m"]) > 0:
+                        humidity = data["hourly"]["relative_humidity_2m"][0]
+                    if "precipitation" in data["hourly"] and len(data["hourly"]["precipitation"]) > 0:
+                        rainfall = data["hourly"]["precipitation"][0]
+                
                 return {
-                    "temp": data["main"]["temp"],
-                    "humidity": data["main"]["humidity"],
-                    "rainfall": data.get("rain", {}).get("1h", 0.0),
-                    "wind": data["wind"]["speed"],
-                    "description": data["weather"][0]["description"]
+                    "temp": temp,
+                    "humidity": humidity,
+                    "rainfall": rainfall,
+                    "wind": wind,
+                    "description": self._get_weather_desc(current.get("weathercode", 0)),
+                    "source": "Open-Meteo Live API"
                 }
         except Exception as e:
             print(f"Weather API error: {e}")
             return self._mock_current_weather()
 
     async def get_forecast(self, lat: float, lng: float, days: int = 7) -> list:
-        if not self.api_key:
-            return self._mock_forecast(days)
-            
         try:
             async with httpx.AsyncClient() as client:
-                # Using 5 day / 3 hour forecast API for free tier as daily forecast is paid in some plans
-                url = f"{self.base_url}/forecast?lat={lat}&lon={lng}&appid={self.api_key}&units=metric"
-                response = await client.get(url)
+                url = f"{self.base_url}?latitude={lat}&longitude={lng}&daily=temperature_2m_max,temperature_2m_min,weathercode,precipitation_sum&timezone=auto&past_days=0"
+                response = await client.get(url, timeout=10.0)
                 response.raise_for_status()
                 data = response.json()
                 
-                # Naive grouping by day for demo
-                daily_forecasts = []
-                for i in range(0, min(len(data["list"]), days * 8), 8):
-                    item = data["list"][i]
-                    daily_forecasts.append({
-                        "date": item["dt_txt"].split(" ")[0],
-                        "temp_max": item["main"]["temp_max"],
-                        "temp_min": item["main"]["temp_min"],
-                        "description": item["weather"][0]["description"],
-                        "humidity": item["main"]["humidity"]
+                daily = data.get("daily", {})
+                dates = daily.get("time", [])
+                t_max = daily.get("temperature_2m_max", [])
+                t_min = daily.get("temperature_2m_min", [])
+                w_codes = daily.get("weathercode", [])
+                
+                forecast = []
+                for i in range(min(days, len(dates))):
+                    forecast.append({
+                        "date": dates[i],
+                        "temp_max": t_max[i] if i < len(t_max) else 30.0,
+                        "temp_min": t_min[i] if i < len(t_min) else 22.0,
+                        "description": self._get_weather_desc(w_codes[i] if i < len(w_codes) else 0),
+                        "humidity": 60 # Not natively in daily, using static estimate
                     })
-                return daily_forecasts
+                return forecast
         except Exception as e:
             print(f"Forecast API error: {e}")
             return self._mock_forecast(days)
+
+    def _get_weather_desc(self, code: int) -> str:
+        # WMO Weather interpretation codes
+        if code == 0: return "Clear sky"
+        if code in [1, 2, 3]: return "Partly cloudy"
+        if code in [45, 48]: return "Fog"
+        if code in [51, 53, 55]: return "Drizzle"
+        if code in [61, 63, 65]: return "Rain"
+        if code in [80, 81, 82]: return "Rain showers"
+        if code in [95, 96, 99]: return "Thunderstorm"
+        return "Unknown"
 
     def _mock_current_weather(self) -> dict:
         return {
@@ -62,7 +82,8 @@ class WeatherService:
             "humidity": 65,
             "rainfall": 0.0,
             "wind": 12.5,
-            "description": "partly cloudy"
+            "description": "partly cloudy",
+            "source": "Mock Data"
         }
         
     def _mock_forecast(self, days: int) -> list:
