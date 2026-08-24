@@ -30,6 +30,7 @@ export function formatNumber(num: number, lang: string = 'en'): string {
   return new Intl.NumberFormat(`${lang}-IN-u-nu-${nu}`, {
     notation: 'compact',
     compactDisplay: 'short',
+    maximumFractionDigits: 1,
   }).format(num);
 }
 

@@ -121,7 +121,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 
 export async function getDashboardReport(language: string = 'en'): Promise<string> {
   try {
-    const response = await fetch(`${API_BASE}/api/dashboard/report?language=${language}`);
+    const response = await fetch(`${API_BASE}/api/dashboard/report?language=${language}`, { cache: 'no-store' });
     if (!response.ok) throw new Error('Failed to fetch report');
     const data = await response.json();
     return data.report_text || data.report;

@@ -126,14 +126,18 @@ class GeminiService:
     def generate_dashboard_report(self, data: dict, language: str = 'en') -> str:
         if not self.client:
             return "This is a mock weekly report. No significant issues reported."
-            
         try:
+            lang_map = {'hi': 'Hindi', 'mr': 'Marathi', 'ta': 'Tamil', 'te': 'Telugu', 'bn': 'Bengali', 'kn': 'Kannada', 'gu': 'Gujarati', 'pa': 'Punjabi', 'ml': 'Malayalam', 'en': 'English'}
+            lang_name = lang_map.get(language, 'English')
+            
             prompt = f"""
             You are an agricultural data analyst. Generate a natural language weekly report from the following aggregated data for a policymaker dashboard.
             Data: {data}
             
-            Keep the report professional, highlighting key insights, risks, and recommendations.\n            MUST GENERATE IN LANGUAGE CODE: {language}.
+            Keep the report professional, highlighting key insights, risks, and recommendations.
+            CRITICAL INSTRUCTION: YOU MUST WRITE THE ENTIRE REPORT EXCLUSIVELY IN {lang_name} ({language}).
             """
+
             
             response = self._call_with_fallback(
                 prompt=prompt, 

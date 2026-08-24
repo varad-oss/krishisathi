@@ -172,7 +172,7 @@ export default function ChatPage() {
               <div>
                 <p className="text-sm text-amber-700">{t('Volumetric Moisture', language)}</p>
                 <p className="text-2xl font-light text-amber-900">
-                  {weatherData?.soil_moisture !== undefined ? (weatherData.soil_moisture * 100).toFixed(1) + '%' : weatherData?.rainfall + ' mm'}
+                  {weatherData?.soil_moisture !== undefined ? formatNumber(Number((weatherData.soil_moisture * 100).toFixed(1)), language) + '%' : formatNumber(Number(weatherData?.rainfall || 0), language) + ' mm'}
                 </p>
               </div>
               <span className={cn(
