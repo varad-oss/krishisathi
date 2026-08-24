@@ -355,6 +355,11 @@ export default function ChatPage() {
                   ? "bg-green-700 text-white rounded-tr-sm" 
                   : "bg-gray-100 text-gray-800 rounded-tl-sm border border-gray-200"
               )}>
+                {msg.imageUrl && (
+                  <div className="mb-3 rounded-lg overflow-hidden border border-white/20">
+                    <img src={msg.imageUrl} alt="Uploaded attachment" className="max-w-full max-h-48 object-cover rounded-md" />
+                  </div>
+                )}
                 {msg.role === 'user' ? (
                   <p className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                 ) : (

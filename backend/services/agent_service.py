@@ -87,7 +87,7 @@ class AgentService:
         # Using gemini-flash-lite-latest for complex agent orchestration (to avoid rate limits)
         model = 'gemini-flash-lite-latest'
         
-try:
+        try:
             logger.info("Calling Gemini Agent...")
             contents = [prompt]
             if image_base64:

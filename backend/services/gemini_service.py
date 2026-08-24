@@ -112,8 +112,16 @@ class GeminiService:
             Provide the advisory clearly and concisely.
             """
             
+            image_part = None
+            if image_base64:
+                import base64
+                from google.genai import types
+                img_bytes = base64.b64decode(image_base64)
+                image_part = types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg")
+            
             response = self._call_with_fallback(
                 prompt=prompt, 
+                image_part=image_part,
                 use_pro=False, 
                 temperature=0.5
             )
