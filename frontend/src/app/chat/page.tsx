@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Loader2, Cloud, Droplets, MapPin, Satellite, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
-import { speakText, stopSpeaking, createSpeechRecognition, isSpeechRecognitionSupported } from '@/lib/speech';
+import { speakText, stopSpeaking, startRecording, stopRecording } from '@/lib/speech';
 import { getAdvisory, getWeather, getCropHealth, getPersonalizedAlerts } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { SUPPORTED_LANGUAGES } from '@/lib/languages';
@@ -130,38 +130,17 @@ export default function ChatPage() {
   };
 
   const startListening = () => {
-    const recognition = createSpeechRecognition(language);
-    if (!recognition) {
-      alert('Voice input is not supported in your browser. Please use Chrome or Brave.');
-      return;
-    }
-    recognitionRef.current = recognition;
     setIsListening(true);
-
-    recognition.onresult = (event: any) => {
-      const transcript = Array.from(event.results)
-        .map((result: any) => result[0].transcript)
-        .join('');
-      setInput(transcript);
-    };
-
-    recognition.onerror = (event: any) => {
-      console.error('Speech recognition error:', event.error);
-      setIsListening(false);
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    recognition.start();
+    startRecording(
+      language,
+      (text) => setInput(text),
+      (err) => console.error(err),
+      () => setIsListening(false)
+    );
   };
 
   const stopListening = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      recognitionRef.current = null;
-    }
+    stopRecording();
     setIsListening(false);
   };
 

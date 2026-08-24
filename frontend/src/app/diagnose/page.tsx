@@ -10,7 +10,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { t } from '@/lib/translations';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { speakText, createSpeechRecognition, isSpeechRecognitionSupported } from '@/lib/speech';
+import { speakText, startRecording, stopRecording } from '@/lib/speech';
 
 const CROP_TYPES = ['Wheat', 'Rice', 'Tomato', 'Potato', 'Corn', 'Soybean', 'Cotton', 'Sugarcane', 'Other'];
 
@@ -133,21 +133,17 @@ export default function DiagnosePage() {
   };
 
   const startFollowUpListening = () => {
-    const recognition = createSpeechRecognition(language);
-    if (!recognition) return;
-    recognitionRef.current = recognition;
     setIsListening(true);
-    recognition.onresult = (event: any) => {
-      const transcript = Array.from(event.results).map((r: any) => r[0].transcript).join('');
-      setFollowUpInput(transcript);
-    };
-    recognition.onerror = () => setIsListening(false);
-    recognition.onend = () => setIsListening(false);
-    recognition.start();
+    startRecording(
+      language,
+      (text) => setFollowUpInput(text),
+      (err) => console.error(err),
+      () => setIsListening(false)
+    );
   };
 
   const stopFollowUpListening = () => {
-    if (recognitionRef.current) { recognitionRef.current.stop(); recognitionRef.current = null; }
+    stopRecording();
     setIsListening(false);
   };
 
