@@ -20,7 +20,7 @@ export default function Footer() {
                 GitHub
               </Link>
               <Link href="#" className="text-sm text-gray-600 hover:text-green-700">
-                BRICS Initiative
+                AgriN Initiative
               </Link>
               <Link href="#" className="text-sm text-gray-600 hover:text-green-700">
                 Privacy

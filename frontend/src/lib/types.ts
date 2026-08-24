@@ -53,6 +53,9 @@ export interface OutbreakData {
   severity: 'Low' | 'Moderate' | 'Severe' | 'Critical';
   reports_count: number;
   date: string;
+  lat?: number;
+  lng?: number;
+  affected_area_km2?: number;
 }
 
 export interface CropHealthData {
@@ -63,12 +66,15 @@ export interface CropHealthData {
   health_status: 'Excellent' | 'Good' | 'Fair' | 'Poor';
 }
 
-export interface BricsCountry {
+export interface IndianState {
   code: string;
   name: string;
   farmers_reached: number;
   active_alerts: number;
   top_crop: string;
+  districts: number;
+  lat: number;
+  lng: number;
 }
 
 export interface Alert {

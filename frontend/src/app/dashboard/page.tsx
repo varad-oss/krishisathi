@@ -7,14 +7,14 @@ import {
 import { 
   getDashboardStats, 
   getOutbreaks, 
-  getBricsCountries, 
+  getIndianStates, 
   getDashboardReport,
   getCropHealth 
 } from '@/lib/api';
 import { 
   DashboardStats, 
   OutbreakData, 
-  BricsCountry, 
+  IndianState, 
   CropHealthData 
 } from '@/lib/types';
 import { 
@@ -25,7 +25,7 @@ import { formatNumber, getSeverityColor, cn } from '@/lib/utils';
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [outbreaks, setOutbreaks] = useState<OutbreakData[]>([]);
-  const [countries, setCountries] = useState<BricsCountry[]>([]);
+  const [states, setStates] = useState<IndianState[]>([]);
   const [healthData, setHealthData] = useState<CropHealthData[]>([]);
   const [report, setReport] = useState<string>('');
   const [loadingReport, setLoadingReport] = useState(false);
@@ -35,12 +35,12 @@ export default function DashboardPage() {
       const [s, o, c, h] = await Promise.all([
         getDashboardStats(),
         getOutbreaks(),
-        getBricsCountries(),
+        getIndianStates(),
         getCropHealth()
       ]);
       setStats(s);
       setOutbreaks(o);
-      setCountries(c);
+      setStates(c);
       setHealthData(h);
       loadReport();
     }
@@ -52,11 +52,6 @@ export default function DashboardPage() {
     const rep = await getDashboardReport();
     setReport(rep);
     setLoadingReport(false);
-  };
-
-  const getCountryFlag = (code: string) => {
-    const flags: Record<string, string> = { BR: '🇧🇷', RU: '🇷🇺', IN: '🇮🇳', CN: '🇨🇳', ZA: '🇿🇦' };
-    return flags[code] || '🌍';
   };
 
   if (!stats) return (
@@ -76,7 +71,7 @@ export default function DashboardPage() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Policymaker Dashboard</h1>
-            <p className="text-gray-600 mt-1">Real-time agriculture intelligence across BRICS nations</p>
+            <p className="text-gray-600 mt-1">Real-time agriculture intelligence across Indian states</p>
           </div>
           <div className="bg-white px-4 py-2 rounded-lg border shadow-sm text-sm font-medium text-gray-600 flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-green-500"></span> Live Data Feed
@@ -124,7 +119,7 @@ export default function DashboardPage() {
                 <h3 className="text-2xl font-bold text-gray-900">{formatNumber(stats.farmers_reached)}</h3>
               </div>
             </div>
-            <div className="text-sm text-gray-500">Across 5 nations</div>
+            <div className="text-sm text-gray-500">Across 8 states</div>
           </div>
 
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
@@ -206,7 +201,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Right Column: AI Report & BRICS Info */}
+          {/* Right Column: AI Report & States Info */}
           <div className="space-y-8">
             
             {/* AI Report Card */}
@@ -233,29 +228,37 @@ export default function DashboardPage() {
                       <p>Gemini is analyzing latest data...</p>
                     </div>
                   ) : (
-                    <div className="text-green-50 space-y-3" dangerouslySetInnerHTML={{ __html: report.replace(/\n/g, '<br/>') }} />
+                    <div className="text-green-50 space-y-3">
+                      {report.split('\n').map((line, i) => (
+                        <p key={i} className={line.startsWith('##') ? 'font-bold text-lg mt-4' : 'text-green-50'}>
+                          {line.replace(/^#+\s*/, '')}
+                        </p>
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* BRICS Nations Grid */}
+            {/* Indian States Grid */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">BRICS Network Status</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Indian States Network</h3>
               <div className="space-y-4">
-                {countries.map(c => (
-                  <div key={c.code} className="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors cursor-default">
+                {states.map(s => (
+                  <div key={s.code} className="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors cursor-default">
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl">{getCountryFlag(c.code)}</span>
+                      <span className="flex items-center justify-center w-8 h-8 rounded-full bg-green-100 text-green-700 font-bold text-xs">
+                        {s.code}
+                      </span>
                       <div>
-                        <p className="font-bold text-gray-900 text-sm">{c.name}</p>
-                        <p className="text-xs text-gray-500">Top: {c.top_crop}</p>
+                        <p className="font-bold text-gray-900 text-sm">{s.name}</p>
+                        <p className="text-xs text-gray-500">Top: {s.top_crop}</p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-semibold text-gray-900">{formatNumber(c.farmers_reached)}</p>
-                      <p className={cn("text-xs font-medium", c.active_alerts > 0 ? "text-orange-600" : "text-green-600")}>
-                        {c.active_alerts} Alerts
+                      <p className="text-sm font-semibold text-gray-900">{formatNumber(s.farmers_reached)}</p>
+                      <p className={cn("text-xs font-medium", s.active_alerts > 0 ? "text-orange-600" : "text-green-600")}>
+                        {s.active_alerts} Alerts
                       </p>
                     </div>
                   </div>

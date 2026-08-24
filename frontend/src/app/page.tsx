@@ -5,12 +5,11 @@ export default function Home() {
   return (
     <div className="flex-1 bg-white">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-green-50 to-white pt-24 pb-32">
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5"></div>
+      <section className="relative overflow-hidden bg-green-50 pt-24 pb-32">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center animate-fade-in">
           <div className="inline-flex items-center gap-2 rounded-full bg-green-100 px-4 py-2 text-sm font-medium text-green-800 mb-8">
             <span className="flex h-2 w-2 rounded-full bg-green-600"></span>
-            BRICS Agriculture Intelligence Initiative
+            India Agriculture Intelligence Network
           </div>
           
           <h1 className="mx-auto max-w-4xl text-5xl font-extrabold tracking-tight text-gray-900 sm:text-6xl lg:text-7xl">
@@ -21,7 +20,7 @@ export default function Home() {
           </h1>
           
           <p className="mx-auto mt-6 max-w-2xl text-lg text-gray-600 sm:text-xl">
-            From photo to diagnosis in 5 seconds. Helping 500M+ farmers across BRICS nations with real-time AI-driven crop protection, advisory, and early warning systems.
+            From photo to diagnosis in 5 seconds. Helping 150M+ smallholder farmers across Indian states with real-time AI-driven crop protection, advisory, and early warning systems.
           </p>
           
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -80,11 +79,11 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               { icon: Camera, title: "Crop Disease Diagnosis", desc: "AI-powered computer vision to instantly identify 38+ common crop diseases from photos." },
-              { icon: Globe2, title: "10+ Languages", desc: "Fully accessible in Hindi, Portuguese, Russian, Mandarin, Zulu, and more regional dialects." },
+              { icon: Globe2, title: "10+ Languages", desc: "Fully accessible in Hindi, Marathi, Tamil, Telugu, Bengali, Kannada, Gujarati, Punjabi, Malayalam, and more regional dialects." },
               { icon: Globe2, title: "Satellite Monitoring", desc: "Earth Engine integration for NDVI crop health tracking across vast regions." },
               { icon: ShieldAlert, title: "Real-time Alerts", desc: "Automated early warning systems for disease outbreaks and extreme weather." },
               { icon: BarChart3, title: "Policymaker Dashboard", desc: "Aggregated, anonymized data for national-level agricultural decision making." },
-              { icon: MessageSquare, title: "BRICS Cooperation", desc: "Seamless cross-border data exchange and shared learning models between nations." }
+              { icon: MessageSquare, title: "Cross-State Intelligence", desc: "Seamless cross-state data sharing and shared learning models between Indian states." }
             ].map((feature, idx) => (
               <div key={idx} className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 transition-all hover:shadow-md hover:border-green-200">
                 <feature.icon className="h-8 w-8 text-green-600 mb-4" />
@@ -101,7 +100,7 @@ export default function Home() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl mb-12">Powered by Google AI</h2>
           <div className="flex flex-wrap justify-center gap-8 items-center">
-            {["Gemini Pro Vision", "Vertex AI", "Google Earth Engine", "Translation API", "Google Maps Platform"].map((tech, idx) => (
+            {["Gemini 2.5 Flash", "Vertex AI Studio", "Google Earth Engine", "Translation API", "Google Maps Platform"].map((tech, idx) => (
               <div key={idx} className="px-6 py-3 rounded-full bg-gray-50 border text-gray-700 font-medium shadow-sm">
                 {tech}
               </div>
@@ -115,7 +114,7 @@ export default function Home() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-6">Ready to protect your harvest?</h2>
           <p className="text-xl text-green-100 mb-10 max-w-2xl mx-auto">
-            Join millions of farmers using KrishiSathi to ensure food security and improve yields.
+            Join millions of Indian farmers using KrishiSathi to ensure food security and improve yields.
           </p>
           <Link
             href="/diagnose"

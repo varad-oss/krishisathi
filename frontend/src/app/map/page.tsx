@@ -43,7 +43,7 @@ export default function MapPage() {
             <MapPin className="h-5 w-5 text-green-600" />
             Disease Outbreaks
           </h2>
-          <p className="text-xs text-gray-500 mt-1">Live tracking across BRICS nations</p>
+          <p className="text-xs text-gray-500 mt-1">Live tracking across Indian states</p>
           
           <div className="mt-4 space-y-2">
             <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Severity Legend</p>

@@ -5,7 +5,7 @@ import {
   DashboardStats, 
   OutbreakData, 
   CropHealthData, 
-  BricsCountry, 
+  IndianState, 
   Alert 
 } from './types';
 import { 
@@ -15,7 +15,7 @@ import {
   mockDashboardStats, 
   mockOutbreaks, 
   mockCropHealth, 
-  mockBrics, 
+  mockStates, 
   mockAlerts 
 } from './mock-data';
 
@@ -126,7 +126,7 @@ export async function getDashboardReport(): Promise<string> {
     const data = await response.json();
     return data.report;
   } catch (error) {
-    return "## Weekly Agriculture Intelligence Report\n\nBased on recent data across BRICS nations, we are observing a 15% increase in Early Blight in tomato crops across Western India and Southern Brazil due to unusual humidity. Recommend rapid deployment of copper-based fungicides. Wheat rust remains stable in Russian regions.";
+    return "## Weekly Agriculture Intelligence Report\n\nBased on data across 8 Indian states, we are observing a 15% increase in Late Blight cases in Western Maharashtra due to heavy monsoon rainfall. Wheat rust remains a concern in Punjab and UP. Fall Armyworm migration tracking suggests Karnataka maize fields should prepare preventive measures. Cross-state data exchange between Punjab and UP has enabled early warning advisories in the Gangetic wheat belt.";
   }
 }
 
@@ -138,7 +138,7 @@ export async function getOutbreaks(): Promise<OutbreakData[]> {
     return data.map((item: any) => ({
       ...item,
       date: item.date || item.first_reported,
-      severity: item.severity.charAt(0).toUpperCase() + item.severity.slice(1)
+      severity: item.severity ? item.severity.charAt(0).toUpperCase() + item.severity.slice(1) : 'Moderate'
     }));
   } catch (error) {
     console.warn('Outbreaks API failed, using fallback:', error);
@@ -172,12 +172,21 @@ export async function getCropHealth(): Promise<CropHealthData[]> {
   }
 }
 
-export async function getBricsCountries(): Promise<BricsCountry[]> {
-  return fetchWithFallback<BricsCountry[]>(
-    `${API_BASE}/api/dashboard/brics`,
-    { method: 'GET' },
-    mockBrics
-  );
+export async function getIndianStates(): Promise<IndianState[]> {
+  try {
+    const response = await fetch(`${API_BASE}/api/states`);
+    if (!response.ok) return mockStates;
+    const data = await response.json();
+    if (data && Array.isArray(data.states)) {
+      return data.states;
+    } else if (Array.isArray(data)) {
+      return data;
+    }
+    return mockStates;
+  } catch (error) {
+    console.warn('States API failed, using fallback:', error);
+    return mockStates;
+  }
 }
 
 export async function getAlerts(): Promise<Alert[]> {

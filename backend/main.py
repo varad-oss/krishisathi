@@ -1,22 +1,31 @@
 import sys
 import os
+from contextlib import asynccontextmanager
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'bot', 'webhook'))
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
-from routers import diagnose, advisory, alerts, weather, dashboard, brics
+from routers import diagnose, advisory, alerts, weather, dashboard, states
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("🌾 KrishiSathi API starting up...")
+    print("📄 API docs available at /docs")
+    yield
+    print("KrishiSathi API shutting down...")
 
 app = FastAPI(
     title="KrishiSathi API",
     description=(
-        "🌾 AI-powered agriculture intelligence platform for BRICS nations. "
+        "🌾 AI-powered agriculture intelligence platform for Indian states. "
         "Provides crop disease diagnosis, agro-advisory, weather, outbreak alerts, "
         "and policymaker analytics — powered by Google Gemini AI."
     ),
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -33,7 +42,7 @@ app.include_router(advisory.router)
 app.include_router(alerts.router)
 app.include_router(weather.router)
 app.include_router(dashboard.router)
-app.include_router(brics.router)
+app.include_router(states.router)
 
 # WhatsApp bot webhook (optional — requires Twilio)
 try:
@@ -44,22 +53,11 @@ except ImportError:
     print("ℹ️  WhatsApp bot webhook not loaded (Twilio not installed or bot module not found)")
 
 
-@app.on_event("startup")
-async def startup_event():
-    print("🌾 KrishiSathi API starting up...")
-    print("📄 API docs available at /docs")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    print("KrishiSathi API shutting down...")
-
-
 @app.get("/")
 async def root():
     return {
         "name": "KrishiSathi API",
-        "tagline": "AI-Powered Agriculture Intelligence for BRICS Nations",
+        "tagline": "AI-Powered Agriculture Intelligence for Indian States",
         "version": "1.0.0",
         "docs": "/docs",
         "health": "/health",
@@ -79,7 +77,7 @@ async def root():
             "weather": "/api/weather",
             "alerts": "/api/alerts",
             "dashboard": "/api/dashboard/stats",
-            "brics_exchange": "/api/brics/exchange",
+            "state_exchange": "/api/states/exchange/signals",
         },
     }
 
@@ -90,4 +88,4 @@ async def health_check():
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

@@ -1,9 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
+import { MapContainer, TileLayer, Popup, Circle } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { OutbreakData } from '@/lib/types';
 import L from 'leaflet';
 
 // Fix for default marker icons in Leaflet with Next.js
@@ -27,7 +26,7 @@ export default function MapComponent({ outbreaks }: { outbreaks: any[] }) {
   return (
     <MapContainer 
       center={[20.5937, 78.9629]} 
-      zoom={4} 
+      zoom={5} 
       className="h-full w-full z-0"
     >
       <TileLayer
@@ -35,18 +34,18 @@ export default function MapComponent({ outbreaks }: { outbreaks: any[] }) {
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       
-      {outbreaks.map((outbreak, idx) => {
+      {outbreaks.filter(o => o.lat != null && o.lng != null).map((outbreak, idx) => {
         // Simple color mapping based on severity
-        const color = outbreak.severity.toLowerCase() === 'critical' ? '#ef4444' : 
-                      outbreak.severity.toLowerCase() === 'high' || outbreak.severity.toLowerCase() === 'severe' ? '#f97316' : 
-                      outbreak.severity.toLowerCase() === 'moderate' ? '#eab308' : '#22c55e';
+        const color = outbreak.severity?.toLowerCase() === 'critical' ? '#ef4444' : 
+                      outbreak.severity?.toLowerCase() === 'high' || outbreak.severity?.toLowerCase() === 'severe' ? '#f97316' : 
+                      outbreak.severity?.toLowerCase() === 'moderate' ? '#eab308' : '#22c55e';
                       
         return (
           <Circle
             key={idx}
             center={[outbreak.lat, outbreak.lng]}
             pathOptions={{ color, fillColor: color, fillOpacity: 0.4 }}
-            radius={outbreak.affected_area_km2 * 100} // rough approximation for visual scale
+            radius={((outbreak.affected_area_km2 || 500) * 100)} // rough approximation for visual scale
           >
             <Popup>
               <div className="p-1">

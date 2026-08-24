@@ -86,10 +86,13 @@
     }
   ],
   "crops_by_region": {
-    "IN": ["Rice", "Wheat", "Cotton", "Sugarcane", "Tomato", "Potato", "Soybean", "Corn"],
-    "BR": ["Soybean", "Coffee", "Sugarcane", "Corn", "Cotton", "Rice", "Orange"],
-    "RU": ["Wheat", "Barley", "Sunflower", "Potato", "Sugar Beet", "Corn"],
-    "CN": ["Rice", "Wheat", "Corn", "Soybean", "Cotton", "Potato", "Rapeseed"],
-    "ZA": ["Maize", "Sugarcane", "Wheat", "Sunflower", "Soybean", "Citrus"]
+    "PB": ["Wheat", "Rice", "Cotton", "Sugarcane", "Mustard"],
+    "MH": ["Cotton", "Sugarcane", "Soybean", "Onion", "Rice"],
+    "KA": ["Rice", "Sugarcane", "Ragi", "Coffee", "Maize"],
+    "TN": ["Rice", "Sugarcane", "Banana", "Cotton", "Groundnut"],
+    "UP": ["Wheat", "Rice", "Sugarcane", "Potato", "Mustard"],
+    "MP": ["Soybean", "Wheat", "Rice", "Cotton", "Maize"],
+    "GJ": ["Cotton", "Groundnut", "Wheat", "Cumin", "Rice"],
+    "WB": ["Rice", "Jute", "Potato", "Tea", "Wheat"]
   }
 }

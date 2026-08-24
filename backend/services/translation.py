@@ -12,7 +12,7 @@ class TranslationService:
             self.enabled = False
             
     def translate_text(self, text: str, source_lang: str, target_lang: str) -> str:
-        if target_lang == source_lang or target_lang == 'en':
+        if target_lang == source_lang:
             return text
             
         if not self.enabled:
@@ -35,10 +35,10 @@ class TranslationService:
             {"code": "ta", "name": "Tamil"},
             {"code": "te", "name": "Telugu"},
             {"code": "bn", "name": "Bengali"},
-            {"code": "pt", "name": "Portuguese"},
-            {"code": "ru", "name": "Russian"},
-            {"code": "zh", "name": "Chinese"},
-            {"code": "zu", "name": "Zulu"}
+            {"code": "kn", "name": "Kannada"},
+            {"code": "gu", "name": "Gujarati"},
+            {"code": "pa", "name": "Punjabi"},
+            {"code": "ml", "name": "Malayalam"}
         ]
 
 translation_service = TranslationService()

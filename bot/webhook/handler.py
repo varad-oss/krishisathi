@@ -11,6 +11,7 @@ This handler processes incoming WhatsApp messages and routes them to the
 appropriate KrishiSathi API endpoint.
 """
 
+import os
 import base64
 import httpx
 from fastapi import APIRouter, Request, Response
@@ -19,7 +20,7 @@ from twilio.twiml.messaging_response import MessagingResponse
 router = APIRouter(prefix="/bot", tags=["WhatsApp Bot"])
 
 # KrishiSathi API base URL (same server)
-API_BASE = "http://localhost:8080/api"
+API_BASE = os.environ.get("API_BASE", "http://localhost:8000/api")
 
 # Default location (Pune, India) when no location is shared
 DEFAULT_LAT = 18.5204
@@ -123,8 +124,7 @@ async def whatsapp_webhook(request: Request):
                 "• 'Best time to plant rice?'\n"
                 "• 'Organic pest control for cotton'\n"
                 "• 'Weather forecast for farming'\n\n"
-                "🌍 Available in Hindi, Marathi, Tamil, Telugu, Bengali, "
-                "Portuguese, Russian, Chinese, and Zulu!\n\n"
+                "🌍 Available in Hindi, Marathi, Tamil, Telugu, Bengali, Kannada, Gujarati, Punjabi, and Malayalam!\n\n"
                 "Send your query in any language. 🗣️"
             )
         elif lower_msg == "weather":
@@ -139,10 +139,10 @@ async def whatsapp_webhook(request: Request):
                         msg.body(
                             f"🌤️ *Weather Update*\n\n"
                             f"📍 Location: {w.get('location', 'Your area')}\n"
-                            f"🌡️ Temperature: {w.get('temperature', 'N/A')}°C\n"
+                            f"🌡️ Temperature: {w.get('temp', 'N/A')}°C\n"
                             f"💧 Humidity: {w.get('humidity', 'N/A')}%\n"
-                            f"🌧️ Rainfall: {w.get('rainfall_mm', 0)}mm\n"
-                            f"💨 Wind: {w.get('wind_speed', 'N/A')} km/h\n"
+                            f"🌧️ Rainfall: {w.get('rainfall', 0)}mm\n"
+                            f"💨 Wind: {w.get('wind', 'N/A')} km/h\n"
                             f"📝 {w.get('description', '')}"
                         )
                     else:

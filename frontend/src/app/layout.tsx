@@ -9,7 +9,7 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'KrishiSathi | AI-Powered Agriculture Intelligence',
-  description: 'AI-Powered Agriculture Intelligence for BRICS Nations',
+  description: 'AI-Powered Agriculture Intelligence for Indian States',
 };
 
 export default function RootLayout({
