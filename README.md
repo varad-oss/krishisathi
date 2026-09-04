@@ -1,7 +1,9 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/varad-oss/krishisathi/main/frontend/public/favicon.ico" alt="KrishiSathi Logo" width="100"/>
-  <h1>KrishiSathi (कृषि साथी)</h1>
+  <h1>🌱 KrishiSathi (कृषि साथी)</h1>
+  
   <p><strong>A zero-billing, multimodal AI diagnostic platform and voice-first advisory network for Indian agriculture.</strong></p>
+
+<h3>🔗 <a href="https://krishisathi-ai.vercel.app">Live Demo Website</a></h3>
 </div>
 
 ---
