@@ -1,264 +1,84 @@
-# 🌾 KrishiSathi — AI-Powered Agriculture Intelligence for Indian States
+<div align="center">
+  <img src="https://raw.githubusercontent.com/varad-oss/krishisathi/main/frontend/public/favicon.ico" alt="KrishiSathi Logo" width="100"/>
+  <h1>KrishiSathi (कृषि साथी)</h1>
+  <p><strong>A zero-billing, multimodal AI diagnostic platform and voice-first advisory network for Indian agriculture.</strong></p>
+</div>
 
-> **Built for [Build with AI: Code for Communities — Second Edition](https://hackathon-link) | Google Cloud Hackathon 2026**
+---
 
+## 📌 Overview
 
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Google AI](https://img.shields.io/badge/Powered_by-Google_AI-4285F4?logo=google)](https://ai.google.dev/)
-[![Indian](https://img.shields.io/badge/India-AgriTech-orange)]()
+**KrishiSathi** is a highly scalable, serverless microservices platform engineered to deliver real-time, localized crop diagnostics and regenerative agricultural advisories to farmers in low-resource environments. 
 
-## 🎯 Problem Statement
+Built for the **Google Build with AI Hackathon**, this project demonstrates modern AI architecture by integrating multimodal LLMs (Gemini 1.5 Flash), real-time geospatial data injection, and custom client-side audio processing—all operating under a strict **$0 infrastructure cost** (zero-billing) deployment model.
 
-**Track 4: AgriN & Regenerative Agricultural Intelligence (Cooperation)**
+---
 
-500+ million smallholder farmers across Indian states lack access to data-driven agricultural guidance. Relying on traditional methods instead of satellite data, soil-health analytics, and climate forecasting leads to crop failures that threaten food security. The absence of shared digital infrastructure blocks cross-state collaboration on climate-resilient farming.
+## 🚀 Technical Highlights
 
-## 💡 Solution
+### 1. Multimodal AI Diagnostics
+* **Architecture:** A `FastAPI` backend wrapper around the `Gemini 1.5 Flash` API processes base64-encoded crop images uploaded by farmers.
+* **Context Injection:** The backend dynamically fetches real-time weather and soil data via the `Open-Meteo API` (based on the user's geolocation) and injects it directly into the LLM prompt, forcing the agent to consider hyper-local environmental factors before diagnosing diseases or recommending treatments.
 
-**KrishiSathi** is an interoperable, AI-powered digital agriculture network that delivers real-time, localized agro-advisories to smallholder farmers via voice, text, and image — designed as a scalable Digital Public Good.
+### 2. Voice-First Accessibility (VAD & TTS)
+* **Voice Activity Detection (VAD):** Engineered a custom client-side React hook utilizing the Web Audio API to detect microphone volume levels, automatically terminating recording after 2.5 seconds of silence.
+* **Streaming Audio Pipeline:** Built a custom Text-to-Speech (TTS) fallback pipeline in the FastAPI backend that calculates byte-sizes in-memory and returns exact `Content-Length` headers, bypassing native browser `AbortError` race conditions and ensuring flawless audio playback in strict-mode React environments.
 
-### Key Features
+### 3. Strict Multilingual Localization
+* **Non-Romanized Enforcement:** The system supports 10 regional Indian languages (Hindi, Marathi, Tamil, etc.). Prompt engineering strictly prohibits the LLM from outputting Romanized transliterations (e.g., Hinglish) and enforces native Indic numerals in all UI components.
 
-| Feature | Description | Google AI Service |
-|---|---|---|
-| 📸 **Crop Disease Diagnosis** | Photograph a diseased crop → instant AI diagnosis with treatment plan | Gemini 2.5 Flash (Multimodal) |
-| 💬 **Agro-Advisory Chat** | Ask farming questions → get contextual, personalized advice | Gemini 2.5 Flash |
-| 🌍 **10+ Languages** | Voice and text support across all Indian languages | Cloud Translation, Speech-to-Text, Text-to-Speech |
-| 🛰️ **Satellite Monitoring** | NDVI-based crop health tracking via satellite imagery | Google Earth Engine |
-| ⚡ **Outbreak Alerts** | AI-detected disease clustering triggers farmer warnings | BigQuery ML |
-| 📊 **Policymaker Dashboard** | Data-driven insights for agricultural ministries | BigQuery + Gemini |
-| 🤝 **Indian Data Exchange** | Cross-border agricultural intelligence sharing protocol | Cloud Run APIs |
+### 4. Zero-Billing Edge Deployment
+* **Infrastructure:** Both the `Next.js` frontend and `FastAPI` backend are deployed on **Vercel Edge/Serverless** functions. 
+* **Cost Efficiency:** By utilizing Vercel's serverless Python runtime (`@vercel/python`) and free-tier API integrations, the entire production architecture scales down to zero cost when idle.
 
-## 🏗️ Architecture
+---
 
-```
-┌─────────────────────────────────────────────────────┐
-│                  Farmer Interfaces                   │
-│  WhatsApp Bot  │  Progressive Web App  │  Voice/SMS  │
-└────────┬───────┴──────────┬───────────┴──────┬──────┘
-         │                  │                  │
-         ▼                  ▼                  ▼
-┌─────────────────────────────────────────────────────┐
-│              Cloud Run — FastAPI Backend             │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────┐  │
-│  │ Diagnose │ │ Advisory │ │  Alerts  │ │ Dashboard│ │
-│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬───┘  │
-│       │             │            │             │      │
-│  ┌────▼─────────────▼────────────▼─────────────▼──┐  │
-│  │           AI Intelligence Core                  │  │
-│  │  Gemini 2.5 Flash │ Gemini 2.5 Pro            │  │
-│  │  Function-Calling Agent │ RAG Grounding        │  │
-│  │  Gemini Translation │ gTTS │ Earth Engine      │  │
-│  └────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────┘
-         │                  │                  │
-         ▼                  ▼                  ▼
-┌─────────────────────────────────────────────────────┐
-│                  Data Sources                        │
-│  Open-Meteo  │  Sentinel-2  │  PlantVillage  │ KVK  │
-└─────────────────────────────────────────────────────┘
+## 💻 Tech Stack
+
+| Domain | Technology |
+|---|---|
+| **Frontend** | Next.js 14, React 18, Tailwind CSS, Web Audio API, Lucide Icons |
+| **Backend** | Python 3.11, FastAPI, Uvicorn, Google GenAI SDK |
+| **AI / APIs** | Gemini 1.5 Flash, Open-Meteo, gTTS |
+| **DevOps** | Vercel Serverless Functions (`vercel.json`), GitHub Actions |
+
+---
+
+## ⚙️ Local Development
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/varad-oss/krishisathi.git
+cd krishisathi
 ```
 
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Python 3.11+
-- Node.js 18+
-- Google AI Studio API Key ([Get one free](https://aistudio.google.com/apikey))
-
-### Backend
-
+### 2. Run the Backend (FastAPI)
 ```bash
 cd backend
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
 
-# Set your Gemini API key
-export GEMINI_API_KEY="your-api-key-here"
+# Create a .env file and add your GEMINI_API_KEY
+echo 'GEMINI_API_KEY="your-api-key"' > .env
 
-# Run the server
+# Start the server
 uvicorn main:app --reload --port 8000
 ```
 
-### Frontend
-
+### 3. Run the Frontend (Next.js)
+In a new terminal tab:
 ```bash
 cd frontend
 npm install
+
+# Point the frontend to the local backend
+echo 'NEXT_PUBLIC_API_URL="http://localhost:8000"' > .env.local
+
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to see the app.
-
-### Environment Variables
-
-Copy `.env.example` to `.env` and fill in your credentials:
-
-```bash
-cp backend/.env.example backend/.env
-```
-
-| Variable | Required | Description |
-|---|---|---|
-| `GEMINI_API_KEY` | ✅ Yes | Google AI Studio API key |
-| `OPENWEATHER_API_KEY` | Optional | OpenWeather API key for live weather |
-| `GOOGLE_CLOUD_PROJECT` | Optional | GCP project for Translation, STT, TTS |
-| `GOOGLE_MAPS_API_KEY` | Optional | Google Maps for interactive maps |
-
-> **Note:** The app works with just the `GEMINI_API_KEY`. Other services fall back to mock data gracefully.
-
-## System Architecture
-
-KrishiSathi is designed as a scalable digital-public-good platform.
-
-```mermaid
-graph TD
-    %% Clients
-    FarmerWA[Farmer WhatsApp] -->|Webhook| Twilio
-    FarmerWeb[Farmer Web App] -->|Next.js/React| Frontend
-    PolicyWeb[State Policymaker Dashboard] -->|Next.js/React| Frontend
-
-    %% Frontend to Backend
-    Twilio -->|POST /bot/webhook| FastAPI[FastAPI Backend]
-    Frontend -->|REST API| FastAPI
-    
-    %% Backend Services
-    FastAPI -->|Multimodal Image+Text| Gemini[Gemini 2.5 Flash API]
-    FastAPI -->|Translation| Translation[Cloud Translation API]
-    FastAPI -->|Live Weather/Soil| OpenMeteo[Open-Meteo API]
-    FastAPI -->|Federated Sync| StateNodes[Other State Nodes]
-    FastAPI -->|NDVI Pipelines| EarthEngine[Google Earth Engine]
-    
-    %% Storage
-    FastAPI -->|Batch Load Jobs| BigQuery[(BigQuery Sandbox)]
-    FastAPI -->|NoSQL State| Firestore[(Firestore DB)]
-    
-    %% Styling
-    classDef client fill:#d4edda,stroke:#28a745,stroke-width:2px;
-    classDef server fill:#cce5ff,stroke:#007bff,stroke-width:2px;
-    classDef external fill:#f8d7da,stroke:#dc3545,stroke-width:2px;
-    classDef data fill:#fff3cd,stroke:#ffc107,stroke-width:2px;
-    
-    class FarmerWA,FarmerWeb,PolicyWeb client;
-    class FastAPI,Frontend server;
-    class Gemini,Translation,OpenMeteo,Twilio,EarthEngine external;
-    class BigQuery,Firestore,StateNodes data;
-```
-
-## 🌐 Cross-State Coverage
-
-KrishiSathi is designed as a **Digital Public Good** deployed across Indian states:
-
-| State | Language | Primary Crops | KVKs Active |
-|---|---|---|---|
-| 🟢 Punjab | Punjabi | Wheat, Rice, Cotton | ✅ |
-| 🟢 Maharashtra | Marathi | Cotton, Sugarcane, Soybean | ✅ |
-| 🟢 Karnataka | Kannada | Rice, Ragi, Coffee | ✅ |
-| 🟢 Tamil Nadu | Tamil | Rice, Banana, Groundnut | ✅ |
-| 🟢 Uttar Pradesh | Hindi | Wheat, Rice, Potato | ✅ |
-| 🟢 Madhya Pradesh | Hindi | Soybean, Wheat, Maize | ✅ |
-| 🟢 Gujarat | Gujarati | Cotton, Groundnut, Cumin | ✅ |
-| 🟢 West Bengal | Bengali | Rice, Jute, Tea | ✅ |
-
-Adding a new state requires only:
-1. State configuration entry in `/api/states/{code}/config`
-2. Crop-disease reference mappings in `disease_reference.json`
-3. KVK location data for the state's districts
-
-## 🛠️ Technology Stack
-
-### Google AI Services (Mandatory)
-- **Gemini 2.5 Flash** — Multimodal crop disease diagnosis + advisory generation
-- **Cloud Translation API** — 10+ Indian language support
-- **Cloud Speech-to-Text** — Voice input from farmers
-- **Cloud Text-to-Speech** — Audio advisory responses
-- **Google Earth Engine** — Satellite NDVI analysis
-- **Google Maps Platform** — Geospatial visualization
-- **BigQuery** — Analytics and outbreak detection
-- **Firebase** — Firestore (real-time DB) + Hosting
-- **Cloud Run** — Serverless API deployment
-
-### Application Stack
-- **Backend:** Python 3.11, FastAPI, Pydantic
-- **Frontend:** Next.js 14, TypeScript, Tailwind CSS
-- **Database:** Firebase Firestore
-- **Deployment:** Cloud Run + Firebase Hosting
-
-## 📋 Submission Checklist
-
-- [x] Source code — this repository
-- [ ] Demo video — 3-5 minute walkthrough
-- [ ] Pitch deck — 10-12 slides
-- [x] Brief description — see above
-- [ ] Deployed link — coming soon
-
-## 👤 Team
-
-**Solo Developer** — Built with ❤️ and AI for the global farming community.
-
-## 📄 License
-
-Apache License 2.0 — This project is a Digital Public Good.
+The app will be available at [http://localhost:3000](http://localhost:3000).
 
 ---
-
-*KrishiSathi: From photo to diagnosis in 5 seconds. Agriculture intelligence for everyone.* 🌾
-
-## 🚀 Deployment (Zero-Billing Ready)
-
-KrishiSathi is designed to run entirely on free tiers, specifically targeting the **Google Cloud Starter Tier** for hackathons.
-
-### Option A: Google Cloud Starter Tier
-1. **Frontend (Next.js):** Deploy to Cloud Run via source (uses Cloud Build free tier).
-   ```bash
-   gcloud run deploy krishisathi-web --source ./frontend --allow-unauthenticated
-   ```
-2. **Backend (FastAPI):** Deploy to Cloud Run via source.
-   ```bash
-   gcloud run deploy krishisathi-api --source ./backend --allow-unauthenticated
-   ```
-3. **Database:** Use Firestore in Native Mode (Default database is free tier).
-4. **Data Warehouse:** Use BigQuery Sandbox (no credit card required, tables expire after 60 days).
-
-### 🚀 How a New State Integrates
-
-Adding a new state to the KrishiSathi network does not require code changes. The platform is designed to be configured entirely via the `/api/states/{code}/config` endpoint and corresponding data files.
-
-### 1. State Configuration
-When a new state joins, its profile is added to the backend configuration. This tells the system what crops to track, what language to default to, and where to center the map.
-Example configuration for Punjab:
-```json
-{
-  "code": "PB",
-  "name": "Punjab",
-  "capital": "Chandigarh",
-  "lat": 31.1471,
-  "lng": 75.3412,
-  "default_language": "pa",
-  "primary_crops": ["Wheat", "Rice", "Cotton"],
-  "top_crop": "Wheat",
-  "districts": 23,
-  "arable_land_mha": 4.2
-}
-```
-
-### 2. Disease Reference Data
-The state agricultural department provides mapping of common diseases and treatments for their primary crops. This data is added to `data/disease_reference.json` and acts as the RAG grounding context for the Gemini diagnosis agent.
-
-### 3. KVK Network Data
-The coordinates and contact details of the state's Krishi Vigyan Kendras (KVKs) are added to `data/kvk_locations.json` to enable the "Find Nearest KVK" feature.
-
-Once these three steps are complete, the state automatically appears in the Policymaker Dashboard's state switcher, starts participating in cross-state signal exchange, and its farmers can interact with the advisory AI in their native language.
-
-## 📖 API Documentation
-
-KrishiSathi's backend provides a fully documented OpenAPI schema. When running locally, you can explore the endpoints and test them directly.
-
-- **Swagger UI**: [http://localhost:8001/docs](http://localhost:8001/docs)
-- **ReDoc**: [http://localhost:8001/redoc](http://localhost:8001/redoc)
-
----
-
-Built with ❤️ using **Google Gemini 2.5**, **FastAPI**, and **Next.js**.
+*Developed by Varad Pandare | IIT Kharagpur*
