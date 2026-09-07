@@ -3,12 +3,11 @@
   
   <p><strong>A zero-billing, multimodal AI diagnostic platform and voice-first advisory network for Indian agriculture.</strong></p>
 
-  <a href="https://ai-krishisathi.vercel.app/" target="_blank">
-    <img src="https://img.shields.io/badge/Live%20Demo-ai--krishisathi.vercel.app-2ea44f?style=for-the-badge&logo=vercel" alt="Live Demo" />
-  </a>
-  <a href="#architecture">
-    <img src="https://img.shields.io/badge/Architecture-Next.js%20%7C%20FastAPI-blue?style=for-the-badge" alt="Tech Stack" />
-  </a>
+  <p>
+    <strong><a href="https://ai-krishisathi.vercel.app/" target="_blank">🔗 Live Demo Website</a></strong>
+    &nbsp;&nbsp; | &nbsp;&nbsp;
+    <strong><a href="#architecture">🏗️ View Architecture</a></strong>
+  </p>
 </div>
 
 ---
