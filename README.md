@@ -6,9 +6,7 @@
   <a href="https://ai-krishisathi.vercel.app/" target="_blank">
     <img src="https://img.shields.io/badge/Live%20Demo-ai--krishisathi.vercel.app-2ea44f?style=for-the-badge&logo=vercel" alt="Live Demo" />
   </a>
-  <a href="https://github.com/varad-oss/krishisathi">
-    <img src="https://img.shields.io/badge/Architecture-Next.js%20%7C%20FastAPI-blue?style=for-the-badge" alt="Tech Stack" />
-  </a>
+  <img src="https://img.shields.io/badge/Architecture-Next.js%20%7C%20FastAPI-blue?style=for-the-badge" alt="Tech Stack" />
 </div>
 
 ---
@@ -45,10 +43,10 @@ graph TD
     VercelServerless[Vercel Serverless] -.-> FastAPI
     
     %% Styling
-    classDef client fill:#d4edda,stroke:#28a745,stroke-width:2px;
-    classDef server fill:#cce5ff,stroke:#007bff,stroke-width:2px;
-    classDef external fill:#f8d7da,stroke:#dc3545,stroke-width:2px;
-    classDef infra fill:#f3f4f6,stroke:#6b7280,stroke-width:2px,stroke-dasharray: 5 5;
+    classDef client color:#000000,fill:#d4edda,stroke:#28a745,stroke-width:2px;
+    classDef server color:#000000,fill:#cce5ff,stroke:#007bff,stroke-width:2px;
+    classDef external color:#000000,fill:#f8d7da,stroke:#dc3545,stroke-width:2px;
+    classDef infra color:#000000,fill:#f3f4f6,stroke:#6b7280,stroke-width:2px,stroke-dasharray: 5 5;
     
     class FarmerWeb,PolicyWeb client;
     class FastAPI,Frontend server;
