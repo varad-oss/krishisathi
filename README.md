@@ -13,8 +13,7 @@
 
 ---
 
-> **Screenshot Placeholder:**
-> ![KrishiSathi Dashboard](assets/dashboard_screenshot.png)
+![KrishiSathi Dashboard](assets/dashboard_screenshot.png)
 
 ## The Problem
 Indian farmers in low-resource areas face two major barriers to adopting modern agricultural tech: illiteracy and extreme linguistic diversity. Traditional apps rely heavily on text and English interfaces, leaving farmers unable to access critical crop diagnostics or weather advisories. **KrishiSathi** solves this by providing a hyper-localized, 100% voice-first interface that understands 10 regional Indian languages and diagnoses crop diseases from a single smartphone photo.
