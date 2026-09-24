@@ -156,19 +156,24 @@ async def get_voice_advisory(request: VoiceAdvisoryRequest):
         mime_type = get_audio_mime_type(audio_bytes)
         
         # 1. Native Gemini Audio Transcription
-        client = genai.Client(api_key=settings.GEMINI_API_KEY)
-        audio_part = types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)
-        
-        response = client.models.generate_content(
-            model=settings.GEMINI_TRANSCRIPTION_MODEL,
-            contents=[
-                audio_part, 
-                "Transcribe the audio exactly. Return only the transcribed text, nothing else."
-            ]
-        )
-        
-        transcribed_text = response.text.strip()
-        logger.info(f"Transcribed audio to: {transcribed_text}")
+        try:
+            client = genai.Client(api_key=settings.GEMINI_API_KEY)
+            audio_part = types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)
+            
+            response = client.models.generate_content(
+                model=settings.GEMINI_TRANSCRIPTION_MODEL,
+                contents=[
+                    audio_part, 
+                    "Transcribe the audio exactly. Return only the transcribed text, nothing else."
+                ]
+            )
+            
+            transcribed_text = response.text.strip()
+            logger.info(f"Transcribed audio to: {transcribed_text}")
+        except Exception as e:
+            logger.error(f"Transcription failed: {e}")
+            raise ServiceUnavailableException("Transcription service is temporarily unavailable.")
+            
         
         advisory_req = AdvisoryRequest(
             query=transcribed_text,

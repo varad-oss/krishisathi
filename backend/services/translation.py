@@ -2,6 +2,7 @@ import logging
 from google import genai
 from google.genai import types
 from config import settings
+from models.exceptions import TranslationServiceUnavailable
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +12,7 @@ class TranslationService:
             self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
             self.enabled = True
         except Exception as e:
-            logger.error(f"Gemini client not configured for TranslationService: {e}. Using mock/fallback.")
+            logger.error(f"Gemini client not configured for TranslationService: {e}")
             self.enabled = False
             
     def translate_text(self, text: str, source_lang: str, target_lang: str) -> str:
@@ -19,7 +20,7 @@ class TranslationService:
             return text
             
         if not self.enabled:
-            return f"[Translated to {target_lang}]: {text}"""
+            raise TranslationServiceUnavailable("Translation service is temporarily unavailable due to missing configuration.")
             
         language_map = {
             'en': 'English', 'hi': 'Hindi', 'mr': 'Marathi', 'ta': 'Tamil', 
@@ -45,7 +46,7 @@ Text:
             return response.text.strip()
         except Exception as e:
             logger.error(f"Translation error: {e}")
-            return f"[Fallback translated to {target_lang}]: {text}"""
+            raise TranslationServiceUnavailable(f"Failed to translate to {target_lang}.")
 
     def get_supported_languages(self) -> list:
         return [

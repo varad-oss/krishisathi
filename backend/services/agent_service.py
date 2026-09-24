@@ -84,8 +84,8 @@ class AgentService:
         Context provided by system: {context}
         """
 
-        # Using gemini-flash-lite-latest for complex agent orchestration (to avoid rate limits)
-        model = 'gemini-flash-lite-latest'
+        # Using configured agent model for complex agent orchestration
+        model = settings.GEMINI_AGENT_MODEL
         
         try:
             logger.info("Calling Gemini Agent...")

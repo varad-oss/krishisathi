@@ -17,7 +17,7 @@ class GeminiService:
             self.client = None
             logger.error("GEMINI_API_KEY not set. Gemini services will be unavailable.")
 
-    def _call(self, prompt, image_part=None, model=None, response_mime_type=None, temperature=0.3):
+    def _call(self, prompt, image_part=None, model=None, response_mime_type=None, temperature=0.3, error_message="AI model is temporarily unavailable."):
         contents = [image_part, prompt] if image_part else [prompt]
         
         config = types.GenerateContentConfig(
@@ -34,7 +34,7 @@ class GeminiService:
             )
         except Exception as e:
             logger.error(f"{model} failed: {e}")
-            raise ServiceUnavailableException("Diagnostic model is temporarily unavailable.") from e
+            raise ServiceUnavailableException(error_message) from e
 
     def diagnose_crop_disease(self, image_bytes: bytes, crop_type: str, location_context: dict) -> dict:
         if not self.client:
@@ -89,7 +89,8 @@ Return the response strictly as a JSON object with the following structure:
                 image_part=image_part, 
                 model=settings.GEMINI_DIAGNOSIS_MODEL,
                 response_mime_type='application/json', 
-                temperature=0.2
+                temperature=0.2,
+                error_message="Diagnostic model is temporarily unavailable."
             )
             
             return json.loads(response.text)
@@ -123,7 +124,8 @@ Return the response strictly as a JSON object with the following structure:
                 prompt=prompt, 
                 image_part=image_part,
                 model=settings.GEMINI_ADVISORY_MODEL,
-                temperature=0.5
+                temperature=0.5,
+                error_message="Advisory model is temporarily unavailable."
             )
             return response.text
         except ServiceUnavailableException:
@@ -151,7 +153,8 @@ Return the response strictly as a JSON object with the following structure:
             response = self._call(
                 prompt=prompt, 
                 model=settings.GEMINI_AGENT_MODEL,
-                temperature=0.4
+                temperature=0.4,
+                error_message="Reporting model is temporarily unavailable."
             )
             return response.text
         except ServiceUnavailableException:
