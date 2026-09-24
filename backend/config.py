@@ -15,11 +15,11 @@ class Settings(BaseSettings):
     FIREBASE_PROJECT_ID: Optional[str] = None
     
     # Model configuration
-    GEMINI_DIAGNOSIS_MODEL: str = "gemini-1.5-flash"
-    GEMINI_ADVISORY_MODEL: str = "gemini-1.5-flash"
-    GEMINI_TRANSLATION_MODEL: str = "gemini-1.5-flash-8b"
-    GEMINI_TRANSCRIPTION_MODEL: str = "gemini-1.5-flash"
-    GEMINI_AGENT_MODEL: str = "gemini-1.5-pro"
+    GEMINI_DIAGNOSIS_MODEL: str = "gemini-3.8-flash"
+    GEMINI_ADVISORY_MODEL: str = "gemini-3.8-flash"
+    GEMINI_TRANSLATION_MODEL: str = "gemini-3.5-flash-lite"
+    GEMINI_TRANSCRIPTION_MODEL: str = "gemini-3.5-transcribe"
+    GEMINI_AGENT_MODEL: str = "gemini-3.8-flash"
 
     class Config:
         env_file = ".env"

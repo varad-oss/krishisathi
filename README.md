@@ -18,7 +18,7 @@
 Indian farmers in low-resource areas face two major barriers to adopting modern agricultural tech: illiteracy and extreme linguistic diversity. Traditional apps rely heavily on text and English interfaces, leaving farmers unable to access critical crop diagnostics or weather advisories. **KrishiSathi** solves this by providing a hyper-localized, 100% voice-first interface that understands 10 regional Indian languages and diagnoses crop diseases from a single smartphone photo.
 
 ## Features
-* **Multimodal RAG Diagnostics:** Upload a photo of a diseased crop, and the backend dynamically injects real-time weather and soil data (via Open-Meteo) into the Gemini 1.5 Flash prompt to generate a highly accurate, hyper-local treatment plan.
+* **Multimodal RAG Diagnostics:** Upload a photo of a diseased crop, and the backend dynamically injects real-time weather and soil data (via Open-Meteo) into the Gemini 3.8 Flash prompt to generate a highly accurate, hyper-local treatment plan.
 * **Voice-First Accessibility:** Features a custom client-side Voice Activity Detection (VAD) engine that auto-terminates recording upon silence, paired with a robust Text-to-Speech (TTS) audio streaming pipeline.
 * **Strict Non-Romanized Localization:** AI prompt engineering enforces native Indic script outputs (e.g., pure Marathi/Hindi without Hinglish transliteration) and native numeral formatting across the UI.
 * **Zero-Billing Edge Deployment:** Architected entirely on Vercel Serverless/Edge functions (`@vercel/python` for the FastAPI backend), scaling to $0 infrastructure cost when idle.
@@ -35,7 +35,7 @@ graph TD
     Frontend -->|REST API| FastAPI[FastAPI Backend]
     
     %% Backend Services
-    FastAPI -->|Image + Prompt| Gemini[Gemini 1.5 Flash API]
+    FastAPI -->|Image + Prompt| Gemini[Gemini 3.8 Flash API]
     FastAPI -->|Live Weather/Soil| OpenMeteo[Open-Meteo API]
     FastAPI -->|Audio Generation| gTTS[Text-to-Speech Engine]
     
@@ -61,7 +61,7 @@ graph TD
 |---|---|
 | **Frontend** | Next.js 14, React 18, Tailwind CSS, Web Audio API |
 | **Backend** | Python 3.11, FastAPI, Uvicorn, Google GenAI SDK |
-| **AI / APIs** | Gemini 1.5 Flash, Open-Meteo, gTTS |
+| **AI / APIs** | Gemini 3.8 Flash, Open-Meteo, gTTS |
 | **DevOps** | Vercel Serverless Functions (`vercel.json`), GitHub Actions |
 
 ## Running Locally
@@ -82,12 +82,12 @@ pip install -r requirements.txt
 # Create environment file
 echo 'GEMINI_API_KEY="your-api-key"' > .env
 
-# Optional Model Configuration (defaults to 1.5-flash series)
-echo 'GEMINI_DIAGNOSIS_MODEL="gemini-1.5-flash"' >> .env
-echo 'GEMINI_ADVISORY_MODEL="gemini-1.5-flash"' >> .env
-echo 'GEMINI_TRANSLATION_MODEL="gemini-1.5-flash-8b"' >> .env
-echo 'GEMINI_TRANSCRIPTION_MODEL="gemini-1.5-flash"' >> .env
-echo 'GEMINI_AGENT_MODEL="gemini-1.5-pro"' >> .env
+# Optional Model Configuration (defaults to 3.x series)
+echo 'GEMINI_DIAGNOSIS_MODEL="gemini-3.8-flash"' >> .env
+echo 'GEMINI_ADVISORY_MODEL="gemini-3.8-flash"' >> .env
+echo 'GEMINI_TRANSLATION_MODEL="gemini-3.5-flash-lite"' >> .env
+echo 'GEMINI_TRANSCRIPTION_MODEL="gemini-3.5-transcribe"' >> .env
+echo 'GEMINI_AGENT_MODEL="gemini-3.8-pro"' >> .env
 
 # Start the server on port 8000
 uvicorn main:app --reload --port 8000

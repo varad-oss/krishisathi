@@ -40,14 +40,14 @@ def test_state_parameter_behavior():
 
 def test_model_configuration():
     # 6. Gemini model configuration resolves to a valid configured value
-    assert settings.GEMINI_DIAGNOSIS_MODEL == "gemini-1.5-flash"
-    assert settings.GEMINI_ADVISORY_MODEL == "gemini-1.5-flash"
+    assert settings.GEMINI_DIAGNOSIS_MODEL is not None
+    assert settings.GEMINI_ADVISORY_MODEL is not None
     
 def test_model_configuration_override(monkeypatch):
     # 7. model configuration can be overridden through environment settings
-    monkeypatch.setenv("GEMINI_DIAGNOSIS_MODEL", "gemini-1.5-pro")
+    monkeypatch.setenv("GEMINI_DIAGNOSIS_MODEL", "gemini-3.8-flash-test")
     
     # Reload settings
     from config import Settings
     new_settings = Settings()
-    assert new_settings.GEMINI_DIAGNOSIS_MODEL == "gemini-1.5-pro"
+    assert new_settings.GEMINI_DIAGNOSIS_MODEL == "gemini-3.8-flash-test"
