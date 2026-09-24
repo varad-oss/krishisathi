@@ -1,11 +1,12 @@
 import base64
+import asyncio
 from fastapi import APIRouter, File, UploadFile, Form, HTTPException
 from models.diagnosis import DiagnosisRequest, DiagnosisResponse
+from models.exceptions import ServiceUnavailableException
 from services.gemini_service import gemini_service
 from services.weather_service import weather_service
 from services.translation import translation_service
 from services.bigquery_service import bq_service
-import asyncio
 
 router = APIRouter(prefix="/api/diagnose", tags=["Diagnose"])
 
@@ -20,8 +21,10 @@ async def diagnose_multipart(
     try:
         contents = await file.read()
         return await process_diagnosis(contents, crop_type, latitude, longitude, language)
+    except ServiceUnavailableException as e:
+        raise HTTPException(status_code=503, detail={"error": "service_unavailable", "message": str(e)})
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": "An unexpected error occurred."})
 
 @router.post("/base64", response_model=DiagnosisResponse)
 async def diagnose_base64(request: DiagnosisRequest):
@@ -35,8 +38,10 @@ async def diagnose_base64(request: DiagnosisRequest):
         return await process_diagnosis(
             contents, request.crop_type, request.latitude, request.longitude, request.language
         )
+    except ServiceUnavailableException as e:
+        raise HTTPException(status_code=503, detail={"error": "service_unavailable", "message": str(e)})
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": "An unexpected error occurred."})
 
 async def process_diagnosis(image_bytes: bytes, crop_type: str, latitude: float, longitude: float, language: str) -> dict:
     weather = await weather_service.get_current_weather(latitude, longitude)

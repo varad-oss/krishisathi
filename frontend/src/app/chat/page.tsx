@@ -148,7 +148,7 @@ export default function ChatPage() {
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: "I'm sorry, I couldn't process your request right now. Please check your connection and try again.",
+        content: error instanceof Error ? error.message : "I'm sorry, I couldn't process your request right now. Please check your connection and try again.",
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);

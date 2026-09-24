@@ -50,21 +50,27 @@ export default function DashboardPage() {
   const [selectedState, setSelectedState] = useState<string>("ALL");
   const [signals, setSignals] = useState<any[]>([]);
 
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     async function loadData() {
-      const [s, o, c, h, sig] = await Promise.all([
-        getDashboardStats(),
-        getOutbreaks(),
-        getIndianStates(),
-        getCropHealth(),
-        getExchangeSignals()
-      ]);
-      setStats(s);
-      setOutbreaks(o);
-      setStates(c);
-      setHealthData(h);
-      setSignals(sig.signals || []);
-      loadReport();
+      try {
+        const [s, o, c, h, sig] = await Promise.all([
+          getDashboardStats(),
+          getOutbreaks(),
+          getIndianStates(),
+          getCropHealth(),
+          getExchangeSignals()
+        ]);
+        setStats(s);
+        setOutbreaks(o);
+        setStates(c);
+        setHealthData(h);
+        setSignals(sig.signals || []);
+        loadReport();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load dashboard data. Live dashboard data could not be loaded.");
+      }
     }
     loadData();
   }, []);
@@ -74,11 +80,26 @@ export default function DashboardPage() {
   }, [language]);
 
   const loadReport = async () => {
-    setLoadingReport(true);
-    const rep = await getDashboardReport(language);
-    setReport(rep || "No report data available at this time.");
-    setLoadingReport(false);
+    try {
+      setLoadingReport(true);
+      const rep = await getDashboardReport(language);
+      setReport(rep || "No report data available at this time.");
+    } catch (err) {
+      setReport("Dashboard report is unavailable.");
+    } finally {
+      setLoadingReport(false);
+    }
   };
+
+  if (error) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 p-6">
+        <AlertTriangle className="h-12 w-12 text-red-500 mb-4" />
+        <h2 className="text-xl font-bold text-gray-900 mb-2">Service Unavailable</h2>
+        <p className="text-gray-600 text-center max-w-md">{error}</p>
+      </div>
+    );
+  }
 
   if (!stats)
     return (

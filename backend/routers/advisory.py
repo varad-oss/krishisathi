@@ -8,6 +8,7 @@ from google import genai
 from google.genai import types
 
 from models.advisory import AdvisoryRequest, AdvisoryResponse, VoiceAdvisoryRequest, VoiceAdvisoryResponse
+from models.exceptions import ServiceUnavailableException
 from services.gemini_service import gemini_service
 from services.weather_service import weather_service
 from services.translation import translation_service
@@ -54,7 +55,7 @@ async def transcribe_audio(request: TranscribeRequest):
         return {"text": transcribed_text}
     except Exception as e:
         logger.error(f"Error in transcribe_audio: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": "An unexpected error occurred during transcription."})
 
 @router.post("", response_model=AdvisoryResponse)
 async def get_advisory(request: AdvisoryRequest):
@@ -92,9 +93,11 @@ async def get_advisory(request: AdvisoryRequest):
             language=request.language,
             translated_text=translated_text
         )
+    except ServiceUnavailableException as e:
+        raise HTTPException(status_code=503, detail={"error": "service_unavailable", "message": str(e)})
     except Exception as e:
         logger.error(f"Error in get_advisory: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": "An unexpected error occurred."})
 
 @router.post("/followup")
 async def get_followup_advisory(request: AdvisoryRequest, disease_name: str = '', severity: str = '', crop_type: str = ''):
@@ -140,9 +143,11 @@ async def get_followup_advisory(request: AdvisoryRequest, disease_name: str = ''
             language=request.language,
             translated_text=advisory_final if request.language != 'en' else None
         )
+    except ServiceUnavailableException as e:
+        raise HTTPException(status_code=503, detail={"error": "service_unavailable", "message": str(e)})
     except Exception as e:
         logger.error(f"Error in followup advisory: {e}")
-        raise HTTPException(status_code=500, detail=f"Advisory service unavailable: {str(e)}")
+        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": "Advisory service unavailable."})
 
 @router.post("/voice", response_model=VoiceAdvisoryResponse)
 async def get_voice_advisory(request: VoiceAdvisoryRequest):
@@ -185,9 +190,11 @@ async def get_voice_advisory(request: VoiceAdvisoryRequest):
             advisory=advisory_response,
             audio_response_base64=audio_b64
         )
+    except ServiceUnavailableException as e:
+        raise HTTPException(status_code=503, detail={"error": "service_unavailable", "message": str(e)})
     except Exception as e:
         logger.error(f"Error in get_voice_advisory: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": "An unexpected error occurred during voice processing."})
 
 @router.get("/tts")
 async def text_to_speech(text: str, lang: str = "en"):
@@ -201,4 +208,5 @@ async def text_to_speech(text: str, lang: str = "en"):
         return Response(content=audio_data, media_type="audio/mpeg")
     except Exception as e:
         logger.error(f"Error in text_to_speech: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": "Text-to-speech conversion failed."})
+

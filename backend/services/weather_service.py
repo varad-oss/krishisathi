@@ -1,5 +1,6 @@
 import httpx
 import logging
+from models.exceptions import ServiceUnavailableException
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,7 @@ class WeatherService:
                 }
         except Exception as e:
             logger.error(f"Weather API error: {e}")
-            return self._mock_current_weather()
+            raise ServiceUnavailableException("Weather data is temporarily unavailable.") from e
 
     async def get_forecast(self, lat: float, lng: float, days: int = 7) -> list:
         try:
@@ -70,7 +71,7 @@ class WeatherService:
                 return forecast
         except Exception as e:
             logger.error(f"Forecast API error: {e}")
-            return self._mock_forecast(days)
+            raise ServiceUnavailableException("Weather forecast is temporarily unavailable.") from e
 
     def _get_weather_desc(self, code: int) -> str:
         if code == 0: return "Clear sky"
@@ -81,27 +82,5 @@ class WeatherService:
         if code in [80, 81, 82]: return "Rain showers"
         if code in [95, 96, 99]: return "Thunderstorm"
         return "Unknown"
-
-    def _mock_current_weather(self) -> dict:
-        return {
-            "temp": 28.5,
-            "humidity": 65,
-            "rainfall": 0.0,
-            "wind": 12.5,
-            "description": "partly cloudy",
-            "source": "Mock Data"
-        }
-        
-    def _mock_forecast(self, days: int) -> list:
-        forecast = []
-        for i in range(days):
-            forecast.append({
-                "date": f"2026-08-{21+i:02d}",
-                "temp_max": 30.0 + i % 3,
-                "temp_min": 22.0 + i % 2,
-                "description": "clear sky" if i % 2 == 0 else "light rain",
-                "humidity": 60 + i * 2
-            })
-        return forecast
 
 weather_service = WeatherService()

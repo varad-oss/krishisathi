@@ -20,18 +20,35 @@ import {
 } from './mock-data';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+export const IS_DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+
+export class ApiError extends Error {
+  status?: number;
+  constructor(message: string, status?: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
 
 async function fetchWithFallback<T>(url: string, options: RequestInit, fallback: T): Promise<T> {
   try {
     const response = await fetch(url, options);
     if (!response.ok) {
-      console.warn(`API call failed: ${url}, using fallback data.`);
-      return fallback;
+      if (IS_DEMO_MODE) {
+        console.warn(`API call failed: ${url}, using fallback data.`);
+        return fallback;
+      }
+      throw new ApiError(`Service unavailable: ${response.statusText}`, response.status);
     }
     return await response.json() as T;
   } catch (error) {
-    console.warn(`API call error: ${url}, using fallback data. Error:`, error);
-    return fallback;
+    if (IS_DEMO_MODE) {
+      console.warn(`API call error: ${url}, using fallback data. Error:`, error);
+      return fallback;
+    }
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(`Network error or service unavailable`);
   }
 }
 
@@ -54,7 +71,10 @@ export async function diagnoseCrop(
       method: 'POST',
       body: formData,
     });
-    if (!response.ok) return mockDiagnosis;
+    if (!response.ok) {
+      if (IS_DEMO_MODE) return mockDiagnosis;
+      throw new ApiError('Diagnosis service is temporarily unavailable.', response.status);
+    }
     const data = await response.json();
     // Map backend response shape to frontend types
     return {
@@ -73,8 +93,9 @@ export async function diagnoseCrop(
       },
     };
   } catch (error) {
-    console.warn('Diagnosis API failed, using fallback:', error);
-    return mockDiagnosis;
+    if (IS_DEMO_MODE) return mockDiagnosis;
+    if (error instanceof ApiError) throw error;
+    throw new ApiError('Diagnosis service could not be reached.');
   }
 }
 
@@ -101,7 +122,10 @@ export async function getAdvisory(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    if (!response.ok) return mockAdvisory;
+    if (!response.ok) {
+      if (IS_DEMO_MODE) return mockAdvisory;
+      throw new ApiError('Advisory service is temporarily unavailable.', response.status);
+    }
     const data = await response.json();
     return {
       query: query,
@@ -109,8 +133,9 @@ export async function getAdvisory(
       timestamp: new Date().toISOString(),
     };
   } catch (error) {
-    console.warn('Advisory API failed, using fallback:', error);
-    return mockAdvisory;
+    if (IS_DEMO_MODE) return mockAdvisory;
+    if (error instanceof ApiError) throw error;
+    throw new ApiError('Advisory service could not be reached.');
   }
 }
 
@@ -164,18 +189,27 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 export async function getDashboardReport(language: string = 'en'): Promise<string> {
   try {
     const response = await fetch(`${API_BASE}/api/dashboard/report?language=${language}`, { cache: 'no-store' });
-    if (!response.ok) throw new Error('Failed to fetch report');
+    if (!response.ok) {
+      if (IS_DEMO_MODE) throw new Error('Failed to fetch report');
+      throw new ApiError('Dashboard report is unavailable.', response.status);
+    }
     const data = await response.json();
     return data.report_text || data.report;
   } catch (error) {
-    return "## Weekly Agriculture Intelligence Report\n\nBased on data across 8 Indian states, we are observing a 15% increase in Late Blight cases in Western Maharashtra due to heavy monsoon rainfall. Wheat rust remains a concern in Punjab and UP. Fall Armyworm migration tracking suggests Karnataka maize fields should prepare preventive measures. Cross-state data exchange between Punjab and UP has enabled early warning advisories in the Gangetic wheat belt.";
+    if (IS_DEMO_MODE) {
+      return "## Weekly Agriculture Intelligence Report\n\nBased on data across 8 Indian states, we are observing a 15% increase in Late Blight cases in Western Maharashtra due to heavy monsoon rainfall. Wheat rust remains a concern in Punjab and UP. Fall Armyworm migration tracking suggests Karnataka maize fields should prepare preventive measures. Cross-state data exchange between Punjab and UP has enabled early warning advisories in the Gangetic wheat belt.";
+    }
+    throw error;
   }
 }
 
 export async function getOutbreaks(): Promise<OutbreakData[]> {
   try {
     const response = await fetch(`${API_BASE}/api/dashboard/outbreaks`);
-    if (!response.ok) return mockOutbreaks;
+    if (!response.ok) {
+      if (IS_DEMO_MODE) return mockOutbreaks;
+      throw new ApiError('Outbreaks data unavailable.', response.status);
+    }
     const data = await response.json();
     return data.map((item: any) => ({
       ...item,
@@ -183,15 +217,19 @@ export async function getOutbreaks(): Promise<OutbreakData[]> {
       severity: item.severity ? item.severity.charAt(0).toUpperCase() + item.severity.slice(1) : 'Moderate'
     }));
   } catch (error) {
-    console.warn('Outbreaks API failed, using fallback:', error);
-    return mockOutbreaks;
+    if (IS_DEMO_MODE) return mockOutbreaks;
+    if (error instanceof ApiError) throw error;
+    throw new ApiError('Outbreaks data could not be reached.');
   }
 }
 
 export async function getCropHealth(): Promise<CropHealthData[]> {
   try {
     const response = await fetch(`${API_BASE}/api/dashboard/crop-health`);
-    if (!response.ok) return mockCropHealth;
+    if (!response.ok) {
+      if (IS_DEMO_MODE) return mockCropHealth;
+      throw new ApiError('Crop health data unavailable.', response.status);
+    }
     const data = await response.json();
     
     // The backend might return an array directly, or an object with a 'regions' array
@@ -207,27 +245,34 @@ export async function getCropHealth(): Promise<CropHealthData[]> {
         health_status: region.status === 'healthy' ? 'Good' : region.status === 'stressed' ? 'Poor' : 'Fair'
       }));
     }
-    return mockCropHealth;
+    if (IS_DEMO_MODE) return mockCropHealth;
+    throw new ApiError('Invalid crop health data format.');
   } catch (error) {
-    console.warn('Crop Health API failed, using fallback:', error);
-    return mockCropHealth;
+    if (IS_DEMO_MODE) return mockCropHealth;
+    if (error instanceof ApiError) throw error;
+    throw new ApiError('Crop health data could not be reached.');
   }
 }
 
 export async function getIndianStates(): Promise<IndianState[]> {
   try {
     const response = await fetch(`${API_BASE}/api/states`);
-    if (!response.ok) return mockStates;
+    if (!response.ok) {
+      if (IS_DEMO_MODE) return mockStates;
+      throw new ApiError('States data unavailable.', response.status);
+    }
     const data = await response.json();
     if (data && Array.isArray(data.states)) {
       return data.states;
     } else if (Array.isArray(data)) {
       return data;
     }
-    return mockStates;
+    if (IS_DEMO_MODE) return mockStates;
+    throw new ApiError('Invalid states data format.');
   } catch (error) {
-    console.warn('States API failed, using fallback:', error);
-    return mockStates;
+    if (IS_DEMO_MODE) return mockStates;
+    if (error instanceof ApiError) throw error;
+    throw new ApiError('States data could not be reached.');
   }
 }
 
@@ -251,11 +296,15 @@ export async function getPersonalizedAlerts(lat: number, lng: number, cropType?:
   const cropQuery = cropType ? `&crop_type=${encodeURIComponent(cropType)}` : '';
   try {
     const response = await fetch(`${API_BASE}/api/alerts/personalized?lat=${lat}&lng=${lng}${cropQuery}`);
-    if (!response.ok) return [];
+    if (!response.ok) {
+      if (IS_DEMO_MODE) return [];
+      throw new ApiError('Personalized alerts unavailable.', response.status);
+    }
     const data = await response.json();
     return data.alerts || [];
   } catch (error) {
-    console.warn('Personalized Alerts API failed:', error);
-    return [];
+    if (IS_DEMO_MODE) return [];
+    throw new ApiError('Personalized alerts could not be reached.');
   }
 }
+

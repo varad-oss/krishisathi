@@ -22,19 +22,35 @@ export default function MapPage() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [outbreaks, setOutbreaks] = useState<OutbreakData[]>([]);
 
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     async function loadData() {
-      const [hData, aData, oData] = await Promise.all([
-        getCropHealth(),
-        getAlerts(),
-        getOutbreaks()
-      ]);
-      setHealthData(hData);
-      setAlerts(aData);
-      setOutbreaks(oData);
+      try {
+        const [hData, aData, oData] = await Promise.all([
+          getCropHealth(),
+          getAlerts(),
+          getOutbreaks()
+        ]);
+        setHealthData(hData);
+        setAlerts(aData);
+        setOutbreaks(oData);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load map data.");
+      }
     }
     loadData();
   }, []);
+
+  if (error) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-6 bg-gray-50 h-[calc(100vh-64px)]">
+        <AlertTriangle className="h-12 w-12 text-red-500 mb-4" />
+        <h2 className="text-xl font-bold text-gray-900 mb-2">Service Unavailable</h2>
+        <p className="text-gray-600 text-center max-w-md">{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 bg-gray-50 flex flex-col md:flex-row h-[calc(100vh-64px)] overflow-hidden">

@@ -91,7 +91,11 @@ export default function DiagnosePage() {
       );
       setResult(diagnosis);
     } catch (err) {
-      setError("Analysis failed. Please try again or check your connection.");
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Analysis failed. Please try again or check your connection.");
+      }
     } finally {
       setIsAnalyzing(false);
     }

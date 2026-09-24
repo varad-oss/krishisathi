@@ -4,9 +4,11 @@ from google import genai
 from google.genai import types
 from config import settings
 from services.disease_reference_service import disease_reference_service
+from models.exceptions import ServiceUnavailableException
 
 logger = logging.getLogger(__name__)
 
+# Note: Keeping the model names unchanged for this PR as instructed ("Do NOT change the AI model simply because the model name is outdated in the README.")
 MODEL_FLASH = 'gemini-flash-lite-latest'
 MODEL_PRO = 'gemini-flash-lite-latest'
 
@@ -17,7 +19,7 @@ class GeminiService:
             self.client = genai.Client(api_key=self.api_key)
         else:
             self.client = None
-            logger.warning("GEMINI_API_KEY not set. Using mock data.")
+            logger.error("GEMINI_API_KEY not set. Gemini services will be unavailable.")
 
     def _call_with_fallback(self, prompt, image_part=None, use_pro=True, response_mime_type=None, temperature=0.3):
         contents = [image_part, prompt] if image_part else [prompt]
@@ -37,19 +39,22 @@ class GeminiService:
                 config=config
             )
         except Exception as e:
-            import traceback; traceback.print_exc()
             logger.warning(f"{model} failed ({e}), falling back to {MODEL_FLASH}")
             if use_pro:
-                return self.client.models.generate_content(
-                    model=MODEL_FLASH,
-                    contents=contents,
-                    config=config
-                )
-            raise e
+                try:
+                    return self.client.models.generate_content(
+                        model=MODEL_FLASH,
+                        contents=contents,
+                        config=config
+                    )
+                except Exception as ex:
+                    logger.error(f"Fallback {MODEL_FLASH} also failed: {ex}")
+                    raise ServiceUnavailableException("Diagnostic model is temporarily unavailable.") from ex
+            raise ServiceUnavailableException("Diagnostic model is temporarily unavailable.") from e
 
     def diagnose_crop_disease(self, image_bytes: bytes, crop_type: str, location_context: dict) -> dict:
         if not self.client:
-            return self._get_mock_diagnosis(crop_type)
+            raise ServiceUnavailableException("Diagnosis service is unavailable (API key missing).")
         
         try:
             image_part = types.Part.from_bytes(data=image_bytes, mime_type='image/jpeg')
@@ -94,14 +99,15 @@ class GeminiService:
             )
             
             return json.loads(response.text)
+        except ServiceUnavailableException:
+            raise
         except Exception as e:
-            import traceback; traceback.print_exc()
-            print(f"Error calling Gemini: {e}")
-            return self._get_mock_diagnosis(crop_type)
+            logger.error(f"Error parsing Gemini response: {e}")
+            raise ServiceUnavailableException("Diagnosis service failed to process the request.") from e
 
     def generate_advisory(self, query: str, context: dict, image_base64: str = None) -> str:
         if not self.client:
-            return "Based on mock data, ensure proper irrigation and apply balanced NPK fertilizers."
+            raise ServiceUnavailableException("Advisory service is unavailable (API key missing).")
             
         try:
             prompt = f"""
@@ -126,14 +132,15 @@ class GeminiService:
                 temperature=0.5
             )
             return response.text
+        except ServiceUnavailableException:
+            raise
         except Exception as e:
-            import traceback; traceback.print_exc()
-            print(f"Error calling Gemini: {e}")
-            return "Service temporarily unavailable. Ensure proper care of your crops based on local guidelines."
+            logger.error(f"Error calling Gemini for advisory: {e}")
+            raise ServiceUnavailableException("Advisory service is temporarily unavailable.") from e
             
     def generate_dashboard_report(self, data: dict, language: str = 'en') -> str:
         if not self.client:
-            return "This is a mock weekly report. No significant issues reported."
+            raise ServiceUnavailableException("Reporting service is unavailable (API key missing).")
         try:
             lang_map = {'hi': 'Hindi', 'mr': 'Marathi', 'ta': 'Tamil', 'te': 'Telugu', 'bn': 'Bengali', 'kn': 'Kannada', 'gu': 'Gujarati', 'pa': 'Punjabi', 'ml': 'Malayalam', 'en': 'English'}
             lang_name = lang_map.get(language, 'English')
@@ -153,27 +160,10 @@ class GeminiService:
                 temperature=0.4
             )
             return response.text
+        except ServiceUnavailableException:
+            raise
         except Exception as e:
-            import traceback; traceback.print_exc()
-            print(f"Error calling Gemini: {e}")
-            return "Error generating report."
-
-    def _get_mock_diagnosis(self, crop_type: str) -> dict:
-        return {
-            "disease_name": "Leaf Blight (Mock)",
-            "scientific_name": "Alternaria spp.",
-            "confidence": 0.85,
-            "severity": "Medium",
-            "affected_part": "Leaves",
-            "treatment": {
-                "immediate": ["Remove infected leaves"],
-                "organic": ["Apply neem oil extract"],
-                "chemical": ["Apply appropriate fungicide"],
-                "prevention": ["Ensure proper spacing for air circulation"]
-            },
-            "spread_risk": "Medium",
-            "image_analysis_summary": "Dark brown spots with concentric rings observed on the leaves.",
-            "advisory_text": "Monitor the crop closely and apply treatments immediately to prevent spread."
-        }
+            logger.error(f"Error calling Gemini for report: {e}")
+            raise ServiceUnavailableException("Reporting service is temporarily unavailable.") from e
 
 gemini_service = GeminiService()

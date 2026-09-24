@@ -95,6 +95,8 @@ npm install
 
 # Point the frontend to the local backend
 echo 'NEXT_PUBLIC_API_URL="http://localhost:8000"' > .env.local
+# Set NEXT_PUBLIC_DEMO_MODE="true" to enable mock UI data without a backend
+echo 'NEXT_PUBLIC_DEMO_MODE="false"' >> .env.local
 
 # Start the frontend
 npm run dev
