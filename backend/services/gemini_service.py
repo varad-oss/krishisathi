@@ -8,10 +8,6 @@ from models.exceptions import ServiceUnavailableException
 
 logger = logging.getLogger(__name__)
 
-# Note: Keeping the model names unchanged for this PR as instructed ("Do NOT change the AI model simply because the model name is outdated in the README.")
-MODEL_FLASH = 'gemini-flash-lite-latest'
-MODEL_PRO = 'gemini-flash-lite-latest'
-
 class GeminiService:
     def __init__(self):
         self.api_key = settings.GEMINI_API_KEY
@@ -21,7 +17,7 @@ class GeminiService:
             self.client = None
             logger.error("GEMINI_API_KEY not set. Gemini services will be unavailable.")
 
-    def _call_with_fallback(self, prompt, image_part=None, use_pro=True, response_mime_type=None, temperature=0.3):
+    def _call(self, prompt, image_part=None, model=None, response_mime_type=None, temperature=0.3):
         contents = [image_part, prompt] if image_part else [prompt]
         
         config = types.GenerateContentConfig(
@@ -30,8 +26,6 @@ class GeminiService:
         if response_mime_type:
             config.response_mime_type = response_mime_type
             
-        model = MODEL_PRO if use_pro else MODEL_FLASH
-        
         try:
             return self.client.models.generate_content(
                 model=model,
@@ -39,17 +33,7 @@ class GeminiService:
                 config=config
             )
         except Exception as e:
-            logger.warning(f"{model} failed ({e}), falling back to {MODEL_FLASH}")
-            if use_pro:
-                try:
-                    return self.client.models.generate_content(
-                        model=MODEL_FLASH,
-                        contents=contents,
-                        config=config
-                    )
-                except Exception as ex:
-                    logger.error(f"Fallback {MODEL_FLASH} also failed: {ex}")
-                    raise ServiceUnavailableException("Diagnostic model is temporarily unavailable.") from ex
+            logger.error(f"{model} failed: {e}")
             raise ServiceUnavailableException("Diagnostic model is temporarily unavailable.") from e
 
     def diagnose_crop_disease(self, image_bytes: bytes, crop_type: str, location_context: dict) -> dict:
@@ -59,43 +43,53 @@ class GeminiService:
         try:
             image_part = types.Part.from_bytes(data=image_bytes, mime_type='image/jpeg')
             
-            # Fetch RAG Grounding context
             state_code = location_context.get('state', '')
             grounding_context = disease_reference_service.get_grounding_context(crop_type, state_code)
             
             prompt = f"""
-            You are an expert agricultural plant pathologist. Analyze the provided image of a crop.
-            Crop Type (if provided): {crop_type or 'Unknown'}
-            Location Context: {location_context}
+You are an expert agricultural plant pathologist. Analyze the provided image of a crop.
+
+[OBSERVED FROM IMAGE]
+Analyze the visual symptoms carefully.
+Crop Type (if provided): {crop_type or 'Unknown'}
+
+[REFERENCE KNOWLEDGE]
+{grounding_context}
+
+[ENVIRONMENTAL CONTEXT]
+Location Context: {location_context}
+
+INSTRUCTIONS:
+1. Identify any disease or pest visible in the image.
+2. Use the REFERENCE KNOWLEDGE strictly to compare symptoms and explain management. 
+3. If the reference data contains no matching diseases, state the diagnosis based ONLY on the visual evidence, but DO NOT invent or hallucinate references.
+4. DO NOT invent pesticide doses, concentrations, or regulatory claims. If a concrete chemical treatment is in the reference, you may state it, but always append: "Consult local agricultural authorities for exact dosage."
+
+Return the response strictly as a JSON object with the following structure:
+{{
+    "disease_name": "Common name of the disease",
+    "scientific_name": "Scientific name",
+    "confidence": 0.0 to 1.0,
+    "severity": "Low, Medium, or High",
+    "affected_part": "Leaves, Stem, Roots, etc.",
+    "treatment": {{
+        "immediate": ["step 1", "step 2"],
+        "organic": ["step 1"],
+        "chemical": ["step 1", "Consult local agricultural authorities for exact dosage."],
+        "prevention": ["step 1"]
+    }},
+    "spread_risk": "Low, Medium, or High",
+    "image_analysis_summary": "Brief summary of what you see in the image",
+    "advisory_text": "General advisory for the farmer"
+}}
+"""
             
-            Reference Grounding Data for regional diseases:
-            {grounding_context}
-            
-            Identify any disease or pest visible in the image. Return the response strictly as a JSON object with the following structure:
-            {{
-                "disease_name": "Common name of the disease",
-                "scientific_name": "Scientific name",
-                "confidence": 0.0 to 1.0,
-                "severity": "Low, Medium, or High",
-                "affected_part": "Leaves, Stem, Roots, etc.",
-                "treatment": {{
-                    "immediate": ["step 1", "step 2"],
-                    "organic": ["step 1"],
-                    "chemical": ["step 1"],
-                    "prevention": ["step 1"]
-                }},
-                "spread_risk": "Low, Medium, or High",
-                "image_analysis_summary": "Brief summary of what you see in the image",
-                "advisory_text": "General advisory for the farmer"
-            }}
-            """
-            
-            response = self._call_with_fallback(
+            response = self._call(
                 prompt=prompt, 
                 image_part=image_part, 
-                use_pro=True, 
+                model=settings.GEMINI_DIAGNOSIS_MODEL,
                 response_mime_type='application/json', 
-                temperature=0.3
+                temperature=0.2
             )
             
             return json.loads(response.text)
@@ -125,10 +119,10 @@ class GeminiService:
                 img_bytes = base64.b64decode(image_base64)
                 image_part = types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg")
             
-            response = self._call_with_fallback(
+            response = self._call(
                 prompt=prompt, 
                 image_part=image_part,
-                use_pro=False, 
+                model=settings.GEMINI_ADVISORY_MODEL,
                 temperature=0.5
             )
             return response.text
@@ -154,9 +148,9 @@ class GeminiService:
             """
 
             
-            response = self._call_with_fallback(
+            response = self._call(
                 prompt=prompt, 
-                use_pro=True, 
+                model=settings.GEMINI_AGENT_MODEL,
                 temperature=0.4
             )
             return response.text

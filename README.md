@@ -82,10 +82,22 @@ pip install -r requirements.txt
 # Create environment file
 echo 'GEMINI_API_KEY="your-api-key"' > .env
 
+# Optional Model Configuration (defaults to 1.5-flash series)
+echo 'GEMINI_DIAGNOSIS_MODEL="gemini-1.5-flash"' >> .env
+echo 'GEMINI_ADVISORY_MODEL="gemini-1.5-flash"' >> .env
+echo 'GEMINI_TRANSLATION_MODEL="gemini-1.5-flash-8b"' >> .env
+echo 'GEMINI_TRANSCRIPTION_MODEL="gemini-1.5-flash"' >> .env
+echo 'GEMINI_AGENT_MODEL="gemini-1.5-pro"' >> .env
+
 # Start the server on port 8000
 uvicorn main:app --reload --port 8000
 ```
 *API documentation will be available at [http://localhost:8000/docs](http://localhost:8000/docs).*
+
+#### Knowledge Base & Provenance
+KrishiSathi uses a deterministically grounded knowledge base located at `backend/data/disease_reference.json`.
+- **Data Provenance:** All disease data and treatment guidelines are sourced directly from authoritative agricultural institutions (e.g., ICAR-IIRR, ICAR-IIWBR). The Gemini models use this strictly for reference and are instructed not to invent or hallucinate unsupported treatments or pesticide doses.
+- **Regional Limitations:** While the system attempts to match crop and state contexts, highly localized state-specific datasets are still limited. If no state match is found, the system defaults to general crop-specific disease reference data.
 
 ### 3. Frontend Setup (Next.js)
 In a new terminal tab:

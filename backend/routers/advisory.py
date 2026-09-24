@@ -44,7 +44,7 @@ async def transcribe_audio(request: TranscribeRequest):
         audio_part = types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)
         
         response = client.models.generate_content(
-            model='gemini-flash-lite-latest',
+            model=settings.GEMINI_TRANSCRIPTION_MODEL,
             contents=[
                 audio_part, 
                 f"Transcribe the audio exactly. You MUST output the text in the native script of the language code '{request.language}' (e.g. use Devanagari for hi/mr, Gujarati script for gu, Tamil script for ta, etc). Do NOT romanize or use English letters unless the user actually spoke English. Return only the transcribed text, nothing else."
@@ -160,7 +160,7 @@ async def get_voice_advisory(request: VoiceAdvisoryRequest):
         audio_part = types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)
         
         response = client.models.generate_content(
-            model='gemini-flash-lite-latest',
+            model=settings.GEMINI_TRANSCRIPTION_MODEL,
             contents=[
                 audio_part, 
                 "Transcribe the audio exactly. Return only the transcribed text, nothing else."

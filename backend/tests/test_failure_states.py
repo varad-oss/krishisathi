@@ -21,7 +21,7 @@ def mock_weather_error():
 
 @pytest.fixture
 def mock_gemini_error():
-    with patch.object(gemini_service, '_call_with_fallback') as mock_call:
+    with patch.object(gemini_service, '_call') as mock_call:
         mock_call.side_effect = ServiceUnavailableException("Diagnostic model is temporarily unavailable.")
         yield mock_call
 

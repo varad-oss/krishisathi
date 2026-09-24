@@ -36,7 +36,7 @@ class TranslationService:
 Text:
 {text}"""
             response = self.client.models.generate_content(
-                model='gemini-flash-lite-latest',
+                model=settings.GEMINI_TRANSLATION_MODEL,
                 contents=[prompt],
                 config=types.GenerateContentConfig(
                     temperature=0.1,

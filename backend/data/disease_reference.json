@@ -1,0 +1,84 @@
+{
+  "diseases": [
+    {
+      "id": "wheat-rust",
+      "name": "Wheat Rust / Stripe Rust",
+      "scientific_name": "Puccinia striiformis f. sp. tritici",
+      "crops": ["Wheat", "Triticum aestivum"],
+      "states": ["PB", "HR", "UP"],
+      "symptoms": "Yellow to orange blister-like lesions arranged in stripes on leaves. Severe infections cause premature defoliation and shriveled grains.",
+      "treatment": "Use rust-resistant varieties (e.g., HD 2967, PBW 723). For chemical treatment, foliar sprays of Propiconazole 25 EC or Tebuconazole 25 EC are standard, but consult ICAR/local authorities for exact dosage and timing.",
+      "sources": [
+        {
+          "organization": "ICAR-Indian Institute of Wheat and Barley Research",
+          "title": "Wheat Disease Management",
+          "url": "https://iiwbr.icar.gov.in/"
+        }
+      ]
+    },
+    {
+      "id": "late-blight-potato",
+      "name": "Late Blight",
+      "scientific_name": "Phytophthora infestans",
+      "crops": ["Potato", "Tomato"],
+      "states": ["MH", "PB", "UP"],
+      "symptoms": "Water-soaked irregular spots on leaves that turn brown/black. White cottony growth on the underside during humid weather. Rapid necrosis of vines.",
+      "treatment": "Ensure proper drainage and use healthy seed tubers. Preventative sprays of Mancozeb 75 WP or systemic fungicides like Metalaxyl are recommended. Consult ICAR-CPRI guidelines for exact dosage.",
+      "sources": [
+        {
+          "organization": "ICAR-Central Potato Research Institute",
+          "title": "Late Blight of Potato and its Management",
+          "url": "https://cpri.icar.gov.in/"
+        }
+      ]
+    },
+    {
+      "id": "fall-armyworm-maize",
+      "name": "Fall Armyworm",
+      "scientific_name": "Spodoptera frugiperda",
+      "crops": ["Maize", "Corn", "Sorghum"],
+      "states": ["KA", "MH", "TS"],
+      "symptoms": "Larvae feed on leaves causing ragged holes, often leaving sawdust-like frass in the whorl. Severe defoliation and feeding on developing ears.",
+      "treatment": "Early scouting is critical. Use whorl application of sand + lime or neem seed kernel extract (NSKE) 5% for organic management. Chemical options include Emamectin benzoate or Spinetoram. Consult ICAR-IIMR for exact dosage.",
+      "sources": [
+        {
+          "organization": "ICAR-Indian Institute of Maize Research",
+          "title": "Fall Armyworm Management in Maize",
+          "url": "https://iimr.icar.gov.in/"
+        }
+      ]
+    },
+    {
+      "id": "rice-blast",
+      "name": "Rice Blast",
+      "scientific_name": "Magnaporthe oryzae",
+      "crops": ["Rice", "Paddy"],
+      "states": ["AP", "TS", "PB", "HR", "WB"],
+      "symptoms": "Diamond-shaped or spindle-shaped lesions with gray centers and brown margins on leaves. Can also affect nodes and panicles (neck blast), causing panicle lodging.",
+      "treatment": "Avoid excessive nitrogen application. Delay draining the field. Chemical options include Tricyclazole 75 WP or Isoprothiolane 40 EC. Consult ICAR-IIRR for exact dosage.",
+      "sources": [
+        {
+          "organization": "ICAR-Indian Institute of Rice Research",
+          "title": "Rice Disease Management",
+          "url": "https://www.icar-iirr.org/"
+        }
+      ]
+    },
+    {
+      "id": "bacterial-leaf-blight",
+      "name": "Bacterial Leaf Blight",
+      "scientific_name": "Xanthomonas oryzae pv. oryzae",
+      "crops": ["Rice", "Paddy"],
+      "states": ["AP", "TS", "PB", "HR", "WB"],
+      "symptoms": "Water-soaked to yellowish stripes on leaf blades or starting at leaf tips, later enlarging and turning pale yellow to grayish white. Leaves wilt and roll up.",
+      "treatment": "Use resistant varieties. Avoid excess nitrogen. Chemical control is often ineffective; prevention is key. Copper fungicides may provide limited suppression. Consult ICAR-IIRR for specific recommendations.",
+      "sources": [
+        {
+          "organization": "ICAR-Indian Institute of Rice Research",
+          "title": "Rice Disease Management",
+          "url": "https://www.icar-iirr.org/"
+        }
+      ]
+    }
+  ]
+}
