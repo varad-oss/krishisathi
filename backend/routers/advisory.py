@@ -36,23 +36,36 @@ class TranscribeRequest(BaseModel):
 
 @router.post("/transcribe")
 async def transcribe_audio(request: TranscribeRequest):
+    import binascii
     try:
-        audio_bytes = base64.b64decode(request.audio_base64)
+        try:
+            audio_bytes = base64.b64decode(request.audio_base64)
+        except binascii.Error:
+            raise HTTPException(status_code=400, detail={"error": "invalid_input", "message": "Invalid base64 encoding."})
+            
         mime_type = get_audio_mime_type(audio_bytes)
         
-        client = genai.Client(api_key=settings.GEMINI_API_KEY)
-        audio_part = types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)
-        
-        response = client.models.generate_content(
-            model=settings.GEMINI_TRANSCRIPTION_MODEL,
-            contents=[
-                audio_part, 
-                f"Transcribe the audio exactly. You MUST output the text in the native script of the language code '{request.language}' (e.g. use Devanagari for hi/mr, Gujarati script for gu, Tamil script for ta, etc). Do NOT romanize or use English letters unless the user actually spoke English. Return only the transcribed text, nothing else."
-            ]
-        )
-        
-        transcribed_text = response.text.strip()
-        return {"text": transcribed_text}
+        try:
+            client = genai.Client(api_key=settings.GEMINI_API_KEY)
+            audio_part = types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)
+            
+            response = client.models.generate_content(
+                model=settings.GEMINI_TRANSCRIPTION_MODEL,
+                contents=[
+                    audio_part, 
+                    f"Transcribe the audio exactly. You MUST output the text in the native script of the language code '{request.language}' (e.g. use Devanagari for hi/mr, Gujarati script for gu, Tamil script for ta, etc). Do NOT romanize or use English letters unless the user actually spoke English. Return only the transcribed text, nothing else."
+                ]
+            )
+            
+            transcribed_text = response.text.strip()
+            return {"text": transcribed_text}
+        except Exception as e:
+            logger.error(f"Transcription failed: {e}")
+            raise ServiceUnavailableException("Transcription service is temporarily unavailable.")
+    except HTTPException:
+        raise
+    except ServiceUnavailableException as e:
+        raise HTTPException(status_code=503, detail={"error": "service_unavailable", "message": str(e)})
     except Exception as e:
         logger.error(f"Error in transcribe_audio: {e}")
         raise HTTPException(status_code=500, detail={"error": "internal_error", "message": "An unexpected error occurred during transcription."})
@@ -151,8 +164,12 @@ async def get_followup_advisory(request: AdvisoryRequest, disease_name: str = ''
 
 @router.post("/voice", response_model=VoiceAdvisoryResponse)
 async def get_voice_advisory(request: VoiceAdvisoryRequest):
+    import binascii
     try:
-        audio_bytes = base64.b64decode(request.audio_base64)
+        try:
+            audio_bytes = base64.b64decode(request.audio_base64)
+        except binascii.Error:
+            raise HTTPException(status_code=400, detail={"error": "invalid_input", "message": "Invalid base64 encoding."})
         mime_type = get_audio_mime_type(audio_bytes)
         
         # 1. Native Gemini Audio Transcription
@@ -195,6 +212,8 @@ async def get_voice_advisory(request: VoiceAdvisoryRequest):
             advisory=advisory_response,
             audio_response_base64=audio_b64
         )
+    except HTTPException:
+        raise
     except ServiceUnavailableException as e:
         raise HTTPException(status_code=503, detail={"error": "service_unavailable", "message": str(e)})
     except Exception as e:

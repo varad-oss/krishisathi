@@ -1,5 +1,7 @@
 import base64
+import binascii
 import asyncio
+import logging
 from fastapi import APIRouter, File, UploadFile, Form, HTTPException
 from models.diagnosis import DiagnosisRequest, DiagnosisResponse
 from models.exceptions import ServiceUnavailableException
@@ -9,6 +11,7 @@ from services.translation import translation_service
 from services.bigquery_service import bq_service
 
 router = APIRouter(prefix="/api/diagnose", tags=["Diagnose"])
+logger = logging.getLogger(__name__)
 
 @router.post("", response_model=DiagnosisResponse)
 async def diagnose_multipart(
@@ -21,9 +24,12 @@ async def diagnose_multipart(
     try:
         contents = await file.read()
         return await process_diagnosis(contents, crop_type, latitude, longitude, language)
+    except HTTPException:
+        raise
     except ServiceUnavailableException as e:
         raise HTTPException(status_code=503, detail={"error": "service_unavailable", "message": str(e)})
     except Exception as e:
+        logger.error(f"Error in diagnose_multipart: {e}")
         raise HTTPException(status_code=500, detail={"error": "internal_error", "message": "An unexpected error occurred."})
 
 @router.post("/base64", response_model=DiagnosisResponse)
@@ -34,14 +40,27 @@ async def diagnose_base64(request: DiagnosisRequest):
         else:
             image_data = request.image
         
-        contents = base64.b64decode(image_data)
+        try:
+            contents = base64.b64decode(image_data)
+        except binascii.Error:
+            raise HTTPException(status_code=400, detail={"error": "invalid_input", "message": "Invalid base64 encoding."})
+            
         return await process_diagnosis(
             contents, request.crop_type, request.latitude, request.longitude, request.language
         )
+    except HTTPException:
+        raise
     except ServiceUnavailableException as e:
         raise HTTPException(status_code=503, detail={"error": "service_unavailable", "message": str(e)})
     except Exception as e:
+        logger.error(f"Error in diagnose_base64: {e}")
         raise HTTPException(status_code=500, detail={"error": "internal_error", "message": "An unexpected error occurred."})
+
+async def safe_log_diagnosis(log_data: dict):
+    try:
+        await bq_service.log_diagnosis(log_data)
+    except Exception as e:
+        logger.error(f"Failed to log diagnosis telemetry to BigQuery (non-durable): {e}")
 
 async def process_diagnosis(image_bytes: bytes, crop_type: str, latitude: float, longitude: float, language: str) -> dict:
     weather = await weather_service.get_current_weather(latitude, longitude)
@@ -81,9 +100,8 @@ async def process_diagnosis(image_bytes: bytes, crop_type: str, latitude: float,
                 if v and k in diagnosis_data:
                     diagnosis_data[k] = v
         except Exception as e:
-            print(f"Failed to parse batched translation JSON: {e}")
-            # Do nothing, leave it in English if it fails parsing
-
+            logger.error(f"Failed to parse batched translation JSON: {e}")
+            raise HTTPException(status_code=500, detail={"error": "translation_processing_error", "message": "Failed to parse translated diagnostic response."})
             
     diagnosis_data["language"] = language
     
@@ -96,6 +114,6 @@ async def process_diagnosis(image_bytes: bytes, crop_type: str, latitude: float,
         "latitude": latitude,
         "longitude": longitude
     }
-    asyncio.create_task(bq_service.log_diagnosis(log_data))
+    asyncio.create_task(safe_log_diagnosis(log_data))
     
     return diagnosis_data

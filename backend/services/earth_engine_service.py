@@ -24,14 +24,17 @@ class EarthEngineService:
                 logger.info(f"Earth Engine initialization failed: {e}")
                 logger.info("Falling back to simulated NDVI estimation pipeline.")
 
-    def calculate_regional_ndvi(self, region_geometry, start_date: str, end_date: str) -> float:
+    def calculate_regional_ndvi(self, region_geometry, start_date: str, end_date: str) -> dict:
         """
         Calculate the mean NDVI for a given geometric region over a time period
         using the Sentinel-2 surface reflectance dataset.
         """
         if not self.initialized:
-            # Fallback for environments without EE credentials
-            return self._simulate_ndvi()
+            return {
+                "status": "unavailable",
+                "source": "google-earth-engine",
+                "message": "Earth Engine credentials not initialized."
+            }
 
         try:
             # Real Earth Engine Pipeline for Noncommercial/Research tier
@@ -60,16 +63,25 @@ class EarthEngineService:
             )
             
             result = mean_dict.getInfo()
-            return result.get('NDVI', 0.0)
+            if 'NDVI' not in result or result['NDVI'] is None:
+                return {
+                    "status": "no-data",
+                    "source": "google-earth-engine"
+                }
+                
+            return {
+                "status": "available",
+                "value": result['NDVI'],
+                "source": "sentinel-2",
+                "provider": "google-earth-engine"
+            }
             
         except Exception as e:
-            logger.info(f"Earth Engine calculation error: {e}")
-            return self._simulate_ndvi()
-
-    def _simulate_ndvi(self) -> float:
-        """Fallback simulated NDVI score when Earth Engine is unavailable"""
-        import random
-        # Return a realistic NDVI value between 0.4 and 0.8
-        return round(random.uniform(0.4, 0.8), 2)
+            logger.error(f"Earth Engine calculation error: {e}")
+            return {
+                "status": "unavailable",
+                "source": "google-earth-engine",
+                "message": str(e)
+            }
 
 earth_engine_service = EarthEngineService()

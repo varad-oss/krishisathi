@@ -7,8 +7,8 @@ on:
     branches: [ main ]
 
 jobs:
-  lint-frontend:
-    name: Lint Frontend (Next.js)
+  lint-build-frontend:
+    name: Lint & Build Frontend (Next.js)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -20,9 +20,11 @@ jobs:
         run: cd frontend && npm install
       - name: Run Linter
         run: cd frontend && npm run lint
+      - name: Build Frontend
+        run: cd frontend && npm run build
 
-  check-backend:
-    name: Check Backend (FastAPI)
+  test-backend:
+    name: Test Backend (FastAPI)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -32,3 +34,7 @@ jobs:
           python-version: '3.11'
       - name: Check Python Syntax
         run: cd backend && python -m py_compile $(find . -name "*.py")
+      - name: Install Dependencies
+        run: pip install uv && uv pip install --system -r backend/requirements.txt
+      - name: Run Pytest
+        run: uv run pytest backend/tests/

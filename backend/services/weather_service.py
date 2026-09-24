@@ -16,21 +16,20 @@ class WeatherService:
                 response.raise_for_status()
                 data = response.json()
                 
-                current = data.get("current_weather", {})
-                temp = current.get("temperature", 28.5)
-                wind = current.get("windspeed", 12.5)
+                current = data.get("current_weather")
+                if not current or "temperature" not in current or "windspeed" not in current:
+                    raise ServiceUnavailableException("Incomplete current weather data from provider.")
+                    
+                temp = current["temperature"]
+                wind = current["windspeed"]
                 
-                humidity = 65
-                rainfall = 0.0
-                soil_moisture = 0.3 # Default volumetric
-                
-                if "hourly" in data:
-                    if "relative_humidity_2m" in data["hourly"] and len(data["hourly"]["relative_humidity_2m"]) > 0:
-                        humidity = data["hourly"]["relative_humidity_2m"][0]
-                    if "precipitation" in data["hourly"] and len(data["hourly"]["precipitation"]) > 0:
-                        rainfall = data["hourly"]["precipitation"][0]
-                    if "soil_moisture_0_to_7cm" in data["hourly"] and len(data["hourly"]["soil_moisture_0_to_7cm"]) > 0:
-                        soil_moisture = data["hourly"]["soil_moisture_0_to_7cm"][0]
+                hourly = data.get("hourly", {})
+                if not all(k in hourly and len(hourly[k]) > 0 for k in ["relative_humidity_2m", "precipitation", "soil_moisture_0_to_7cm"]):
+                    raise ServiceUnavailableException("Incomplete hourly weather data from provider.")
+                    
+                humidity = hourly["relative_humidity_2m"][0]
+                rainfall = hourly["precipitation"][0]
+                soil_moisture = hourly["soil_moisture_0_to_7cm"][0]
                 
                 return {
                     "temp": temp,
@@ -39,8 +38,11 @@ class WeatherService:
                     "wind": wind,
                     "soil_moisture": soil_moisture,
                     "description": self._get_weather_desc(current.get("weathercode", 0)),
-                    "source": "Open-Meteo Live API"
+                    "source": "open-meteo",
+                    "source_type": "external_live_api"
                 }
+        except ServiceUnavailableException:
+            raise
         except Exception as e:
             logger.error(f"Weather API error: {e}")
             raise ServiceUnavailableException("Weather data is temporarily unavailable.") from e
@@ -53,7 +55,10 @@ class WeatherService:
                 response.raise_for_status()
                 data = response.json()
                 
-                daily = data.get("daily", {})
+                daily = data.get("daily")
+                if not daily:
+                    raise ServiceUnavailableException("Incomplete daily forecast data from provider.")
+                    
                 dates = daily.get("time", [])
                 t_max = daily.get("temperature_2m_max", [])
                 t_min = daily.get("temperature_2m_min", [])
@@ -61,14 +66,18 @@ class WeatherService:
                 
                 forecast = []
                 for i in range(min(days, len(dates))):
+                    if i >= len(t_max) or i >= len(t_min) or i >= len(w_codes):
+                        raise ServiceUnavailableException("Incomplete forecast arrays from provider.")
                     forecast.append({
                         "date": dates[i],
-                        "temp_max": t_max[i] if i < len(t_max) else 30.0,
-                        "temp_min": t_min[i] if i < len(t_min) else 22.0,
-                        "description": self._get_weather_desc(w_codes[i] if i < len(w_codes) else 0),
-                        "humidity": 60 
+                        "temp_max": t_max[i],
+                        "temp_min": t_min[i],
+                        "description": self._get_weather_desc(w_codes[i]),
+                        "humidity": None 
                     })
                 return forecast
+        except ServiceUnavailableException:
+            raise
         except Exception as e:
             logger.error(f"Forecast API error: {e}")
             raise ServiceUnavailableException("Weather forecast is temporarily unavailable.") from e

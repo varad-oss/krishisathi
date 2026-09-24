@@ -21,7 +21,16 @@ Indian farmers in low-resource areas face two major barriers to adopting modern 
 * **Multimodal RAG Diagnostics:** Upload a photo of a diseased crop, and the backend dynamically injects real-time weather and soil data (via Open-Meteo) into the Gemini 3.8 Flash prompt to generate a highly accurate, hyper-local treatment plan.
 * **Voice-First Accessibility:** Features a custom client-side Voice Activity Detection (VAD) engine that auto-terminates recording upon silence, paired with a robust Text-to-Speech (TTS) audio streaming pipeline.
 * **Strict Non-Romanized Localization:** AI prompt engineering enforces native Indic script outputs (e.g., pure Marathi/Hindi without Hinglish transliteration) and native numeral formatting across the UI.
-* **Zero-Billing Edge Deployment:** Architected entirely on Vercel Serverless/Edge functions (`@vercel/python` for the FastAPI backend), scaling to $0 infrastructure cost when idle.
+* **Explicit Failure Semantics:** The system enforces strict API contracts — network or data failures trigger clear UI error states rather than silently substituting synthetic or default data. 
+
+## Modes of Operation
+
+* **Production Mode (`NEXT_PUBLIC_DEMO_MODE="false"`)**: Requires a fully configured backend with active API keys (Gemini, Open-Meteo). Explicitly fails with HTTP 503 errors if external measurement data (weather, satellite) is unavailable, preventing the silent display of fabricated data to farmers.
+* **Demo Mode (`NEXT_PUBLIC_DEMO_MODE="true"`)**: An explicit UI-only mode that hydrates the dashboard and charts with hardcoded mock data for demonstration purposes without requiring a live backend.
+
+## Limitations & External Dependencies
+* **Earth Engine NDVI Pipeline**: The Sentinel-2 NDVI calculation requires a valid Google Earth Engine service account. If unauthenticated, the service will return an explicit `unavailable` status rather than mocked measurements.
+* **BigQuery Telemetry**: Diagnosis logs are emitted via an asynchronous fire-and-forget task. If BigQuery is unconfigured, logs are safely dropped with a console warning.
 
 ## Architecture
 
@@ -87,7 +96,7 @@ echo 'GEMINI_DIAGNOSIS_MODEL="gemini-3.8-flash"' >> .env
 echo 'GEMINI_ADVISORY_MODEL="gemini-3.8-flash"' >> .env
 echo 'GEMINI_TRANSLATION_MODEL="gemini-3.5-flash-lite"' >> .env
 echo 'GEMINI_TRANSCRIPTION_MODEL="gemini-3.5-transcribe"' >> .env
-echo 'GEMINI_AGENT_MODEL="gemini-3.8-pro"' >> .env
+echo 'GEMINI_AGENT_MODEL="gemini-3.8-flash"' >> .env
 
 # Start the server on port 8000
 uvicorn main:app --reload --port 8000

@@ -50,6 +50,9 @@ async def get_stats():
 
 @router.get("/report")
 async def get_dashboard_report(language: str = 'en'):
+    from fastapi import HTTPException
+    from models.exceptions import ServiceUnavailableException
+    
     report_data = {
         "stats": MOCK_STATS,
         "period": "August 14-21, 2026",
@@ -59,12 +62,17 @@ async def get_dashboard_report(language: str = 'en'):
             "Cross-state advisory sharing with Gujarat on soybean diseases",
         ],
     }
-    report_text = gemini_service.generate_dashboard_report(report_data, language)
-    return {
-        "report_text": report_text,
-        "generated_at": datetime.utcnow().isoformat() + "Z",
-        "period": "August 14-21, 2026",
-    }
+    try:
+        report_text = gemini_service.generate_dashboard_report(report_data, language)
+        return {
+            "report_text": report_text,
+            "generated_at": datetime.utcnow().isoformat() + "Z",
+            "period": "August 14-21, 2026",
+        }
+    except ServiceUnavailableException as e:
+        raise HTTPException(status_code=503, detail={"error": "service_unavailable", "message": str(e)})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": "Failed to generate report."})
 
 
 @router.get("/outbreaks")

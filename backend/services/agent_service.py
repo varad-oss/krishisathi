@@ -13,44 +13,36 @@ logger = logging.getLogger(__name__)
 
 def get_weather_tool(lat: float, lng: float) -> dict:
     """Get current weather information for a specific location."""
-    # We use a sync wrapper because we might need to run the async func in the event loop
-    loop = asyncio.get_event_loop()
-    if loop.is_running():
-        # In a running loop, we shouldn't use run_until_complete directly if it's already running.
-        # But this function will be called synchronously by the Gemini API loop (if doing auto function calling)
-        # So we might need to handle this carefully.
-        # Actually, let's just make the tool do a sync request or mock it, or run in a new thread.
-        import threading
-        result = None
-        def run():
-            nonlocal result
-            try:
-                import httpx
-                # Simplified sync request just for the tool to avoid async issues
-                response = httpx.get(
-                    f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lng}&current_weather=true",
-                    timeout=5.0
-                )
-                if response.status_code == 200:
-                    data = response.json()
-                    current = data.get("current_weather", {})
-                    result = {
-                        "temperature": current.get("temperature", 28.5),
-                        "windspeed": current.get("windspeed", 12.5),
-                        "description": "partly cloudy" # Mocked desc
-                    }
-                else:
-                    result = {"temperature": 28.5, "windspeed": 12.5, "description": "partly cloudy"}
-            except Exception as e:
-                logger.error(f"Weather tool error: {e}")
-                result = {"temperature": 28.5, "windspeed": 12.5, "description": "partly cloudy"}
+    import httpx
+    from models.exceptions import ServiceUnavailableException
+    
+    try:
+        url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lng}&current_weather=true&hourly=relative_humidity_2m,precipitation,soil_moisture_0_to_7cm&timezone=auto"
+        response = httpx.get(url, timeout=10.0)
+        response.raise_for_status()
+        data = response.json()
         
-        t = threading.Thread(target=run)
-        t.start()
-        t.join()
-        return result
-    else:
-        return loop.run_until_complete(weather_service.get_current_weather(lat, lng))
+        current = data.get("current_weather")
+        if not current or "temperature" not in current or "windspeed" not in current:
+            raise ServiceUnavailableException("Incomplete weather data from provider.")
+            
+        hourly = data.get("hourly", {})
+        if not all(k in hourly and len(hourly[k]) > 0 for k in ["relative_humidity_2m", "precipitation", "soil_moisture_0_to_7cm"]):
+            raise ServiceUnavailableException("Incomplete hourly weather data from provider.")
+            
+        return {
+            "temp": current["temperature"],
+            "wind": current["windspeed"],
+            "humidity": hourly["relative_humidity_2m"][0],
+            "rainfall": hourly["precipitation"][0],
+            "soil_moisture": hourly["soil_moisture_0_to_7cm"][0],
+            "source": "open-meteo"
+        }
+    except ServiceUnavailableException:
+        raise
+    except Exception as e:
+        logger.error(f"Agent weather tool error: {e}")
+        raise ServiceUnavailableException("Weather data is temporarily unavailable.") from e
 
 
 def get_kvk_tool(lat: float, lng: float) -> dict:
