@@ -78,13 +78,25 @@ async def ensure_db_init(request: Request, call_next):
         try:
             from core.database import engine
             if "sqlite" in str(engine.url):
-                import asyncio
-                def init_db_sync():
-                    from sqlalchemy import create_engine
-                    sync_engine = create_engine("sqlite:////tmp/krishisathi.db")
-                    from models.schema import Base, DiagnosisRecord, OutbreakRecord
-                    Base.metadata.create_all(sync_engine)
-                await asyncio.to_thread(init_db_sync)
+                async with engine.begin() as conn:
+                    from sqlalchemy import text
+                    from sqlalchemy.schema import CreateTable
+                    from models.schema import Base, DiagnosisRecord, OutbreakRecord, AdvisoryRecord, FederationSignalRecord
+                    # Manually execute CREATE TABLE for each table in Base.metadata
+                    for table_name, table in Base.metadata.tables.items():
+                        create_stmt = str(CreateTable(table).compile(engine))
+                        await conn.execute(text(create_stmt))
+                    
+                    # Ensure indices are created
+                    for table_name, table in Base.metadata.tables.items():
+                        for index in table.indexes:
+                            from sqlalchemy.schema import CreateIndex
+                            try:
+                                index_stmt = str(CreateIndex(index).compile(engine))
+                                await conn.execute(text(index_stmt))
+                            except Exception as ix_err:
+                                logger.warning(f"Index creation failed (might already exist): {ix_err}")
+
         except Exception as e:
             logger.error(f"Failed to init DB: {e}")
             import traceback
