@@ -76,6 +76,12 @@ async def ensure_db_init(request: Request, call_next):
             from core.database import Base, engine
             if "sqlite" in str(engine.url):
                 async with engine.begin() as conn:
+                    tables = Base.metadata.tables.keys()
+                    logger.warning(f"Creating tables: {tables}")
+                    if not tables:
+                        from models.schema import DiagnosisRecord, OutbreakRecord
+                        tables = Base.metadata.tables.keys()
+                        logger.warning(f"Tables after explicit import: {tables}")
                     await conn.run_sync(Base.metadata.create_all)
         except Exception as e:
             logger.error(f"Failed to init DB: {e}")
