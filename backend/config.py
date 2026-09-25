@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     TWILIO_AUTH_TOKEN: Optional[str] = None
     TWILIO_WHATSAPP_NUMBER: Optional[str] = None
     FIREBASE_PROJECT_ID: Optional[str] = None
-    CORS_ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:3001"
+    CORS_ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:3001,https://ai-krishisathi.vercel.app,https://krishisathi.app"
     
     # Model configuration
     GEMINI_DIAGNOSIS_MODEL: str = "gemini-1.5-flash"
