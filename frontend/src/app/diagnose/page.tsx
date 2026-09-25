@@ -102,7 +102,7 @@ export default function DiagnosePage() {
 
   const handleShare = () => {
     if (!result) return;
-    const text = `KrishiSathi Alert 🌾\nDisease: ${result.disease_name}\nSeverity: ${result.severity}\nQuick Tip: ${result.treatment_plan.immediate_actions[0]}\nMore info at: krishisathi.app`;
+    const text = `KrishiSathi Alert 🌾\nDisease: ${result.disease_name}\nSeverity: ${result.model_inferred_severity}\nQuick Tip: ${result.treatment_plan.immediate_actions[0]}\nMore info at: krishisathi.app`;
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -125,7 +125,7 @@ export default function DiagnosePage() {
       const response = await getFollowUpAdvisory(
         text,
         result.disease_name,
-        result.severity,
+        result.model_inferred_severity,
         cropType,
         location?.lat || 28.6139,
         location?.lng || 77.2090,
@@ -281,20 +281,20 @@ export default function DiagnosePage() {
                 )}
               </div>
               <div className="flex items-center gap-3">
-                <span className={cn("px-3 py-1 rounded-full text-sm font-semibold border", getSeverityColor(result.severity))}>
-                  {result.severity} Severity
+                <span className={cn("px-3 py-1 rounded-full text-sm font-semibold border", getSeverityColor(result.model_inferred_severity))}>
+                  {result.model_inferred_severity} Severity
                 </span>
                 <span className={cn(
                   "px-3 py-1 rounded-full text-sm font-semibold border", 
-                  result.confidence < 75 ? "bg-red-50 text-red-700 border-red-200" : "bg-blue-50 text-blue-700 border-blue-200"
+                  result.model_confidence_score < 0.75 ? "bg-red-50 text-red-700 border-red-200" : "bg-blue-50 text-blue-700 border-blue-200"
                 )}>
-                  {getConfidenceLabel(result.confidence)} Confidence ({result.confidence.toFixed(1)}%)
+                  {getConfidenceLabel(result.model_confidence_score * 100)} Model Estimate ({(result.model_confidence_score * 100).toFixed(1)}%)
                 </span>
               </div>
             </div>
 
             {/* Low Confidence Fallback UI */}
-            {result.confidence < 75 && (
+            {result.model_confidence_score < 0.75 && (
               <div className="mx-6 mt-6 p-4 bg-orange-50 border border-orange-200 rounded-xl flex items-start gap-3">
                 <AlertTriangle className="h-6 w-6 text-orange-600 flex-shrink-0 mt-0.5" />
                 <div>
@@ -355,7 +355,7 @@ export default function DiagnosePage() {
                   <h3 className="font-bold flex items-center gap-2 text-purple-900">
                     <MapPin className="h-5 w-5" /> {t("Prevention & Spread Risk", language)}
                   </h3>
-                  <p className="text-sm font-medium text-gray-900 mb-2">{result.spread_risk}</p>
+                  <p className="text-sm font-medium text-gray-900 mb-2">{result.model_inferred_spread_risk}</p>
                   <ul className="space-y-2 list-disc list-inside text-gray-700">
                     {result.treatment_plan.prevention.map((action, i) => (
                       <li key={i}>{action}</li>
@@ -368,7 +368,7 @@ export default function DiagnosePage() {
               <div className="pt-4 border-t flex justify-end gap-3">
                 <button 
                   onClick={() => {
-                    const text = `${result.disease_name}. ${result.severity}. ${result.treatment_plan.immediate_actions.join(', ')}`;
+                    const text = `${result.disease_name}. ${result.model_inferred_severity}. ${result.treatment_plan.immediate_actions.join(', ')}`;
                     speakText(text, language);
                   }}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold rounded-lg transition-colors"

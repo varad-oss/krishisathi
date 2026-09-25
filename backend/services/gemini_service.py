@@ -70,8 +70,8 @@ Return the response strictly as a JSON object with the following structure:
 {{
     "disease_name": "Common name of the disease",
     "scientific_name": "Scientific name",
-    "confidence": 0.0 to 1.0,
-    "severity": "Low, Medium, or High",
+    "model_confidence_score": 0.0 to 1.0 (Note: this is a model-provided estimate, not a statistically calibrated probability),
+    "model_inferred_severity": "Low, Medium, or High",
     "affected_part": "Leaves, Stem, Roots, etc.",
     "treatment": {{
         "immediate": ["step 1", "step 2"],
@@ -79,7 +79,7 @@ Return the response strictly as a JSON object with the following structure:
         "chemical": ["step 1", "Consult local agricultural authorities for exact dosage."],
         "prevention": ["step 1"]
     }},
-    "spread_risk": "Low, Medium, or High",
+    "model_inferred_spread_risk": "Low, Medium, or High",
     "image_analysis_summary": "Brief summary of what you see in the image",
     "advisory_text": "General advisory for the farmer"
 }}

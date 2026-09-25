@@ -56,7 +56,7 @@ async def test_non_english_diagnosis_schema_valid():
         mock_diagnose.return_value = {
             "disease_name": "Wheat Rust",
             "scientific_name": "Puccinia triticina",
-            "confidence": 0.95,
+            "model_confidence_score": 0.95,
             "affected_part": "Leaves",
             "severity": "High",
             "spread_risk": "High",

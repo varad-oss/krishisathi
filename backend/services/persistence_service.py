@@ -26,13 +26,13 @@ class PersistenceService:
         try:
             async with AsyncSessionLocal() as session:
                 disease_name = diagnosis_data.get("disease_name")
-                severity = diagnosis_data.get("severity", "Medium")
+                aggregated_severity = diagnosis_data.get("model_inferred_severity", "Medium")
                 record = DiagnosisRecord(
                     crop=crop,
                     disease=disease_name,
-                    confidence=diagnosis_data.get("confidence"),
-                    severity=severity,
-                    spread_risk=diagnosis_data.get("spread_risk", "Medium"),
+                    model_confidence_score=diagnosis_data.get("model_confidence_score"),
+                    model_inferred_severity=diagnosis_data.get("model_inferred_severity", "Medium"),
+                    model_inferred_spread_risk=diagnosis_data.get("model_inferred_spread_risk", "Medium"),
                     lat=lat,
                     lng=lng,
                     language=language
@@ -61,8 +61,8 @@ class PersistenceService:
                             crops.append(crop)
                         existing_outbreak.crop_targets = crops
                         # Upgrade severity if new report is High
-                        if severity.lower() == "high" and existing_outbreak.severity.lower() != "high":
-                            existing_outbreak.severity = "High"
+                        if aggregated_severity.lower() == "high" and existing_outbreak.aggregated_severity.lower() != "high":
+                            existing_outbreak.aggregated_severity = "High"
                     else:
                         seven_days_ago = datetime.utcnow() - timedelta(days=7)
                         diag_stmt = select(DiagnosisRecord).where(
@@ -86,7 +86,7 @@ class PersistenceService:
                                 lng=lng,
                                 location_name=f"Cluster near {lat:.2f}, {lng:.2f}",
                                 radius_km=50.0,
-                                severity=severity,
+                                aggregated_severity=aggregated_severity,
                                 report_count=len(cluster),
                                 crop_targets=crops,
                                 status="active",
@@ -129,7 +129,7 @@ class PersistenceService:
                     "lat": r.lat,
                     "lng": r.lng,
                     "radius_km": r.radius_km,
-                    "severity": r.severity,
+                    "severity": r.aggregated_severity,
                     "report_count": r.report_count,
                     "crop_targets": r.crop_targets,
                     "timestamp": r.timestamp.isoformat(),
@@ -224,7 +224,7 @@ class PersistenceService:
                     "type": "diagnosis",
                     "title": f"Diagnosis: {d.disease}",
                     "timestamp": d.timestamp.isoformat(),
-                    "severity": d.severity,
+                    "model_inferred_severity": d.model_inferred_severity,
                     "location": {"lat": d.lat, "lng": d.lng}
                 })
                 

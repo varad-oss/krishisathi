@@ -1,10 +1,10 @@
 export interface DiagnosisResponse {
   disease_name: string;
   scientific_name?: string;
-  confidence: number;
-  severity: 'Low' | 'Moderate' | 'Severe' | 'Critical';
+  model_confidence_score: number;
+  model_inferred_severity: 'Low' | 'Medium' | 'High' | 'Severe' | 'Critical';
   treatment_plan: TreatmentPlan;
-  spread_risk: string;
+  model_inferred_spread_risk: string;
 }
 
 export interface TreatmentPlan {

@@ -89,11 +89,11 @@ export async function diagnoseCrop(
     return {
       disease_name: data.disease_name,
       scientific_name: data.scientific_name,
-      confidence: typeof data.confidence === 'number' && data.confidence <= 1 
-        ? data.confidence * 100 
-        : data.confidence,
-      severity: data.severity,
-      spread_risk: data.spread_risk || 'Unknown',
+      model_confidence_score: typeof data.model_confidence_score === 'number' && data.model_confidence_score <= 1 
+        ? data.model_confidence_score * 100 
+        : data.model_confidence_score,
+      model_inferred_severity: data.model_inferred_severity,
+      model_inferred_spread_risk: data.model_inferred_spread_risk || 'Unknown',
       treatment_plan: {
         immediate_actions: data.treatment?.immediate || data.treatment_plan?.immediate_actions || [],
         organic_treatment: data.treatment?.organic || data.treatment_plan?.organic_treatment || [],

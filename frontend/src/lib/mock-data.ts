@@ -12,9 +12,9 @@ import {
 export const mockDiagnosis: DiagnosisResponse = {
   disease_name: "Early Blight",
   scientific_name: "Alternaria solani",
-  confidence: 94.5,
-  severity: "Severe",
-  spread_risk: "High risk of rapid spread in warm, humid conditions.",
+  model_confidence_score: 0.945,
+  model_inferred_severity: "Severe",
+  model_inferred_spread_risk: "High risk of rapid spread in warm, humid conditions.",
   treatment_plan: {
     immediate_actions: [
       "Remove and destroy heavily infected lower leaves.",

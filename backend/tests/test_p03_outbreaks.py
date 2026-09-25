@@ -28,8 +28,8 @@ async def clear_db():
 @pytest.mark.asyncio
 async def test_insufficient_observations_no_outbreak():
     # 2 observations (threshold is 3)
-    await persistence_service.save_diagnosis({"disease_name": "Rust", "confidence": 0.9, "severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
-    await persistence_service.save_diagnosis({"disease_name": "Rust", "confidence": 0.9, "severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
+    await persistence_service.save_diagnosis({"disease_name": "Rust", "model_confidence_score": 0.9, "model_inferred_severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
+    await persistence_service.save_diagnosis({"disease_name": "Rust", "model_confidence_score": 0.9, "model_inferred_severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
     
     outbreaks = await persistence_service.get_outbreaks()
     assert len(outbreaks) == 0
@@ -37,9 +37,9 @@ async def test_insufficient_observations_no_outbreak():
 @pytest.mark.asyncio
 async def test_threshold_reached_creates_outbreak():
     # 3 observations
-    await persistence_service.save_diagnosis({"disease_name": "Rust", "confidence": 0.9, "severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
-    await persistence_service.save_diagnosis({"disease_name": "Rust", "confidence": 0.9, "severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
-    await persistence_service.save_diagnosis({"disease_name": "Rust", "confidence": 0.9, "severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
+    await persistence_service.save_diagnosis({"disease_name": "Rust", "model_confidence_score": 0.9, "model_inferred_severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
+    await persistence_service.save_diagnosis({"disease_name": "Rust", "model_confidence_score": 0.9, "model_inferred_severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
+    await persistence_service.save_diagnosis({"disease_name": "Rust", "model_confidence_score": 0.9, "model_inferred_severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
     
     outbreaks = await persistence_service.get_outbreaks()
     assert len(outbreaks) == 1
@@ -49,10 +49,10 @@ async def test_threshold_reached_creates_outbreak():
 @pytest.mark.asyncio
 async def test_repeated_detection_no_duplicate():
     # 4 observations
-    await persistence_service.save_diagnosis({"disease_name": "Rust", "confidence": 0.9, "severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
-    await persistence_service.save_diagnosis({"disease_name": "Rust", "confidence": 0.9, "severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
-    await persistence_service.save_diagnosis({"disease_name": "Rust", "confidence": 0.9, "severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
-    await persistence_service.save_diagnosis({"disease_name": "Rust", "confidence": 0.9, "severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
+    await persistence_service.save_diagnosis({"disease_name": "Rust", "model_confidence_score": 0.9, "model_inferred_severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
+    await persistence_service.save_diagnosis({"disease_name": "Rust", "model_confidence_score": 0.9, "model_inferred_severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
+    await persistence_service.save_diagnosis({"disease_name": "Rust", "model_confidence_score": 0.9, "model_inferred_severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
+    await persistence_service.save_diagnosis({"disease_name": "Rust", "model_confidence_score": 0.9, "model_inferred_severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
     
     outbreaks = await persistence_service.get_outbreaks()
     assert len(outbreaks) == 1
@@ -61,14 +61,14 @@ async def test_repeated_detection_no_duplicate():
 @pytest.mark.asyncio
 async def test_outside_radius_separate_cluster():
     # 3 in cluster A (10.0, 10.0)
-    await persistence_service.save_diagnosis({"disease_name": "Rust", "confidence": 0.9, "severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
-    await persistence_service.save_diagnosis({"disease_name": "Rust", "confidence": 0.9, "severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
-    await persistence_service.save_diagnosis({"disease_name": "Rust", "confidence": 0.9, "severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
+    await persistence_service.save_diagnosis({"disease_name": "Rust", "model_confidence_score": 0.9, "model_inferred_severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
+    await persistence_service.save_diagnosis({"disease_name": "Rust", "model_confidence_score": 0.9, "model_inferred_severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
+    await persistence_service.save_diagnosis({"disease_name": "Rust", "model_confidence_score": 0.9, "model_inferred_severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
     
     # 3 in cluster B (20.0, 20.0) - very far
-    await persistence_service.save_diagnosis({"disease_name": "Rust", "confidence": 0.9, "severity": "Medium"}, "Wheat", 20.0, 20.0, "en")
-    await persistence_service.save_diagnosis({"disease_name": "Rust", "confidence": 0.9, "severity": "Medium"}, "Wheat", 20.0, 20.0, "en")
-    await persistence_service.save_diagnosis({"disease_name": "Rust", "confidence": 0.9, "severity": "Medium"}, "Wheat", 20.0, 20.0, "en")
+    await persistence_service.save_diagnosis({"disease_name": "Rust", "model_confidence_score": 0.9, "model_inferred_severity": "Medium"}, "Wheat", 20.0, 20.0, "en")
+    await persistence_service.save_diagnosis({"disease_name": "Rust", "model_confidence_score": 0.9, "model_inferred_severity": "Medium"}, "Wheat", 20.0, 20.0, "en")
+    await persistence_service.save_diagnosis({"disease_name": "Rust", "model_confidence_score": 0.9, "model_inferred_severity": "Medium"}, "Wheat", 20.0, 20.0, "en")
     
     outbreaks = await persistence_service.get_outbreaks()
     assert len(outbreaks) == 2
@@ -79,15 +79,15 @@ async def test_outside_time_window_not_grouped():
     async with AsyncSessionLocal() as session:
         for _ in range(2):
             d = DiagnosisRecord(
-                crop="Wheat", disease="Rust", confidence=0.9, severity="Medium",
-                spread_risk="Medium", lat=10.0, lng=10.0, language="en",
+                crop="Wheat", disease="Rust", model_confidence_score=0.9, model_inferred_severity="Medium",
+                model_inferred_spread_risk="Medium", lat=10.0, lng=10.0, language="en",
                 timestamp=datetime.utcnow() - timedelta(days=10) # 10 days old
             )
             session.add(d)
         await session.commit()
         
     # Add 1 new diagnosis
-    await persistence_service.save_diagnosis({"disease_name": "Rust", "confidence": 0.9, "severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
+    await persistence_service.save_diagnosis({"disease_name": "Rust", "model_confidence_score": 0.9, "model_inferred_severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
     
     # Total is 3, but only 1 is within 7 days, so NO outbreak should exist
     outbreaks = await persistence_service.get_outbreaks()
@@ -95,9 +95,9 @@ async def test_outside_time_window_not_grouped():
 
 @pytest.mark.asyncio
 async def test_resolved_outbreak_excluded():
-    await persistence_service.save_diagnosis({"disease_name": "Rust", "confidence": 0.9, "severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
-    await persistence_service.save_diagnosis({"disease_name": "Rust", "confidence": 0.9, "severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
-    await persistence_service.save_diagnosis({"disease_name": "Rust", "confidence": 0.9, "severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
+    await persistence_service.save_diagnosis({"disease_name": "Rust", "model_confidence_score": 0.9, "model_inferred_severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
+    await persistence_service.save_diagnosis({"disease_name": "Rust", "model_confidence_score": 0.9, "model_inferred_severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
+    await persistence_service.save_diagnosis({"disease_name": "Rust", "model_confidence_score": 0.9, "model_inferred_severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
     
     # Mark as resolved
     async with AsyncSessionLocal() as session:

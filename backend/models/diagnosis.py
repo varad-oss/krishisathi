@@ -45,7 +45,7 @@ class DiagnosisRequest(BaseModel):
 class DiagnosisResponse(BaseModel):
     disease_name: str = Field(..., min_length=1)
     scientific_name: str
-    confidence: float = Field(..., ge=0, le=1)
+    model_confidence_score: float = Field(..., ge=0, le=1)
     severity: SeverityEnum
     affected_part: str
     treatment: TreatmentPlan

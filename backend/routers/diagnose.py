@@ -73,7 +73,12 @@ async def safe_log_diagnosis(log_data: dict):
         logger.error(f"Failed to log diagnosis telemetry to BigQuery (non-durable): {e}")
 
 async def process_diagnosis(image_bytes: bytes, crop_type: str, latitude: float, longitude: float, language: str) -> dict:
-    weather = await weather_service.get_current_weather(latitude, longitude)
+    try:
+        weather = await weather_service.get_current_weather(latitude, longitude)
+        weather["weather_available"] = True
+    except ServiceUnavailableException:
+        weather = {"weather_available": False}
+
     context = {
         "location": {"lat": latitude, "lng": longitude},
         "weather": weather
@@ -124,8 +129,8 @@ async def process_diagnosis(image_bytes: bytes, crop_type: str, latitude: float,
     log_data = {
         "crop_type": crop_type,
         "disease_name": diagnosis_data.get("disease_name"),
-        "confidence": diagnosis_data.get("confidence"),
-        "severity": diagnosis_data.get("severity"),
+        "model_confidence_score": diagnosis_data.get("model_confidence_score"),
+        "severity": diagnosis_data.get("model_inferred_severity"),
     }
     asyncio.create_task(safe_log_diagnosis(log_data))
     
