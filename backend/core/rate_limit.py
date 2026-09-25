@@ -6,15 +6,20 @@ from config import settings
 
 logger = logging.getLogger(__name__)
 
+# Pull from whichever variable Vercel injects
+resolved_redis_url = settings.REDIS_URL or settings.KV_URL or settings.UPSTASH_REDIS_REST_URL
+
 # Production configuration enforcement
 if settings.ENVIRONMENT == "production":
-    if not settings.REDIS_URL:
-        raise RuntimeError("REDIS_URL must be configured in production for rate limiting.")
+    if not resolved_redis_url:
+        raise RuntimeError("REDIS_URL or KV_URL must be configured in production for rate limiting.")
 
 redis_client = None
-if settings.REDIS_URL:
+if resolved_redis_url:
     try:
-        redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+        # If it's a REST URL (Upstash token-based), we can't use redis.from_url directly without transforming it
+        # But Vercel's Upstash integration usually injects KV_URL as a redis:// string.
+        redis_client = redis.from_url(resolved_redis_url, decode_responses=True)
     except Exception as e:
         logger.warning(f"Failed to initialize Redis client: {e}")
 
