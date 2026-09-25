@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     GEMINI_ADVISORY_MODEL: str = "gemini-1.5-flash"
     GEMINI_TRANSLATION_MODEL: str = "gemini-1.5-flash-8b"
     GEMINI_TRANSCRIPTION_MODEL: str = "gemini-1.5-flash"
-    GEMINI_AGENT_MODEL: str = "gemini-1.5-pro"
+    GEMINI_AGENT_MODEL: str = "gemini-1.5-flash"
     JWT_SECRET: Optional[str] = None
 # Database and Redis (Pull from Vercel Integration Env Vars)
     DATABASE_URL: Optional[str] = None
