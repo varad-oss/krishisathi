@@ -19,11 +19,11 @@ class Settings(BaseSettings):
     CORS_ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:3001"
     
     # Model configuration
-    GEMINI_DIAGNOSIS_MODEL: str = "gemini-3.8-flash"
-    GEMINI_ADVISORY_MODEL: str = "gemini-3.8-flash"
-    GEMINI_TRANSLATION_MODEL: str = "gemini-3.5-flash-lite"
-    GEMINI_TRANSCRIPTION_MODEL: str = "gemini-3.5-transcribe"
-    GEMINI_AGENT_MODEL: str = "gemini-3.8-flash"
+    GEMINI_DIAGNOSIS_MODEL: str = "gemini-1.5-flash"
+    GEMINI_ADVISORY_MODEL: str = "gemini-1.5-flash"
+    GEMINI_TRANSLATION_MODEL: str = "gemini-1.5-flash-8b"
+    GEMINI_TRANSCRIPTION_MODEL: str = "gemini-1.5-flash"
+    GEMINI_AGENT_MODEL: str = "gemini-1.5-pro"
     JWT_SECRET: Optional[str] = None
     REDIS_URL: Optional[str] = None
     RATE_LIMIT_AI: int = 10
