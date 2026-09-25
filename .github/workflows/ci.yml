@@ -37,4 +37,4 @@ jobs:
       - name: Install Dependencies
         run: pip install uv && uv pip install --system -r backend/requirements.txt
       - name: Run Pytest
-        run: uv pip install --system pytest pytest-asyncio && pytest backend/tests/
+        run: uv pip install --system pytest pytest-asyncio && cd backend && python -m alembic upgrade head && cd .. && DATABASE_URL="sqlite+aiosqlite:///${PWD}/backend/krishisathi.db" pytest backend/tests/

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from core.security import require_system_role, Principal
+from services.persistence_service import persistence_service
 from datetime import datetime
 from typing import List
 from models.interop import RegionalAgriSignal, StateConfig, AggregatedStateReport, strip_pii
@@ -19,10 +20,6 @@ INDIAN_STATES = [
 ]
 
 # In-memory store for federation signals
-FEDERATION_SIGNALS = [
-    RegionalAgriSignal(from_state="PB", to_state="UP", signal_type="disease_alert", severity="high", message="Wheat rust outbreak detected in Ludhiana district — recommend preventive spraying in adjacent UP wheat belt", disease_name="Wheat Rust", affected_crop="Wheat", affected_district="Ludhiana", report_count=189, timestamp=datetime.utcnow()),
-    RegionalAgriSignal(from_state="MH", to_state="KA", signal_type="pest_advisory", severity="moderate", message="Fall Armyworm migration pattern moving south from Vidarbha", disease_name="Fall Armyworm", affected_crop="Maize", affected_district="Vidarbha", report_count=156, timestamp=datetime.utcnow()),
-]
 
 @router.get("/")
 async def list_states():
@@ -50,18 +47,20 @@ async def post_exchange_signal(signal: RegionalAgriSignal, principal: Principal 
     if not signal.signal_id:
         signal.signal_id = str(uuid4())
     
-    FEDERATION_SIGNALS.append(signal)
+    await persistence_service.save_federation_signal(signal)
     return signal
 
 @router.get("/exchange/signals", response_model=AggregatedStateReport)
 async def get_exchange_signals():
     """Cross-state agricultural intelligence exchange — aggregated, anonymized signals."""
+    signals = await persistence_service.get_federation_signals()
+    
     return AggregatedStateReport(
-        total_signals=len(FEDERATION_SIGNALS),
-        states_reporting=len(set(s.from_state for s in FEDERATION_SIGNALS)),
-        critical_alerts=len([s for s in FEDERATION_SIGNALS if s.severity == "critical"]),
-        disease_signals=len([s for s in FEDERATION_SIGNALS if s.signal_type == "disease_alert"]),
-        pest_signals=len([s for s in FEDERATION_SIGNALS if s.signal_type == "pest_advisory"]),
-        weather_signals=len([s for s in FEDERATION_SIGNALS if s.signal_type == "weather_advisory"]),
-        signals=sorted(FEDERATION_SIGNALS, key=lambda x: x.timestamp, reverse=True)
+        total_signals=len(signals),
+        states_reporting=len(set(s.from_state for s in signals)),
+        critical_alerts=len([s for s in signals if s.severity == "critical"]),
+        disease_signals=len([s for s in signals if s.signal_type == "disease_alert"]),
+        pest_signals=len([s for s in signals if s.signal_type == "pest_advisory"]),
+        weather_signals=len([s for s in signals if s.signal_type == "weather_advisory"]),
+        signals=signals
     )

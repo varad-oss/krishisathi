@@ -6,6 +6,7 @@ logger = logging.getLogger(__name__)
 
 class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
+    DATABASE_URL: Optional[str] = None
     TRUST_REVERSE_PROXY: bool = False
     GOOGLE_CLOUD_PROJECT: Optional[str] = "krishisathi-demo"
     GEMINI_API_KEY: Optional[str] = None

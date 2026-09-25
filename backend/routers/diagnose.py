@@ -10,6 +10,7 @@ from services.gemini_service import gemini_service
 from services.weather_service import weather_service
 from services.translation import translation_service
 from services.bigquery_service import bq_service
+from services.persistence_service import persistence_service
 
 router = APIRouter(dependencies=[Depends(ai_rate_limit)], prefix="/api/diagnose", tags=["Diagnose"])
 logger = logging.getLogger(__name__)
@@ -109,10 +110,17 @@ async def process_diagnosis(image_bytes: bytes, crop_type: str, latitude: float,
         except Exception as e:
             logger.error(f"Failed to parse batched translation JSON: {e}")
             raise HTTPException(status_code=500, detail={"error": "translation_processing_error", "message": "Failed to parse translated diagnostic response."})
-            
     diagnosis_data["language"] = language
     
+    # Persist durable transaction
+    try:
+        await persistence_service.save_diagnosis(diagnosis_data, crop_type, latitude, longitude, language)
+    except Exception as e:
+        logger.error(f"Failed to persist diagnosis: {e}")
+        raise HTTPException(status_code=503, detail={"error": "persistence_unavailable", "message": "Failed to durably record diagnosis."})
+    
     # Log to BigQuery (fire and forget)
+
     log_data = {
         "crop_type": crop_type,
         "disease_name": diagnosis_data.get("disease_name"),

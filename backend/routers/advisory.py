@@ -11,6 +11,7 @@ from google.genai import types
 from models.advisory import AdvisoryRequest, AdvisoryResponse, VoiceAdvisoryRequest, VoiceAdvisoryResponse
 from models.exceptions import ServiceUnavailableException
 from services.gemini_service import gemini_service
+from services.persistence_service import persistence_service
 from services.weather_service import weather_service
 from services.translation import translation_service
 from config import settings
@@ -103,6 +104,13 @@ async def get_advisory(request: AdvisoryRequest):
             advisory_final = translation_service.translate_text(advisory_en, 'en', request.language)
             translated_text = advisory_final
             
+
+        try:
+            await persistence_service.save_advisory(request.query, advisory_final, request.crop_type, request.latitude, request.longitude, request.language, ["weather", "gemini"])
+        except Exception as e:
+            logger.error(f"Failed to persist advisory: {e}")
+            raise HTTPException(status_code=503, detail={"error": "persistence_unavailable", "message": "Failed to durably record advisory."})
+            
         return AdvisoryResponse(
             advisory_text=advisory_final,
             advisory_type="general",
@@ -152,6 +160,13 @@ async def get_followup_advisory(request: AdvisoryRequest, disease_name: str = ''
         advisory_final = advisory_en
         if request.language != 'en':
             advisory_final = translation_service.translate_text(advisory_en, 'en', request.language)
+        
+
+        try:
+            await persistence_service.save_advisory(request.query, advisory_final, crop_type or request.crop_type, request.latitude, request.longitude, request.language, ["weather", "gemini", "disease_reference"])
+        except Exception as e:
+            logger.error(f"Failed to persist followup advisory: {e}")
+            raise HTTPException(status_code=503, detail={"error": "persistence_unavailable", "message": "Failed to durably record followup advisory."})
         
         return AdvisoryResponse(
             advisory_text=advisory_final,
