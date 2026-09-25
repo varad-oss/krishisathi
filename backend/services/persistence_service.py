@@ -52,6 +52,7 @@ class PersistenceService:
             records = result.scalars().all()
             return [
                 {
+                    "id": r.id,
                     "disease": r.disease,
                     "location": r.location_name,
                     "lat": r.lat,
@@ -60,7 +61,8 @@ class PersistenceService:
                     "severity": r.severity,
                     "report_count": r.report_count,
                     "crop_targets": r.crop_targets,
-                    "timestamp": r.timestamp.isoformat()
+                    "timestamp": r.timestamp.isoformat(),
+                    "status": r.status
                 } for r in records
             ]
 
@@ -78,7 +80,8 @@ class PersistenceService:
                     disease_name=signal.disease_name,
                     affected_crop=signal.affected_crop,
                     affected_district=signal.affected_district,
-                    report_count=signal.report_count
+                    report_count=signal.report_count,
+                    signal_metadata=signal.metadata
                 )
                 session.add(record)
                 await session.commit()
@@ -104,7 +107,8 @@ class PersistenceService:
                     disease_name=r.disease_name,
                     affected_crop=r.affected_crop,
                     affected_district=r.affected_district,
-                    report_count=r.report_count
+                    report_count=r.report_count,
+                    metadata=r.signal_metadata
                 ))
             return signals
 
@@ -114,7 +118,7 @@ class PersistenceService:
             total_diag = await session.scalar(select(func.count(DiagnosisRecord.id)))
             
             # total active outbreaks
-            total_outbreaks = await session.scalar(select(func.count(OutbreakRecord.id)))
+            total_outbreaks = await session.scalar(select(func.count(OutbreakRecord.id)).where(OutbreakRecord.status == 'active'))
             
             # disease distribution (top 5)
             disease_dist_res = await session.execute(

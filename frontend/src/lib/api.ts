@@ -259,24 +259,23 @@ export async function getCropHealth(): Promise<CropHealthData[]> {
       if (response.status === 401 || response.status === 403) errMsg = 'Access denied.';
       throw new ApiError(errMsg, response.status);
     }
-
     const data = await response.json();
-    
-    // The backend might return an array directly, or an object with a 'regions' array
-    if (Array.isArray(data)) {
-      return data;
-    } else if (data && Array.isArray(data.regions)) {
-      // Map the new backend schema to match the frontend CropHealthData interface
-      return data.regions.map((region: Record<string, unknown>) => ({
-        region: region.name || region.region,
-        ndvi_score: region.ndvi || region.ndvi_score,
-        drought_risk: region.drought_risk,
-        primary_crop: region.primary_crop,
+    if (data.status === 'unavailable') {
+      return [];
+    }
+    if (data.regions && Array.isArray(data.regions)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return data.regions.map((region: any) => ({
+        region: region.name,
+        ndvi_score: region.ndvi,
+        moisture_level: region.moisture || 0.5,
+        drought_risk: region.drought_risk || 0,
+        primary_crop: region.primary_crop || '',
         health_status: region.status === 'healthy' ? 'Good' : region.status === 'stressed' ? 'Poor' : 'Fair'
       }));
     }
     if (IS_DEMO_MODE) return mockCropHealth;
-    throw new ApiError('Invalid crop health data format.');
+    return [];
   } catch (error) {
     if (IS_DEMO_MODE) return mockCropHealth;
     if (error instanceof ApiError) throw error;

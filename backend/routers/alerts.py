@@ -25,7 +25,7 @@ async def get_alerts(region: str = None):
     for o in outbreaks:
         # Convert OutbreakRecord dict to DiseaseAlert mock format
         alerts.append(DiseaseAlert(
-            alert_id=f"ALT-{o['disease'][:3].upper()}",
+            alert_id=o['id'],
             disease_name=o['disease'],
             region=o['location'],
             severity=o['severity'].capitalize(),
@@ -81,4 +81,5 @@ async def get_personalized_alerts(lat: float, lng: float, crop_type: Optional[st
 
 @router.post("/report")
 async def report_disease(disease: str, lat: float, lng: float):
-    return {"status": "success", "message": "Report logged successfully"}
+    from fastapi import HTTPException
+    raise HTTPException(status_code=501, detail="Feature not implemented yet.")

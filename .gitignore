@@ -46,3 +46,4 @@ coverage/
 service-account-key.json
 *-credentials.json
 backend/logs/
+backend/krishisathi.db

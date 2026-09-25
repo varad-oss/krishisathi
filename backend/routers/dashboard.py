@@ -29,7 +29,7 @@ async def get_dashboard_report(language: str = 'en'):
         return {
             "report_text": report_text,
             "generated_at": datetime.utcnow().isoformat() + "Z",
-            "period": "August 14-21, 2026",
+            "period": "Real-time (Current Data)",
         }
     except ServiceUnavailableException as e:
         raise HTTPException(status_code=503, detail={"error": "service_unavailable", "message": str(e)})
@@ -44,19 +44,14 @@ async def get_dashboard_outbreaks():
 
 @router.get("/crop-health")
 async def get_crop_health():
+    # Earth Engine interactive real-time regional calculation is currently not feasible 
+    # without a pre-computed batch pipeline. Do not fabricate values.
     return {
-        "overall_index": 74.2,
-        "measurement_date": "2026-08-20",
-        "regions": [
-            {"name": "Punjab", "ndvi": 0.72},
-            {"name": "Maharashtra", "ndvi": 0.58},
-            {"name": "Karnataka", "ndvi": 0.65},
-            {"name": "Tamil Nadu", "ndvi": 0.71},
-            {"name": "Uttar Pradesh", "ndvi": 0.45},
-            {"name": "Madhya Pradesh", "ndvi": 0.62},
-            {"name": "Gujarat", "ndvi": 0.68},
-            {"name": "West Bengal", "ndvi": 0.55},
-        ],
+        "status": "unavailable",
+        "message": "Regional crop health data is currently unavailable.",
+        "regions": [],
+        "overall_index": None,
+        "measurement_date": None
     }
 
 
