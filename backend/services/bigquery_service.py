@@ -33,36 +33,42 @@ class BigQueryService:
         Logs a diagnosis to BigQuery using batch load jobs to comply with Sandbox limits.
         If BQ is unavailable, falls back to a local JSONL log file.
         """
-        # Add timestamp if missing
         if "timestamp" not in data:
             data["timestamp"] = datetime.datetime.utcnow().isoformat()
             
         if self.client:
             try:
-                # BigQuery Sandbox does not support streaming inserts.
-                # In production, we'd batch these in memory or a queue and write them via LoadJob
-                # For this demo hackathon, we simulate a batch load by writing a temp JSON file
-                # and triggering a load job, or we just write to a local log if BQ fails.
+                import asyncio
+                import tempfile
                 
-                # Create a temporary local file
-                temp_file = f"/tmp/bq_batch_{datetime.datetime.utcnow().timestamp()}.jsonl"
-                with open(temp_file, "w") as f:
-                    f.write(json.dumps(data) + "\n")
+                def _do_bq_load():
+                    # Create a temporary local file that cleans itself up
+                    with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
+                        temp_file = f.name
+                        f.write(json.dumps(data) + "\n")
                     
-                job_config = bigquery.LoadJobConfig(
-                    source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
-                    write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
-                    autodetect=True,
-                )
+                    try:
+                        job_config = bigquery.LoadJobConfig(
+                            source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
+                            write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
+                            autodetect=True,
+                        )
+                        
+                        with open(temp_file, "rb") as source_file:
+                            job = self.client.load_table_from_file(
+                                source_file,
+                                self.table_ref,
+                                job_config=job_config
+                            )
+                        # Ensure the job is sent before exiting thread
+                    finally:
+                        try:
+                            import os
+                            os.remove(temp_file)
+                        except OSError:
+                            pass
                 
-                with open(temp_file, "rb") as source_file:
-                    job = self.client.load_table_from_file(
-                        source_file,
-                        self.table_ref,
-                        job_config=job_config
-                    )
-                # We don't await job.result() to keep the API fast, it runs in background
-                # But for the hackathon prototype, we will just silently pass
+                await asyncio.to_thread(_do_bq_load)
             except Exception as e:
                 logger.error(f"Failed to log to BigQuery: {e}. Data dropped.")
                 raise e

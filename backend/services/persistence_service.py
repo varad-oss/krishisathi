@@ -24,9 +24,11 @@ def _haversine(lat1, lon1, lat2, lon2):
 class PersistenceService:
     async def save_diagnosis(self, diagnosis_data: dict, crop: str, lat: float, lng: float, language: str) -> None:
         try:
+            disease_name = diagnosis_data.get("disease_name")
+            aggregated_severity = diagnosis_data.get("model_inferred_severity", "Medium")
+            
+            # Step 1: Save the diagnosis independently
             async with AsyncSessionLocal() as session:
-                disease_name = diagnosis_data.get("disease_name")
-                aggregated_severity = diagnosis_data.get("model_inferred_severity", "Medium")
                 record = DiagnosisRecord(
                     crop=crop,
                     disease=disease_name,
@@ -38,63 +40,97 @@ class PersistenceService:
                     language=language
                 )
                 session.add(record)
-                await session.flush()
-                
-                if disease_name:
-                    lat_grid = round(lat, 0)
-                    lng_grid = round(lng, 0)
-                    grid_id = f"{lat_grid}_{lng_grid}"
-                    
-                    stmt = select(OutbreakRecord).where(
-                        OutbreakRecord.disease == disease_name,
-                        OutbreakRecord.grid_id == grid_id,
-                        OutbreakRecord.status == 'active'
-                    ).with_for_update()
-                    result = await session.execute(stmt)
-                    existing_outbreak = result.scalar_one_or_none()
-                    
-                    if existing_outbreak:
-                        existing_outbreak.report_count += 1
-                        existing_outbreak.timestamp = datetime.utcnow()
-                        crops = list(existing_outbreak.crop_targets) if existing_outbreak.crop_targets else []
-                        if crop and crop not in crops:
-                            crops.append(crop)
-                        existing_outbreak.crop_targets = crops
-                        # Upgrade severity if new report is High
-                        if aggregated_severity.lower() == "high" and existing_outbreak.aggregated_severity.lower() != "high":
-                            existing_outbreak.aggregated_severity = "High"
-                    else:
-                        seven_days_ago = datetime.utcnow() - timedelta(days=7)
-                        diag_stmt = select(DiagnosisRecord).where(
-                            DiagnosisRecord.disease == disease_name,
-                            DiagnosisRecord.timestamp >= seven_days_ago
-                        )
-                        diag_res = await session.execute(diag_stmt)
-                        recent_diags = diag_res.scalars().all()
-                        
-                        cluster = []
-                        for d in recent_diags:
-                            if _haversine(lat, lng, d.lat, d.lng) <= 50.0:
-                                cluster.append(d)
-                                
-                        if len(cluster) >= 3:
-                            crops = list(set([d.crop for d in cluster if d.crop]))
-                            
-                            new_outbreak = OutbreakRecord(
-                                disease=disease_name,
-                                lat=lat,
-                                lng=lng,
-                                location_name=f"Cluster near {lat:.2f}, {lng:.2f}",
-                                radius_km=50.0,
-                                aggregated_severity=aggregated_severity,
-                                report_count=len(cluster),
-                                crop_targets=crops,
-                                status="active",
-                                grid_id=grid_id
-                            )
-                            session.add(new_outbreak)
-                            
                 await session.commit()
+            
+            # Step 2: Evaluate and update outbreaks
+            if not disease_name:
+                return
+                
+            async with AsyncSessionLocal() as session:
+                # Lock all active outbreaks for this disease to serialize updates
+                stmt = select(OutbreakRecord).where(
+                    OutbreakRecord.disease == disease_name,
+                    OutbreakRecord.status == 'active'
+                ).with_for_update()
+                result = await session.execute(stmt)
+                active_outbreaks = result.scalars().all()
+                
+                existing_outbreak = None
+                min_dist = 50.0
+                for ob in active_outbreaks:
+                    dist = _haversine(lat, lng, ob.lat, ob.lng)
+                    if dist <= min_dist:
+                        min_dist = dist
+                        existing_outbreak = ob
+                
+                if existing_outbreak:
+                    existing_outbreak.report_count += 1
+                    existing_outbreak.timestamp = datetime.utcnow()
+                    crops = list(existing_outbreak.crop_targets) if existing_outbreak.crop_targets else []
+                    if crop and crop not in crops:
+                        crops.append(crop)
+                    existing_outbreak.crop_targets = crops
+                    if aggregated_severity.lower() == "high" and existing_outbreak.aggregated_severity.lower() != "high":
+                        existing_outbreak.aggregated_severity = "High"
+                    await session.commit()
+                else:
+                    # Look for recent diagnoses to form a cluster
+                    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+                    diag_stmt = select(DiagnosisRecord).where(
+                        DiagnosisRecord.disease == disease_name,
+                        DiagnosisRecord.timestamp >= seven_days_ago
+                    )
+                    diag_res = await session.execute(diag_stmt)
+                    recent_diags = diag_res.scalars().all()
+                    
+                    cluster = []
+                    for d in recent_diags:
+                        if _haversine(lat, lng, d.lat, d.lng) <= 50.0:
+                            cluster.append(d)
+                            
+                    if len(cluster) >= 3:
+                        crops = list(set([d.crop for d in cluster if d.crop]))
+                        cluster.sort(key=lambda d: d.timestamp)
+                        cluster_id = cluster[0].id
+                        
+                        new_outbreak = OutbreakRecord(
+                            disease=disease_name,
+                            lat=lat,
+                            lng=lng,
+                            location_name=f"Cluster near {lat:.2f}, {lng:.2f}",
+                            radius_km=50.0,
+                            aggregated_severity=aggregated_severity,
+                            report_count=len(cluster),
+                            crop_targets=crops,
+                            status="active",
+                            grid_id=cluster_id
+                        )
+                        session.add(new_outbreak)
+                        try:
+                            await session.commit()
+                        except Exception as e: # Catch IntegrityError from unique constraint
+                            await session.rollback()
+                            # A concurrent transaction just created this outbreak!
+                            # Fetch it and update it
+                            retry_stmt = select(OutbreakRecord).where(
+                                OutbreakRecord.disease == disease_name,
+                                OutbreakRecord.grid_id == cluster_id,
+                                OutbreakRecord.status == 'active'
+                            ).with_for_update()
+                            retry_res = await session.execute(retry_stmt)
+                            retry_ob = retry_res.scalar_one_or_none()
+                            
+                            if retry_ob:
+                                retry_ob.report_count += 1
+                                retry_ob.timestamp = datetime.utcnow()
+                                r_crops = list(retry_ob.crop_targets) if retry_ob.crop_targets else []
+                                if crop and crop not in r_crops:
+                                    r_crops.append(crop)
+                                retry_ob.crop_targets = r_crops
+                                if aggregated_severity.lower() == "high":
+                                    retry_ob.aggregated_severity = "High"
+                                await session.commit()
+
         except Exception as e:
             logger.error(f"Failed to persist diagnosis: {e}")
             raise

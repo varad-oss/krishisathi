@@ -3,7 +3,8 @@ import binascii
 import asyncio
 import logging
 from core.rate_limit import ai_rate_limit
-from fastapi import Depends, APIRouter, File, UploadFile, Form, HTTPException
+from fastapi import Depends, APIRouter, File, UploadFile, Form, HTTPException, Header
+from core.idempotency import get_idempotency_result, set_idempotency_result
 from models.diagnosis import DiagnosisRequest, DiagnosisResponse
 from models.exceptions import ServiceUnavailableException
 from services.gemini_service import gemini_service
@@ -21,8 +22,13 @@ async def diagnose_multipart(
     crop_type: str = Form(None),
     latitude: float = Form(...),
     longitude: float = Form(...),
-    language: str = Form('en')
+    language: str = Form('en'),
+    idempotency_key: str = Header(None, alias="Idempotency-Key")
 ):
+    if idempotency_key:
+        cached = await get_idempotency_result(idempotency_key)
+        if cached:
+            return cached
     try:
         if file.content_type not in ['image/jpeg', 'image/png', 'image/webp']:
             raise HTTPException(status_code=415, detail='Unsupported media type')
@@ -33,7 +39,10 @@ async def diagnose_multipart(
             if len(contents) > max_size:
                 raise HTTPException(status_code=413, detail='Image too large (max 5MB)')
         contents = bytes(contents)
-        return await process_diagnosis(contents, crop_type, latitude, longitude, language)
+        res = await process_diagnosis(contents, crop_type, latitude, longitude, language)
+        if idempotency_key:
+            await set_idempotency_result(idempotency_key, res)
+        return res
     except HTTPException:
         raise
     except ServiceUnavailableException as e:
@@ -43,7 +52,11 @@ async def diagnose_multipart(
         raise HTTPException(status_code=500, detail={"error": "internal_error", "message": "An unexpected error occurred."})
 
 @router.post("/base64", response_model=DiagnosisResponse)
-async def diagnose_base64(request: DiagnosisRequest):
+async def diagnose_base64(request: DiagnosisRequest, idempotency_key: str = Header(None, alias="Idempotency-Key")):
+    if idempotency_key:
+        cached = await get_idempotency_result(idempotency_key)
+        if cached:
+            return cached
     try:
         if "," in request.image:
             image_data = request.image.split(",")[1]
@@ -55,9 +68,12 @@ async def diagnose_base64(request: DiagnosisRequest):
         except binascii.Error:
             raise HTTPException(status_code=400, detail={"error": "invalid_input", "message": "Invalid base64 encoding."})
             
-        return await process_diagnosis(
+        res = await process_diagnosis(
             contents, request.crop_type, request.latitude, request.longitude, request.language
         )
+        if idempotency_key:
+            await set_idempotency_result(idempotency_key, res)
+        return res
     except HTTPException:
         raise
     except ServiceUnavailableException as e:
