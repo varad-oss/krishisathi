@@ -142,7 +142,7 @@ origins = [o.strip() for o in settings.CORS_ALLOWED_ORIGINS.split(",") if o.stri
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=origins + ['*'], # Added wildcard for preview environments
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
