@@ -2,7 +2,8 @@ import base64
 import binascii
 import asyncio
 import logging
-from fastapi import APIRouter, File, UploadFile, Form, HTTPException
+from core.rate_limit import ai_rate_limit
+from fastapi import Depends, APIRouter, File, UploadFile, Form, HTTPException
 from models.diagnosis import DiagnosisRequest, DiagnosisResponse
 from models.exceptions import ServiceUnavailableException
 from services.gemini_service import gemini_service
@@ -10,7 +11,7 @@ from services.weather_service import weather_service
 from services.translation import translation_service
 from services.bigquery_service import bq_service
 
-router = APIRouter(prefix="/api/diagnose", tags=["Diagnose"])
+router = APIRouter(dependencies=[Depends(ai_rate_limit)], prefix="/api/diagnose", tags=["Diagnose"])
 logger = logging.getLogger(__name__)
 
 @router.post("", response_model=DiagnosisResponse)
@@ -22,7 +23,11 @@ async def diagnose_multipart(
     language: str = Form('en')
 ):
     try:
+        if file.content_type not in ['image/jpeg', 'image/png', 'image/webp']:
+            raise HTTPException(status_code=415, detail='Unsupported media type')
         contents = await file.read()
+        if len(contents) > 5 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail='Image too large (max 5MB)')
         return await process_diagnosis(contents, crop_type, latitude, longitude, language)
     except HTTPException:
         raise

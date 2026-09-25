@@ -42,10 +42,10 @@ class RegionalAgriSignal(BaseModel):
     to_state: Optional[str] = Field(None, description="Target state code, or null for broadcast")
     signal_type: SignalType
     severity: SeverityLevel
-    message: str = Field(..., description="Human-readable signal description")
-    disease_name: Optional[str] = None
-    affected_crop: Optional[str] = None
-    affected_district: Optional[str] = None
+    message: str = Field(..., description="Human-readable signal description", max_length=1000)
+    disease_name: Optional[str] = Field(None, max_length=200)
+    affected_crop: Optional[str] = Field(None, max_length=200)
+    affected_district: Optional[str] = Field(None, max_length=200)
     affected_area_km2: Optional[float] = None
     report_count: Optional[int] = Field(None, description="Number of aggregated farmer reports")
     ndvi_trend: Optional[float] = Field(None, description="NDVI change over last 2 weeks (-1.0 to 1.0)")

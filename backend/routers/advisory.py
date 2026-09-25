@@ -1,5 +1,6 @@
 import logging
-from fastapi import APIRouter, HTTPException
+from core.rate_limit import ai_rate_limit
+from fastapi import Depends, APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 import io
 import base64
@@ -16,7 +17,7 @@ from config import settings
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/advisory", tags=["Advisory"])
+router = APIRouter(dependencies=[Depends(ai_rate_limit)], prefix="/api/advisory", tags=["Advisory"])
 
 def get_audio_mime_type(audio_bytes: bytes) -> str:
     if audio_bytes.startswith(b'RIFF'):
@@ -30,8 +31,9 @@ def get_audio_mime_type(audio_bytes: bytes) -> str:
 
 
 from pydantic import BaseModel
+from pydantic import Field
 class TranscribeRequest(BaseModel):
-    audio_base64: str
+    audio_base64: str = Field(..., max_length=10_000_000)
     language: str = 'en'
 
 @router.post("/transcribe")
@@ -223,6 +225,7 @@ async def get_voice_advisory(request: VoiceAdvisoryRequest):
 @router.get("/tts")
 async def text_to_speech(text: str, lang: str = "en"):
     try:
+        from core.rate_limit import ai_rate_limit
         from fastapi import Response
         safe_lang = lang if lang in ['en', 'hi', 'mr', 'ta', 'te', 'bn', 'pt', 'ru', 'zh'] else 'en'
         tts = gTTS(text=text, lang=safe_lang)

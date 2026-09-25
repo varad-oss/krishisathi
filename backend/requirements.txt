@@ -18,3 +18,5 @@ gtts
 earthengine-api
 scikit-learn
 
+PyJWT>=2.8.0
+redis>=5.0.0

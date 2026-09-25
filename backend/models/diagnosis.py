@@ -19,7 +19,7 @@ class TreatmentPlan(BaseModel):
     prevention: List[str] = Field(default_factory=list)
 
 class DiagnosisRequest(BaseModel):
-    image: str # base64 str
+    image: str = Field(..., max_length=10_000_000) # base64 str
     crop_type: Optional[str] = None
     latitude: float = Field(..., ge=-90, le=90)
     longitude: float = Field(..., ge=-180, le=180)

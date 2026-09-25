@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     GEMINI_TRANSLATION_MODEL: str = "gemini-3.5-flash-lite"
     GEMINI_TRANSCRIPTION_MODEL: str = "gemini-3.5-transcribe"
     GEMINI_AGENT_MODEL: str = "gemini-3.8-flash"
+    JWT_SECRET: Optional[str] = None
+    REDIS_URL: Optional[str] = None
+    RATE_LIMIT_GLOBAL: int = 100
+    RATE_LIMIT_AI: int = 10
 
     class Config:
         env_file = ".env"

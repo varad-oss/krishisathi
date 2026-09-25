@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
+from core.security import require_system_role, Principal
 from datetime import datetime
 from typing import List
 from models.interop import RegionalAgriSignal, StateConfig, AggregatedStateReport, strip_pii
@@ -37,7 +38,7 @@ async def get_state_config(state_code: str):
     return StateConfig(**state)
 
 @router.post("/exchange/signals", response_model=RegionalAgriSignal, status_code=201)
-async def post_exchange_signal(signal: RegionalAgriSignal):
+async def post_exchange_signal(signal: RegionalAgriSignal, principal: Principal = Depends(require_system_role)):
     """
     Publish a new agricultural signal to the national federation network.
     Strips any accidental PII before storing.

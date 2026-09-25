@@ -2,11 +2,11 @@ from typing import Optional, List
 from pydantic import BaseModel, Field
 
 class AdvisoryRequest(BaseModel):
-    query: str = Field(..., min_length=1)
+    query: str = Field(..., min_length=1, max_length=2000)
     latitude: float = Field(..., ge=-90, le=90)
     longitude: float = Field(..., ge=-180, le=180)
     crop_type: Optional[str] = None
-    image_base64: Optional[str] = None
+    image_base64: Optional[str] = Field(None, max_length=10_000_000)
     language: str = 'en'
 
 class AdvisoryResponse(BaseModel):
@@ -17,7 +17,7 @@ class AdvisoryResponse(BaseModel):
     translated_text: Optional[str] = None
 
 class VoiceAdvisoryRequest(BaseModel):
-    audio_base64: str
+    audio_base64: str = Field(..., max_length=10_000_000)
     latitude: float = Field(..., ge=-90, le=90)
     longitude: float = Field(..., ge=-180, le=180)
     language: str = 'hi'

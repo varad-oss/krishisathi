@@ -1,9 +1,10 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from core.security import require_system_role
 from services.earth_engine_service import earth_engine_service, EE_AVAILABLE
 
 router = APIRouter(prefix="/api/debug", tags=["Debug & Verification"])
 
-@router.get("/earth-engine-status")
+@router.get("/earth-engine-status", dependencies=[Depends(require_system_role)])
 async def get_ee_status():
     """Debug endpoint for hackathon judges to verify Earth Engine pipeline status."""
     return {

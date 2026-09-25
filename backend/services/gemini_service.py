@@ -17,11 +17,12 @@ class GeminiService:
             self.client = None
             logger.error("GEMINI_API_KEY not set. Gemini services will be unavailable.")
 
-    def _call(self, prompt, image_part=None, model=None, response_mime_type=None, temperature=0.3, error_message="AI model is temporarily unavailable."):
+    def _call(self, prompt, image_part=None, model=None, response_mime_type=None, temperature=0.3, error_message="AI model is temporarily unavailable.", system_instruction=None):
         contents = [image_part, prompt] if image_part else [prompt]
         
         config = types.GenerateContentConfig(
             temperature=temperature,
+            system_instruction=system_instruction,
         )
         if response_mime_type:
             config.response_mime_type = response_mime_type
@@ -105,12 +106,10 @@ Return the response strictly as a JSON object with the following structure:
             raise ServiceUnavailableException("Advisory service is unavailable (API key missing).")
             
         try:
+            system_instruction = "You are an expert agricultural advisor. Provide detailed, actionable advice. Provide the advisory clearly and concisely."
             prompt = f"""
-            You are an expert agricultural advisor. Provide detailed, actionable advice for the following query.
             Query: {query}
             Context (Weather, soil, etc.): {context}
-            
-            Provide the advisory clearly and concisely.
             """
             
             image_part = None

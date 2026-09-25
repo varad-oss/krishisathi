@@ -39,7 +39,11 @@ async function fetchWithFallback<T>(url: string, options: RequestInit, fallback:
         console.warn(`API call failed: ${url}, using fallback data.`);
         return fallback;
       }
-      throw new ApiError(`Service unavailable: ${response.statusText}`, response.status);
+      let errMsg = `Service unavailable: ${response.statusText}`;
+      if (response.status === 429) errMsg = "Too many requests. Please slow down.";
+      if (response.status === 413) errMsg = "Payload too large.";
+      if (response.status === 401 || response.status === 403) errMsg = "Access denied.";
+      throw new ApiError(errMsg, response.status);
     }
     return await response.json() as T;
   } catch (error) {
@@ -73,8 +77,13 @@ export async function diagnoseCrop(
     });
     if (!response.ok) {
       if (IS_DEMO_MODE) return mockDiagnosis;
-      throw new ApiError('Diagnosis service is temporarily unavailable.', response.status);
+      let errMsg = 'Service is temporarily unavailable.';
+      if (response.status === 429) errMsg = 'Too many requests. Please slow down.';
+      if (response.status === 413) errMsg = 'Payload too large.';
+      if (response.status === 401 || response.status === 403) errMsg = 'Access denied.';
+      throw new ApiError(errMsg, response.status);
     }
+
     const data = await response.json();
     // Map backend response shape to frontend types
     return {
@@ -124,8 +133,13 @@ export async function getAdvisory(
     });
     if (!response.ok) {
       if (IS_DEMO_MODE) return mockAdvisory;
-      throw new ApiError('Advisory service is temporarily unavailable.', response.status);
+      let errMsg = 'Service is temporarily unavailable.';
+      if (response.status === 429) errMsg = 'Too many requests. Please slow down.';
+      if (response.status === 413) errMsg = 'Payload too large.';
+      if (response.status === 401 || response.status === 403) errMsg = 'Access denied.';
+      throw new ApiError(errMsg, response.status);
     }
+
     const data = await response.json();
     return {
       query: query,
@@ -161,8 +175,13 @@ export async function getFollowUpAdvisory(
     });
     if (!response.ok) {
       if (IS_DEMO_MODE) return null;
-      throw new ApiError(`Service unavailable: ${response.statusText}`, response.status);
+      let errMsg = 'Service is temporarily unavailable.';
+      if (response.status === 429) errMsg = 'Too many requests. Please slow down.';
+      if (response.status === 413) errMsg = 'Payload too large.';
+      if (response.status === 401 || response.status === 403) errMsg = 'Access denied.';
+      throw new ApiError(errMsg, response.status);
     }
+
     return await response.json();
   } catch (error) {
     if (IS_DEMO_MODE) return null;
@@ -209,8 +228,13 @@ export async function getOutbreaks(): Promise<OutbreakData[]> {
     const response = await fetch(`${API_BASE}/api/dashboard/outbreaks`);
     if (!response.ok) {
       if (IS_DEMO_MODE) return mockOutbreaks;
-      throw new ApiError('Outbreaks data unavailable.', response.status);
+      let errMsg = 'Service is temporarily unavailable.';
+      if (response.status === 429) errMsg = 'Too many requests. Please slow down.';
+      if (response.status === 413) errMsg = 'Payload too large.';
+      if (response.status === 401 || response.status === 403) errMsg = 'Access denied.';
+      throw new ApiError(errMsg, response.status);
     }
+
     const data = await response.json();
     return data.map((item: OutbreakData & { first_reported?: string }) => ({
       ...item,
@@ -229,8 +253,13 @@ export async function getCropHealth(): Promise<CropHealthData[]> {
     const response = await fetch(`${API_BASE}/api/dashboard/crop-health`);
     if (!response.ok) {
       if (IS_DEMO_MODE) return mockCropHealth;
-      throw new ApiError('Crop health data unavailable.', response.status);
+      let errMsg = 'Service is temporarily unavailable.';
+      if (response.status === 429) errMsg = 'Too many requests. Please slow down.';
+      if (response.status === 413) errMsg = 'Payload too large.';
+      if (response.status === 401 || response.status === 403) errMsg = 'Access denied.';
+      throw new ApiError(errMsg, response.status);
     }
+
     const data = await response.json();
     
     // The backend might return an array directly, or an object with a 'regions' array
@@ -260,8 +289,13 @@ export async function getIndianStates(): Promise<IndianState[]> {
     const response = await fetch(`${API_BASE}/api/states`);
     if (!response.ok) {
       if (IS_DEMO_MODE) return mockStates;
-      throw new ApiError('States data unavailable.', response.status);
+      let errMsg = 'Service is temporarily unavailable.';
+      if (response.status === 429) errMsg = 'Too many requests. Please slow down.';
+      if (response.status === 413) errMsg = 'Payload too large.';
+      if (response.status === 401 || response.status === 403) errMsg = 'Access denied.';
+      throw new ApiError(errMsg, response.status);
     }
+
     const data = await response.json();
     if (data && Array.isArray(data.states)) {
       return data.states;
@@ -299,8 +333,13 @@ export async function getPersonalizedAlerts(lat: number, lng: number, cropType?:
     const response = await fetch(`${API_BASE}/api/alerts/personalized?lat=${lat}&lng=${lng}${cropQuery}`);
     if (!response.ok) {
       if (IS_DEMO_MODE) return [];
-      throw new ApiError('Personalized alerts unavailable.', response.status);
+      let errMsg = 'Service is temporarily unavailable.';
+      if (response.status === 429) errMsg = 'Too many requests. Please slow down.';
+      if (response.status === 413) errMsg = 'Payload too large.';
+      if (response.status === 401 || response.status === 403) errMsg = 'Access denied.';
+      throw new ApiError(errMsg, response.status);
     }
+
     const data = await response.json();
     return data.alerts || [];
   } catch (error) {
