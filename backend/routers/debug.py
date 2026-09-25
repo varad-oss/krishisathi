@@ -25,36 +25,35 @@ async def debug_db():
         tables = list(Base.metadata.tables.keys())
         
         db_path = "/tmp/krishisathi.db"
-        exists = os.path.exists(db_path)
-        size = os.path.getsize(db_path) if exists else 0
         
-        sqlite_tables = []
-        if exists:
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-            sqlite_tables = [r[0] for r in cursor.fetchall()]
-            conn.close()
-            
         ddl_test = []
         try:
             from sqlalchemy.schema import CreateTable
-            for table_name, table in Base.metadata.tables.items():
-                # Test compiling with AsyncEngine
-                try:
-                    create_stmt = str(CreateTable(table).compile(engine))
-                    ddl_test.append(f"Success async engine {table_name}")
-                except Exception as e:
-                    ddl_test.append(f"Fail async engine {table_name}: {repr(e)}")
-                
-                # Test compiling with sync_engine
-                try:
-                    create_stmt = str(CreateTable(table).compile(engine.sync_engine))
-                    ddl_test.append(f"Success sync_engine {table_name}")
-                except Exception as e:
-                    ddl_test.append(f"Fail sync_engine {table_name}: {repr(e)}")
+            from sqlalchemy import text
+            async with engine.begin() as conn:
+                for table_name, table in Base.metadata.tables.items():
+                    try:
+                        create_stmt = str(CreateTable(table).compile(engine.sync_engine))
+                        create_stmt = create_stmt.replace("CREATE TABLE", "CREATE TABLE IF NOT EXISTS")
+                        await conn.execute(text(create_stmt))
+                        ddl_test.append(f"Executed DDL for {table_name}")
+                    except Exception as e:
+                        ddl_test.append(f"EXEC FAIL {table_name}: {repr(e)}")
         except Exception as outer_e:
-            ddl_test.append(str(outer_e))
+            ddl_test.append(f"Outer error: {repr(outer_e)}")
+
+        exists = os.path.exists(db_path)
+        size = os.path.getsize(db_path) if exists else 0
+        sqlite_tables = []
+        if exists:
+            try:
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+                sqlite_tables = [r[0] for r in cursor.fetchall()]
+                conn.close()
+            except Exception as e:
+                sqlite_tables.append(repr(e))
 
         return {
             "metadata_tables": tables,
