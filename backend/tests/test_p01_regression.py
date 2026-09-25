@@ -58,8 +58,8 @@ async def test_non_english_diagnosis_schema_valid():
             "scientific_name": "Puccinia triticina",
             "model_confidence_score": 0.95,
             "affected_part": "Leaves",
-            "severity": "High",
-            "spread_risk": "High",
+            "model_inferred_severity": "High",
+            "model_inferred_spread_risk": "High",
             "image_analysis_summary": "Bad rust",
             "treatment": {
                 "chemical": ["Use fungicide"],
@@ -90,7 +90,7 @@ async def test_non_english_diagnosis_schema_valid():
                     assert response.status_code == 200
                     data = response.json()
                     # Enums MUST remain High, High
-                    assert data["severity"] == "High"
-                    assert data["spread_risk"] == "High"
+                    assert data["model_inferred_severity"] == "High"
+                    assert data["model_inferred_spread_risk"] == "High"
                     # User text must be translated
                     assert data["disease_name"] == "गेहूं का रतुआ"

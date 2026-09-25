@@ -2,7 +2,7 @@ import pytest
 import os
 from config import settings
 
-pytestmark = pytest.mark.skipif("sqlite" in settings.DATABASE_URL or not settings.DATABASE_URL, reason="Requires Postgres")
+pytestmark = pytest.mark.skipif(not settings.DATABASE_URL or "sqlite" in settings.DATABASE_URL, reason="Requires Postgres")
 
 import pytest
 import asyncio

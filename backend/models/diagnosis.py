@@ -46,10 +46,10 @@ class DiagnosisResponse(BaseModel):
     disease_name: str = Field(..., min_length=1)
     scientific_name: str
     model_confidence_score: float = Field(..., ge=0, le=1)
-    severity: SeverityEnum
+    model_inferred_severity: SeverityEnum
     affected_part: str
     treatment: TreatmentPlan
-    spread_risk: SpreadRiskEnum
+    model_inferred_spread_risk: SpreadRiskEnum
     image_analysis_summary: str
     advisory_text: str
     language: str
