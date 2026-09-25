@@ -76,16 +76,15 @@ async def ensure_db_init(request: Request, call_next):
     global _db_initialized
     if not _db_initialized and settings.ENVIRONMENT == "production":
         try:
-            from core.database import Base, engine
+            from core.database import engine
             if "sqlite" in str(engine.url):
-                async with engine.begin() as conn:
-                    tables = Base.metadata.tables.keys()
-                    logger.warning(f"Creating tables: {tables}")
-                    if not tables:
-                        from models.schema import DiagnosisRecord, OutbreakRecord
-                        tables = Base.metadata.tables.keys()
-                        logger.warning(f"Tables after explicit import: {tables}")
-                    await conn.run_sync(Base.metadata.create_all)
+                import asyncio
+                def init_db_sync():
+                    from sqlalchemy import create_engine
+                    sync_engine = create_engine("sqlite:////tmp/krishisathi.db")
+                    from models.schema import Base, DiagnosisRecord, OutbreakRecord
+                    Base.metadata.create_all(sync_engine)
+                await asyncio.to_thread(init_db_sync)
         except Exception as e:
             logger.error(f"Failed to init DB: {e}")
             import traceback
