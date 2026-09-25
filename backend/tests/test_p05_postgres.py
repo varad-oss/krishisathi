@@ -1,4 +1,10 @@
 import pytest
+import os
+from config import settings
+
+pytestmark = pytest.mark.skipif("sqlite" in settings.DATABASE_URL or not settings.DATABASE_URL, reason="Requires Postgres")
+
+import pytest
 import asyncio
 from httpx import AsyncClient, ASGITransport
 from main import app
