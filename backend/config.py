@@ -25,7 +25,12 @@ class Settings(BaseSettings):
     GEMINI_TRANSCRIPTION_MODEL: str = "gemini-1.5-flash"
     GEMINI_AGENT_MODEL: str = "gemini-1.5-pro"
     JWT_SECRET: Optional[str] = None
+# Database and Redis (Pull from Vercel Integration Env Vars)
+    DATABASE_URL: Optional[str] = None
+    POSTGRES_URL: Optional[str] = None
     REDIS_URL: Optional[str] = None
+    KV_URL: Optional[str] = None
+    UPSTASH_REDIS_REST_URL: Optional[str] = None
     RATE_LIMIT_AI: int = 10
 
     class Config:

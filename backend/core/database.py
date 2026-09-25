@@ -5,15 +5,16 @@ from config import settings
 
 logger = logging.getLogger(__name__)
 
+# Pull from whichever variable Vercel injects
+resolved_db_url = settings.DATABASE_URL or settings.POSTGRES_URL
+
 if settings.ENVIRONMENT == "production":
-    if not settings.DATABASE_URL or "sqlite" in settings.DATABASE_URL:
-        logger.warning("Using SQLite in production. Forcing /tmp directory for writable filesystem.")
-        db_url = "sqlite+aiosqlite:////tmp/krishisathi.db"
-    else:
-        db_url = settings.DATABASE_URL
+    if not resolved_db_url:
+        raise RuntimeError("DATABASE_URL or POSTGRES_URL must be configured in production for persistence.")
+    db_url = resolved_db_url
 else:
     # Fallback to local sqlite if no DATABASE_URL is provided in development
-    db_url = settings.DATABASE_URL or "sqlite+aiosqlite:////tmp/krishisathi.db"
+    db_url = resolved_db_url or "sqlite+aiosqlite:///./krishisathi.db"
     if db_url.startswith("sqlite"):
         logger.info("Using SQLite for development persistence.")
 
