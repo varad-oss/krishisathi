@@ -25,9 +25,13 @@ async def diagnose_multipart(
     try:
         if file.content_type not in ['image/jpeg', 'image/png', 'image/webp']:
             raise HTTPException(status_code=415, detail='Unsupported media type')
-        contents = await file.read()
-        if len(contents) > 5 * 1024 * 1024:
-            raise HTTPException(status_code=413, detail='Image too large (max 5MB)')
+        contents = bytearray()
+        max_size = 5 * 1024 * 1024
+        while chunk := await file.read(1024 * 1024):
+            contents.extend(chunk)
+            if len(contents) > max_size:
+                raise HTTPException(status_code=413, detail='Image too large (max 5MB)')
+        contents = bytes(contents)
         return await process_diagnosis(contents, crop_type, latitude, longitude, language)
     except HTTPException:
         raise

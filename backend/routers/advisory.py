@@ -26,8 +26,10 @@ def get_audio_mime_type(audio_bytes: bytes) -> str:
         return 'audio/webm'
     elif audio_bytes.startswith(b'OggS'):
         return 'audio/ogg'
-    else:
+    elif audio_bytes.startswith(b'ID3') or audio_bytes.startswith(b'\xff\xfb') or audio_bytes.startswith(b'\xff\xf3') or audio_bytes.startswith(b'\xff\xf2'):
         return 'audio/mp3'
+    else:
+        raise HTTPException(status_code=415, detail='Unsupported audio format')
 
 
 from pydantic import BaseModel

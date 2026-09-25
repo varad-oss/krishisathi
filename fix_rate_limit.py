@@ -1,4 +1,6 @@
-from fastapi import Request, HTTPException
+import os
+
+content = """from fastapi import Request, HTTPException
 import time
 import redis.asyncio as redis
 import logging
@@ -53,3 +55,6 @@ async def rate_limit(request: Request, limit: int, window_seconds: int = 60, by_
 
 async def ai_rate_limit(request: Request):
     await rate_limit(request, limit=settings.RATE_LIMIT_AI, window_seconds=60)
+"""
+with open("backend/core/rate_limit.py", "w") as f:
+    f.write(content)

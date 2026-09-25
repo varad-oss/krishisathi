@@ -1,4 +1,5 @@
-import pytest
+with open("backend/tests/test_security.py", "w") as f:
+    f.write("""import pytest
 from fastapi.testclient import TestClient
 from main import app
 from core.security import Principal
@@ -26,7 +27,7 @@ def setup_env():
 # Authentication Tests
 def test_missing_token():
     res = client.get("/api/debug/earth-engine-status")
-    assert res.status_code in [401, 403]
+    assert res.status_code == 403 # FastAPI HTTPBearer returns 403 when not provided
 
 def test_malformed_token():
     res = client.get("/api/debug/earth-engine-status", headers={"Authorization": "Bearer not.a.token"})
@@ -147,7 +148,7 @@ async def test_trusted_proxy():
     with patch("core.rate_limit.redis_client", mock_redis):
         # Without proxy trust
         client.post("/api/diagnose/base64", headers={"X-Forwarded-For": "9.9.9.9"}, json={"image": "aGVsbG8=", "latitude": 0, "longitude": 0, "language": "en"})
-        assert any("testclient" in k or "unknown" in k for k in mock_redis.data.keys())
+        assert "rate_limit:/api/diagnose/base64:testclient" in mock_redis.data.keys() or "rate_limit:/api/diagnose/base64:unknown" in str(mock_redis.data.keys())
         
         # With proxy trust
         mock_redis.data = {}
@@ -169,7 +170,7 @@ def test_invalid_audio_mime():
 
 def test_valid_audio_webm():
     # webm magic bytes
-    res = client.post("/api/advisory/voice", json={"audio_base64": base64.b64encode(bytes([0x1A, 0x45, 0xdf, 0xa3, 0x61, 0x62, 0x63])).decode(), "latitude": 0, "longitude": 0, "language": "en"})
+    res = client.post("/api/advisory/voice", json={"audio_base64": base64.b64encode(b"\x1A\x45\xdf\xa3abc").decode(), "latitude": 0, "longitude": 0, "language": "en"})
     # Fails further down (503 transcription service unavailable) but NOT 415
     assert res.status_code == 503
 
@@ -184,3 +185,4 @@ def test_cors_contract():
     res = client.options("/api/diagnose", headers={"Origin": "http://localhost:3000", "Access-Control-Request-Method": "POST"})
     assert res.status_code == 200
     assert "access-control-allow-origin" in res.headers
+""")

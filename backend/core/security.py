@@ -34,8 +34,8 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Security(securi
         return Principal(user_id=str(user_id), role=str(role))
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.PyJWTError as e:
-        raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
 
 def require_system_role(principal: Principal = Depends(get_current_user)) -> Principal:
     if principal.role not in ["system", "admin"]:

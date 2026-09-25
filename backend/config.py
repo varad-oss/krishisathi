@@ -5,6 +5,8 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 class Settings(BaseSettings):
+    ENVIRONMENT: str = "development"
+    TRUST_REVERSE_PROXY: bool = False
     GOOGLE_CLOUD_PROJECT: Optional[str] = "krishisathi-demo"
     GEMINI_API_KEY: Optional[str] = None
     GOOGLE_MAPS_API_KEY: Optional[str] = None
@@ -23,7 +25,6 @@ class Settings(BaseSettings):
     GEMINI_AGENT_MODEL: str = "gemini-3.8-flash"
     JWT_SECRET: Optional[str] = None
     REDIS_URL: Optional[str] = None
-    RATE_LIMIT_GLOBAL: int = 100
     RATE_LIMIT_AI: int = 10
 
     class Config:
