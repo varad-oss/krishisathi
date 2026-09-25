@@ -117,7 +117,6 @@ Return the response strictly as a JSON object with the following structure:
             image_part = None
             if image_base64:
                 import base64
-                from google.genai import types
                 img_bytes = base64.b64decode(image_base64)
                 image_part = types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg")
             
