@@ -108,7 +108,7 @@ export async function getAdvisory(
   imageBase64?: string
 ): Promise<AdvisoryResponse> {
   try {
-    const payload: any = {
+    const payload: Record<string, unknown> = {
       query,
       latitude: lat,
       longitude: lng,
@@ -160,13 +160,14 @@ export async function getFollowUpAdvisory(
       }),
     });
     if (!response.ok) {
-      // Explicit failure — do NOT fall back to mock data
-      return null;
+      if (IS_DEMO_MODE) return null;
+      throw new ApiError(`Service unavailable: ${response.statusText}`, response.status);
     }
     return await response.json();
   } catch (error) {
-    console.error('Follow-up advisory failed:', error);
-    return null; // null signals failure to the UI, distinct from mock data
+    if (IS_DEMO_MODE) return null;
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(`Follow-up advisory failed: ${error instanceof Error ? error.message : ''}`);
   }
 }
 
@@ -211,7 +212,7 @@ export async function getOutbreaks(): Promise<OutbreakData[]> {
       throw new ApiError('Outbreaks data unavailable.', response.status);
     }
     const data = await response.json();
-    return data.map((item: any) => ({
+    return data.map((item: OutbreakData & { first_reported?: string }) => ({
       ...item,
       date: item.date || item.first_reported,
       severity: item.severity ? item.severity.charAt(0).toUpperCase() + item.severity.slice(1) : 'Moderate'
@@ -237,7 +238,7 @@ export async function getCropHealth(): Promise<CropHealthData[]> {
       return data;
     } else if (data && Array.isArray(data.regions)) {
       // Map the new backend schema to match the frontend CropHealthData interface
-      return data.regions.map((region: any) => ({
+      return data.regions.map((region: Record<string, unknown>) => ({
         region: region.name || region.region,
         ndvi_score: region.ndvi || region.ndvi_score,
         drought_risk: region.drought_risk,
@@ -284,15 +285,15 @@ export async function getAlerts(): Promise<Alert[]> {
   );
 }
 
-export async function getExchangeSignals(): Promise<any> {
-  return fetchWithFallback<any>(
+export async function getExchangeSignals(): Promise<unknown> {
+  return fetchWithFallback<unknown>(
     `${API_BASE}/api/states/exchange/signals`,
     { method: 'GET' },
     { signals: [] }
   );
 }
 
-export async function getPersonalizedAlerts(lat: number, lng: number, cropType?: string): Promise<any[]> {
+export async function getPersonalizedAlerts(lat: number, lng: number, cropType?: string): Promise<unknown[]> {
   const cropQuery = cropType ? `&crop_type=${encodeURIComponent(cropType)}` : '';
   try {
     const response = await fetch(`${API_BASE}/api/alerts/personalized?lat=${lat}&lng=${lng}${cropQuery}`);
@@ -304,7 +305,8 @@ export async function getPersonalizedAlerts(lat: number, lng: number, cropType?:
     return data.alerts || [];
   } catch (error) {
     if (IS_DEMO_MODE) return [];
-    throw new ApiError('Personalized alerts could not be reached.');
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(`Personalized alerts could not be reached. ${error instanceof Error ? error.message : ''}`);
   }
 }
 

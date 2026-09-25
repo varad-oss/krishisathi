@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // BCP47 language map for Web Speech API
 // This is the single source of truth for all speech-related language codes.
 // Browser SpeechRecognition and SpeechSynthesis both use BCP47 tags.
@@ -100,16 +101,16 @@ export function stopSpeaking(): void {
  */
 export function isSpeechRecognitionSupported(): boolean {
   if (typeof window === 'undefined') return false;
-  return !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+  return !!((window as unknown as { SpeechRecognition?: any, webkitSpeechRecognition?: any, AudioContext?: any, webkitAudioContext?: any }).SpeechRecognition || (window as unknown as { SpeechRecognition?: any, webkitSpeechRecognition?: any, AudioContext?: any, webkitAudioContext?: any }).webkitSpeechRecognition);
 }
 
 /**
  * Create a SpeechRecognition instance configured for the given language.
  * Returns null if not supported.
  */
-export function createSpeechRecognition(langCode: string): any | null {
+export function createSpeechRecognition(langCode: string): unknown | null {
   if (!isSpeechRecognitionSupported()) return null;
-  const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+  const SpeechRecognition = (window as unknown as { SpeechRecognition?: any, webkitSpeechRecognition?: any, AudioContext?: any, webkitAudioContext?: any }).SpeechRecognition || (window as unknown as { SpeechRecognition?: any, webkitSpeechRecognition?: any, AudioContext?: any, webkitAudioContext?: any }).webkitSpeechRecognition;
   const recognition = new SpeechRecognition();
   recognition.lang = getBCP47(langCode);
   recognition.interimResults = true;
@@ -123,16 +124,16 @@ export function createSpeechRecognition(langCode: string): any | null {
 let mediaRecorder: MediaRecorder | null = null;
 let audioChunks: Blob[] = [];
 let audioContext: AudioContext | null = null;
-let silenceTimer: any = null;
+let silenceTimer: number | null = null;
 
-export async function startRecording(langCode: string, onResult: (text: string) => void, onError: (err: any) => void, onEnd: () => void) {
+export async function startRecording(langCode: string, onResult: (text: string) => void, onError: (err: unknown) => void, onEnd: () => void) {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     mediaRecorder = new MediaRecorder(stream);
     audioChunks = [];
 
     // Setup silence detection
-    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    const AudioContext = window.AudioContext || (window as unknown as { SpeechRecognition?: any, webkitSpeechRecognition?: any, AudioContext?: any, webkitAudioContext?: any }).webkitAudioContext;
     audioContext = new AudioContext();
     const source = audioContext.createMediaStreamSource(stream);
     const analyser = audioContext.createAnalyser();

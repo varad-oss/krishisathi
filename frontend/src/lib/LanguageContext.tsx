@@ -18,6 +18,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const storedLang = localStorage.getItem('krishi_language');
     if (storedLang) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLanguageState(storedLang);
     }
   }, []);

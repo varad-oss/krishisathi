@@ -64,19 +64,9 @@ class BigQueryService:
                 # We don't await job.result() to keep the API fast, it runs in background
                 # But for the hackathon prototype, we will just silently pass
             except Exception as e:
-                logger.info(f"Failed to log to BigQuery, falling back to local: {e}")
-                self._fallback_log(data)
+                logger.error(f"Failed to log to BigQuery: {e}. Data dropped.")
+                raise e
         else:
-            self._fallback_log(data)
-            
-    def _fallback_log(self, data: Dict[str, Any]):
-        """Fallback logging to local file when BigQuery Sandbox is not configured."""
-        try:
-            log_dir = "logs"
-            os.makedirs(log_dir, exist_ok=True)
-            with open(f"{log_dir}/diagnoses.jsonl", "a") as f:
-                f.write(json.dumps(data) + "\n")
-        except Exception as e:
-            logger.info(f"Fallback logging failed: {e}")
+            logger.error("BigQuery client not configured or unavailable. Telemetry data dropped.")
 
 bq_service = BigQueryService()

@@ -37,4 +37,4 @@ jobs:
       - name: Install Dependencies
         run: pip install uv && uv pip install --system -r backend/requirements.txt
       - name: Run Pytest
-        run: uv run pytest backend/tests/
+        run: uv pip install --system pytest pytest-asyncio && pytest backend/tests/

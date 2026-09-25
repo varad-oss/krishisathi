@@ -77,8 +77,6 @@ async def process_diagnosis(image_bytes: bytes, crop_type: str, latitude: float,
         fields_to_translate = {
             "disease_name": diagnosis_data.get("disease_name"),
             "affected_part": diagnosis_data.get("affected_part"),
-            "severity": diagnosis_data.get("severity"),
-            "spread_risk": diagnosis_data.get("spread_risk"),
             "image_analysis_summary": diagnosis_data.get("image_analysis_summary"),
             "advisory_text": diagnosis_data.get("advisory_text"),
             "treatment": diagnosis_data.get("treatment")
@@ -111,8 +109,6 @@ async def process_diagnosis(image_bytes: bytes, crop_type: str, latitude: float,
         "disease_name": diagnosis_data.get("disease_name"),
         "confidence": diagnosis_data.get("confidence"),
         "severity": diagnosis_data.get("severity"),
-        "latitude": latitude,
-        "longitude": longitude
     }
     asyncio.create_task(safe_log_diagnosis(log_data))
     

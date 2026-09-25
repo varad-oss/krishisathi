@@ -20,7 +20,7 @@ export default function MapPage() {
   const { language } = useLanguage();
   const [healthData, setHealthData] = useState<CropHealthData[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [outbreaks, setOutbreaks] = useState<OutbreakData[]>([]);
+  const [, setOutbreaks] = useState<OutbreakData[]>([]);
 
   const [error, setError] = useState<string | null>(null);
 

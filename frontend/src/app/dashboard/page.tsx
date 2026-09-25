@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   BarChart,
   Bar,
@@ -39,6 +39,15 @@ import { formatNumber, formatDate, getSeverityColor, cn } from "@/lib/utils";
 import { useLanguage } from "@/lib/LanguageContext";
 import { t } from "@/lib/translations";
 
+
+interface CrossStateSignal {
+  from_state: string;
+  to_state?: string;
+  severity?: string;
+  message: string;
+  timestamp: string;
+}
+
 export default function DashboardPage() {
   const { language } = useLanguage();
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -48,9 +57,21 @@ export default function DashboardPage() {
   const [report, setReport] = useState<string>("");
   const [loadingReport, setLoadingReport] = useState(false);
   const [selectedState, setSelectedState] = useState<string>("ALL");
-  const [signals, setSignals] = useState<any[]>([]);
+  const [signals, setSignals] = useState<CrossStateSignal[]>([]);
 
   const [error, setError] = useState<string | null>(null);
+
+  const loadReport = useCallback(async () => {
+    try {
+      setLoadingReport(true);
+      const rep = await getDashboardReport(language);
+      setReport(rep || "No report data available at this time.");
+    } catch {
+      setReport("Dashboard report is unavailable.");
+    } finally {
+      setLoadingReport(false);
+    }
+  }, [language]);
 
   useEffect(() => {
     async function loadData() {
@@ -66,30 +87,19 @@ export default function DashboardPage() {
         setOutbreaks(o);
         setStates(c);
         setHealthData(h);
-        setSignals(sig.signals || []);
+        setSignals((sig as { signals?: CrossStateSignal[] }).signals || []);
         loadReport();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load dashboard data. Live dashboard data could not be loaded.");
       }
     }
     loadData();
-  }, []);
+  }, [loadReport]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (stats) loadReport();
-  }, [language]);
-
-  const loadReport = async () => {
-    try {
-      setLoadingReport(true);
-      const rep = await getDashboardReport(language);
-      setReport(rep || "No report data available at this time.");
-    } catch (err) {
-      setReport("Dashboard report is unavailable.");
-    } finally {
-      setLoadingReport(false);
-    }
-  };
+  }, [language, stats, loadReport]);
 
   if (error) {
     return (

@@ -8,7 +8,7 @@ export default function AboutModelPage() {
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-900">About Our AI Model</h1>
           <p className="mt-4 text-lg text-gray-600">
-            KrishiSathi's diagnosis engine is powered by Google's Gemini 2.5 Flash, 
+            KrishiSathi&apos;s diagnosis engine is powered by Google&apos;s Gemini 2.5 Flash, 
             fine-tuned and validated against Indian agricultural datasets.
           </p>
         </div>
@@ -47,7 +47,7 @@ export default function AboutModelPage() {
               </p>
               <ul className="mt-4 space-y-2 text-gray-700 list-disc pl-5">
                 <li><strong>Live Meteorological Data:</strong> Open-Meteo for localized temperature, humidity, and rainfall context</li>
-                <li><strong>Soil Health context:</strong> Proxy data based on India's Soil Health Card scheme averages</li>
+                <li><strong>Soil Health context:</strong> Proxy data based on India&apos;s Soil Health Card scheme averages</li>
                 <li><strong>Crop Calendars:</strong> State-specific sowing and harvesting windows</li>
               </ul>
             </div>

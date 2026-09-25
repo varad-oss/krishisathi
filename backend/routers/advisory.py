@@ -90,8 +90,8 @@ async def get_advisory(request: AdvisoryRequest):
             from services.agent_service import agent_service
             advisory_en = agent_service.process_advisory(query_en, context, image_base64=request.image_base64)
         except Exception as e:
-            logger.warning(f"Agent service failed, falling back to deterministic generation: {e}")
-            advisory_en = gemini_service.generate_advisory(query_en, context, image_base64=request.image_base64)
+            logger.error(f"Agent service failed: {e}")
+            raise ServiceUnavailableException("Advisory agent service is temporarily unavailable.") from e
         
         advisory_final = advisory_en
         translated_text = None

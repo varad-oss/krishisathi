@@ -29,14 +29,13 @@ export default function DiagnosePage() {
   const [followUpMessages, setFollowUpMessages] = useState<{role: string, content: string}[]>([]);
   const [followUpInput, setFollowUpInput] = useState('');
   const [followUpLoading, setFollowUpLoading] = useState(false);
-  const [followUpError, setFollowUpError] = useState(false);
+  const [, setFollowUpError] = useState(false);
   const [isSpeakingActive, setIsSpeakingActive] = useState(false);
   useEffect(() => {
     return onSpeechStateChange(setIsSpeakingActive);
   }, []);
 
   const [isListening, setIsListening] = useState(false);
-  const recognitionRef = useRef<any>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -122,23 +121,26 @@ export default function DiagnosePage() {
     setFollowUpLoading(true);
     setFollowUpError(false);
     
-    const response = await getFollowUpAdvisory(
-      text,
-      result.disease_name,
-      result.severity,
-      cropType,
-      location?.lat || 28.6139,
-      location?.lng || 77.2090,
-      language
-    );
-    
-    if (response && response.advisory_text) {
-      setFollowUpMessages(prev => [...prev, { role: 'assistant', content: response.advisory_text }]);
-    } else {
+    try {
+      const response = await getFollowUpAdvisory(
+        text,
+        result.disease_name,
+        result.severity,
+        cropType,
+        location?.lat || 28.6139,
+        location?.lng || 77.2090,
+        language
+      );
+      
+      if (response && response.advisory_text) {
+        setFollowUpMessages(prev => [...prev, { role: 'assistant', content: response.advisory_text }]);
+      }
+    } catch (err) {
       setFollowUpError(true);
       setFollowUpMessages(prev => [...prev, { role: 'error', content: t('Unable to reach the advisor right now. Please try again.', language) }]);
+    } finally {
+      setFollowUpLoading(false);
     }
-    setFollowUpLoading(false);
   };
 
   const startFollowUpListening = () => {

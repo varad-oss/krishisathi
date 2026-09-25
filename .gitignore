@@ -45,3 +45,4 @@ coverage/
 # Google Cloud
 service-account-key.json
 *-credentials.json
+backend/logs/

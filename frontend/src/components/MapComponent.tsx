@@ -23,7 +23,7 @@ export default function MapComponent() {
     
     // Fix Leaflet default icon paths in Next.js
     import('leaflet').then(L => {
-      delete (L.Icon.Default.prototype as any)._getIconUrl;
+      delete (L.Icon.Default.prototype as { _getIconUrl?: unknown })._getIconUrl;
       L.Icon.Default.mergeOptions({
         iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
         iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
@@ -34,6 +34,7 @@ export default function MapComponent() {
 
   // Make sure we only render the map on the client
   const [mounted, setMounted] = useState(false);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
   if (!mounted) return <div className="w-full h-full min-h-[500px] bg-gray-100 animate-pulse rounded-2xl" />;
 

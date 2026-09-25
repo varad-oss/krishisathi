@@ -28,6 +28,13 @@ const QUICK_ACTIONS = [
   "Current pest risks"
 ];
 
+
+interface LocalAlert {
+  disease: string;
+  distance_km: number;
+  location: string;
+}
+
 export default function ChatPage() {
   const { language, setLanguage } = useLanguage();
   const [messages, setMessages] = useState<Message[]>([
@@ -52,12 +59,11 @@ export default function ChatPage() {
 
   const [isListening, setIsListening] = useState(false);
   const [autoRead, setAutoRead] = useState(false);
-  const recognitionRef = useRef<any>(null);
   
   // Data Context State
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   const [ndviData, setNdviData] = useState<CropHealthData | null>(null);
-  const [alerts, setAlerts] = useState<any[]>([]);
+  const [alerts, setAlerts] = useState<LocalAlert[]>([]);
   const [mounted, setMounted] = useState(false);
   
   // Locations for demo
@@ -70,11 +76,13 @@ export default function ChatPage() {
   const [activeLocation, setActiveLocation] = useState(LOCATIONS[0]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
   useEffect(() => {
     // Fetch real weather and satellite context on load or location change
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setWeatherData(null);
     setNdviData(null);
     setAlerts([]);
@@ -89,7 +97,7 @@ export default function ChatPage() {
       setNdviData(localData);
     });
     // Fetch hyper-local pest alerts for the region and assumed crop
-    getPersonalizedAlerts(activeLocation.lat, activeLocation.lng, activeLocation.crop).then(setAlerts);
+    getPersonalizedAlerts(activeLocation.lat, activeLocation.lng, activeLocation.crop).then(alerts => setAlerts(alerts as LocalAlert[]));
   }, [activeLocation]);
 
   const scrollToBottom = () => {
@@ -121,7 +129,7 @@ export default function ChatPage() {
     setImageAttachment(null);
 
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       role: 'user',
       content: text,
       timestamp: new Date(),
@@ -137,16 +145,16 @@ export default function ChatPage() {
       const response = await getAdvisory(text, activeLocation.lat, activeLocation.lng, activeLocation.crop, language, imgBase64);
       
       const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: crypto.randomUUID(),
         role: 'assistant',
         content: response.advisory_text || response.answer || "Here is your advisory.",
-        timestamp: new Date(response.timestamp || Date.now())
+        timestamp: new Date(response.timestamp || new Date().getTime())
       };
       
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
       const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: crypto.randomUUID(),
         role: 'assistant',
         content: error instanceof Error ? error.message : "I'm sorry, I couldn't process your request right now. Please check your connection and try again.",
         timestamp: new Date()
@@ -179,7 +187,7 @@ export default function ChatPage() {
         speakText(lastMsg.content, language);
       }
     }
-  }, [messages, autoRead]);
+  }, [messages, autoRead, language]);
 
   return (
     <div className="flex-1 bg-gray-50 flex flex-col md:flex-row h-[calc(100vh-4rem)]">

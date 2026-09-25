@@ -81,7 +81,7 @@ class EarthEngineService:
             return {
                 "status": "unavailable",
                 "source": "google-earth-engine",
-                "message": str(e)
+                "message": "Earth Engine data is temporarily unavailable."
             }
 
 earth_engine_service = EarthEngineService()
