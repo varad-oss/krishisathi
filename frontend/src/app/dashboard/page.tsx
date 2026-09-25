@@ -35,6 +35,8 @@ import {
   Activity,
 } from "lucide-react";
 import { formatNumber, formatDate, getSeverityColor, cn } from "@/lib/utils";
+import SignalPublisher from '@/components/SignalPublisher';
+
 
 import { useLanguage } from "@/lib/LanguageContext";
 import { t } from "@/lib/translations";
@@ -460,10 +462,15 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 ))}
+
                 {signals.length === 0 && (
                   <p className="text-gray-500 text-sm text-center py-4">{t('No active cross-state signals.', language)}</p>
                 )}
               </div>
+              <SignalPublisher states={states} onPublish={async () => {
+                const s = await getExchangeSignals();
+                setSignals((s as { signals?: any[] }).signals || []);
+              }} />
             </div>
 
           </div>

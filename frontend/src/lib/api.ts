@@ -350,3 +350,18 @@ export async function getPersonalizedAlerts(lat: number, lng: number, cropType?:
   }
 }
 
+
+export async function postExchangeSignal(signal: any): Promise<any> {
+  const response = await fetch(`${API_BASE}/api/states/exchange/signals`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer mock-system-token-123'
+    },
+    body: JSON.stringify(signal)
+  });
+  if (!response.ok) {
+    throw new Error('Failed to post exchange signal');
+  }
+  return response.json();
+}
