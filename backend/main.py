@@ -140,8 +140,6 @@ app.include_router(dashboard.router)
 app.include_router(states.router)
 app.include_router(debug.router)
 app.include_router(kvk.router)
-from routers import debug
-app.include_router(debug.router)
 
 try:
     from handler import router as bot_router
