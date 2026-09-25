@@ -83,24 +83,26 @@ async def ensure_db_init(request: Request, call_next):
                     from sqlalchemy.schema import CreateTable
                     from models.schema import Base, DiagnosisRecord, OutbreakRecord, AdvisoryRecord, FederationSignalRecord
                     for table_name, table in Base.metadata.tables.items():
-                        create_stmt = str(CreateTable(table).compile(engine))
-                        # Use IF NOT EXISTS
+                        # Use sync_engine for compilation to avoid AsyncEngine errors!
+                        create_stmt = str(CreateTable(table).compile(engine.sync_engine))
                         create_stmt = create_stmt.replace("CREATE TABLE", "CREATE TABLE IF NOT EXISTS")
                         await conn.execute(text(create_stmt))
                     for table_name, table in Base.metadata.tables.items():
                         for index in table.indexes:
                             from sqlalchemy.schema import CreateIndex
                             try:
-                                index_stmt = str(CreateIndex(index).compile(engine))
+                                index_stmt = str(CreateIndex(index).compile(engine.sync_engine))
                                 index_stmt = index_stmt.replace("CREATE INDEX", "CREATE INDEX IF NOT EXISTS")
                                 index_stmt = index_stmt.replace("CREATE UNIQUE INDEX", "CREATE UNIQUE INDEX IF NOT EXISTS")
                                 await conn.execute(text(index_stmt))
                             except Exception:
                                 pass
+            _db_initialized = True
         except Exception as e:
             logger.error(f"Failed to init DB: {e}")
-        finally:
-            _db_initialized = True
+            import traceback
+            logger.error(traceback.format_exc())
+            # Do NOT set _db_initialized = True if it fails! So we can retry on next request
     return await call_next(request)
 
 

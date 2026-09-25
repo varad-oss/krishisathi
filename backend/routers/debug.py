@@ -36,12 +36,34 @@ async def debug_db():
             sqlite_tables = [r[0] for r in cursor.fetchall()]
             conn.close()
             
+        ddl_test = []
+        try:
+            from sqlalchemy.schema import CreateTable
+            for table_name, table in Base.metadata.tables.items():
+                # Test compiling with AsyncEngine
+                try:
+                    create_stmt = str(CreateTable(table).compile(engine))
+                    ddl_test.append(f"Success async engine {table_name}")
+                except Exception as e:
+                    ddl_test.append(f"Fail async engine {table_name}: {repr(e)}")
+                
+                # Test compiling with sync_engine
+                try:
+                    create_stmt = str(CreateTable(table).compile(engine.sync_engine))
+                    ddl_test.append(f"Success sync_engine {table_name}")
+                except Exception as e:
+                    ddl_test.append(f"Fail sync_engine {table_name}: {repr(e)}")
+        except Exception as outer_e:
+            ddl_test.append(str(outer_e))
+
         return {
             "metadata_tables": tables,
             "engine_url": str(engine.url),
             "file_exists": exists,
             "file_size": size,
-            "sqlite_master_tables": sqlite_tables
+            "sqlite_master_tables": sqlite_tables,
+            "ddl_test": ddl_test
         }
     except Exception as e:
-        return {"error": str(e)}
+        return {"error": repr(e)}
+
