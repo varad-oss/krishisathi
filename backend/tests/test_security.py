@@ -109,7 +109,7 @@ class MockRedis:
 @pytest.mark.asyncio
 async def test_rate_limiting_flow():
     mock_redis = MockRedis()
-    with patch("core.rate_limit.redis_client", mock_redis):
+    with patch("core.rate_limit.redis_client", mock_redis), patch("core.rate_limit.time.time", return_value=1000000.0):
         # We simulate 10 requests allowed
         for _ in range(10):
             res = client.post("/api/diagnose/base64", json={
