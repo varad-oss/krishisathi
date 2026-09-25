@@ -90,7 +90,8 @@ async def add_request_id(request: Request, call_next):
             f"ReqID: {req_id} | {request.method} {request.url.path} "
             f"| Status: 500 | Latency: {process_time:.4f}s | Error: {str(e)}"
         )
-        raise
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=500, content={"detail": f"Internal Server Error: {str(e)}"})
 
 origins = [o.strip() for o in settings.CORS_ALLOWED_ORIGINS.split(",") if o.strip()]
 

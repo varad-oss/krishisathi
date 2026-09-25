@@ -8,12 +8,12 @@ logger = logging.getLogger(__name__)
 if settings.ENVIRONMENT == "production":
     if not settings.DATABASE_URL:
         logger.warning("DATABASE_URL is missing in production. Falling back to SQLite.")
-        db_url = "sqlite+aiosqlite:///./krishisathi.db"
+        db_url = "sqlite+aiosqlite:////tmp/krishisathi.db"
     else:
         db_url = settings.DATABASE_URL
 else:
     # Fallback to local sqlite if no DATABASE_URL is provided in development
-    db_url = settings.DATABASE_URL or "sqlite+aiosqlite:///./krishisathi.db"
+    db_url = settings.DATABASE_URL or "sqlite+aiosqlite:////tmp/krishisathi.db"
     if db_url.startswith("sqlite"):
         logger.info("Using SQLite for development persistence.")
 
