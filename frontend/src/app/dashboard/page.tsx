@@ -286,6 +286,11 @@ export default function DashboardPage() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-6">{t('Regional Crop Health (NDVI)', language)}</h3>
               <div className="h-72 w-full">
+                {filteredHealth.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-gray-400">
+                    <p>{t('Regional crop health data is currently unavailable.', language)}</p>
+                  </div>
+                ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={filteredHealth.map(h => ({...h, region: t(h.region, language)}))}
@@ -332,6 +337,7 @@ export default function DashboardPage() {
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
+                )}
               </div>
             </div>
           </div>

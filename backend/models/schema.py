@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Float, DateTime, Integer, JSON, Boolean
+from sqlalchemy import Column, Index, String, text, Float, DateTime, Integer, JSON, Boolean
 from core.database import Base
 from datetime import datetime
 import uuid
@@ -47,6 +47,18 @@ class OutbreakRecord(Base):
     report_count = Column(Integer, default=1)
     crop_targets = Column(JSON, default=list)
     status = Column(String, default="active")
+    grid_id = Column(String, nullable=True)
+
+    __table_args__ = (
+        Index(
+            "uq_active_outbreak",
+            "disease",
+            "grid_id",
+            unique=True,
+            sqlite_where=text("status = 'active'"),
+            postgresql_where=text("status = 'active'")
+        ),
+    )
 
 class FederationSignalRecord(Base):
     __tablename__ = "federation_signals"

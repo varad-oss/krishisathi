@@ -20,7 +20,7 @@ def _haversine(lat1, lon1, lat2, lon2):
 @router.get("", response_model=List[DiseaseAlert])
 async def get_alerts(region: str = None):
     # Retrieve outbreaks from database and map to alerts
-    outbreaks = await persistence_service.get_outbreaks()
+    outbreaks = [o for o in await persistence_service.get_outbreaks() if o['status'] == 'active']
     alerts = []
     for o in outbreaks:
         # Convert OutbreakRecord dict to DiseaseAlert mock format
@@ -41,7 +41,7 @@ async def get_alerts(region: str = None):
 
 @router.get("/outbreaks")
 async def get_outbreaks():
-    outbreaks = await persistence_service.get_outbreaks()
+    outbreaks = [o for o in await persistence_service.get_outbreaks() if o['status'] == 'active']
     return [
         OutbreakReport(
             location=o["location"],
@@ -53,12 +53,12 @@ async def get_outbreaks():
 
 @router.get("/personalized")
 async def get_personalized_alerts(lat: float, lng: float, crop_type: Optional[str] = None):
-    outbreaks = await persistence_service.get_outbreaks()
+    outbreaks = [o for o in await persistence_service.get_outbreaks() if o['status'] == 'active']
     personalized_alerts = []
     
     for outbreak in outbreaks:
         dist = _haversine(lat, lng, outbreak["lat"], outbreak["lng"])
-        if dist <= 150.0:
+        if dist <= outbreak["radius_km"] * 1.5:  # Add 50% margin for "nearby" alerts
             is_relevant_crop = False
             if crop_type and outbreak["crop_targets"]:
                 for target in outbreak["crop_targets"]:
@@ -74,7 +74,7 @@ async def get_personalized_alerts(lat: float, lng: float, crop_type: Optional[st
                     "distance_km": round(dist, 1),
                     "location": outbreak["location"],
                     "severity": outbreak["severity"],
-                    "message": f"High risk of {outbreak['disease']} detected {round(dist, 1)}km away in {outbreak['location']}."
+                    "message": f"{outbreak['severity']} risk of {outbreak['disease']} detected {round(dist, 1)}km away in {outbreak['location']}."
                 })
                 
     return {"alerts": personalized_alerts}
