@@ -6,8 +6,8 @@ from config import settings
 logger = logging.getLogger(__name__)
 
 if settings.ENVIRONMENT == "production":
-    if not settings.DATABASE_URL:
-        logger.warning("DATABASE_URL is missing in production. Falling back to SQLite.")
+    if not settings.DATABASE_URL or "sqlite" in settings.DATABASE_URL:
+        logger.warning("Using SQLite in production. Forcing /tmp directory for writable filesystem.")
         db_url = "sqlite+aiosqlite:////tmp/krishisathi.db"
     else:
         db_url = settings.DATABASE_URL

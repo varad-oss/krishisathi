@@ -85,6 +85,8 @@ async def ensure_db_init(request: Request, call_next):
                     await conn.run_sync(Base.metadata.create_all)
         except Exception as e:
             logger.error(f"Failed to init DB: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             raise Exception(f"DB Init Failed: {e}")
         finally:
             _db_initialized = True
