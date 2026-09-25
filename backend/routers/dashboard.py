@@ -2,6 +2,8 @@ from fastapi import APIRouter
 from services.gemini_service import gemini_service
 from services.persistence_service import persistence_service
 from datetime import datetime
+from core.rate_limit import redis_client
+import json
 
 
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
@@ -9,8 +11,18 @@ router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
 
 @router.get("/stats")
 async def get_stats():
-    # Use real persistence aggregations
-    return await persistence_service.get_dashboard_stats()
+    # Cache dashboard stats for 60 seconds to prevent DB saturation during traffic spikes
+    if redis_client:
+        cached = await redis_client.get("cache:dashboard_stats")
+        if cached:
+            return json.loads(cached)
+            
+    stats = await persistence_service.get_dashboard_stats()
+    
+    if redis_client:
+        await redis_client.set("cache:dashboard_stats", json.dumps(stats), ex=60)
+        
+    return stats
 
 
 @router.get("/report")

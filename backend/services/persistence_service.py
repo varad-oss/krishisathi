@@ -76,9 +76,19 @@ class PersistenceService:
                 else:
                     # Look for recent diagnoses to form a cluster
                     seven_days_ago = datetime.utcnow() - timedelta(days=7)
+                    
+                    # Bounding box filter to prevent loading all disease records into app memory
+                    # 1 degree lat is ~111km, 1 degree lng in India (max 37N) is ~88km.
+                    # 50km radius requires ~0.6 degrees bounding box.
+                    lat_margin, lng_margin = 0.6, 0.6
+                    
                     diag_stmt = select(DiagnosisRecord).where(
                         DiagnosisRecord.disease == disease_name,
-                        DiagnosisRecord.timestamp >= seven_days_ago
+                        DiagnosisRecord.timestamp >= seven_days_ago,
+                        DiagnosisRecord.lat >= lat - lat_margin,
+                        DiagnosisRecord.lat <= lat + lat_margin,
+                        DiagnosisRecord.lng >= lng - lng_margin,
+                        DiagnosisRecord.lng <= lng + lng_margin
                     )
                     diag_res = await session.execute(diag_stmt)
                     recent_diags = diag_res.scalars().all()
@@ -153,9 +163,13 @@ class PersistenceService:
             logger.error(f"Failed to persist advisory: {e}")
             raise
     
-    async def get_outbreaks(self) -> List[dict]:
+    async def get_outbreaks(self, limit: int = 100, active_only: bool = True) -> List[dict]:
         async with AsyncSessionLocal() as session:
-            result = await session.execute(select(OutbreakRecord))
+            stmt = select(OutbreakRecord)
+            if active_only:
+                stmt = stmt.where(OutbreakRecord.status == 'active')
+            stmt = stmt.order_by(OutbreakRecord.timestamp.desc()).limit(limit)
+            result = await session.execute(stmt)
             records = result.scalars().all()
             return [
                 {
@@ -197,9 +211,10 @@ class PersistenceService:
             logger.error(f"Failed to persist federation signal: {e}")
             raise
 
-    async def get_federation_signals(self) -> List[RegionalAgriSignal]:
+    async def get_federation_signals(self, limit: int = 100) -> List[RegionalAgriSignal]:
         async with AsyncSessionLocal() as session:
-            result = await session.execute(select(FederationSignalRecord).order_by(FederationSignalRecord.timestamp.desc()))
+            stmt = select(FederationSignalRecord).order_by(FederationSignalRecord.timestamp.desc()).limit(limit)
+            result = await session.execute(stmt)
             records = result.scalars().all()
             signals = []
             for r in records:
@@ -220,67 +235,95 @@ class PersistenceService:
             return signals
 
     async def get_dashboard_stats(self) -> dict:
-        async with AsyncSessionLocal() as session:
-            # total diagnoses
-            total_diag = await session.scalar(select(func.count(DiagnosisRecord.id)))
-            
-            # total active outbreaks
-            total_outbreaks = await session.scalar(select(func.count(OutbreakRecord.id)).where(OutbreakRecord.status == 'active'))
-            
-            # disease distribution (top 5)
-            disease_dist_res = await session.execute(
-                select(DiagnosisRecord.disease, func.count(DiagnosisRecord.id))
-                .group_by(DiagnosisRecord.disease)
-                .order_by(func.count(DiagnosisRecord.id).desc())
-                .limit(5)
-            )
-            disease_distribution = {row[0]: row[1] for row in disease_dist_res.all() if row[0]}
-            
-            # crop distribution (top 5)
-            crop_dist_res = await session.execute(
-                select(DiagnosisRecord.crop, func.count(DiagnosisRecord.id))
-                .group_by(DiagnosisRecord.crop)
-                .order_by(func.count(DiagnosisRecord.id).desc())
-                .limit(5)
-            )
-            crop_distribution = {row[0]: row[1] for row in crop_dist_res.all() if row[0]}
-            
-            # recent activity (diagnoses and advisories)
-            recent_diag = await session.execute(
-                select(DiagnosisRecord).order_by(DiagnosisRecord.timestamp.desc()).limit(5)
-            )
-            recent_adv = await session.execute(
-                select(AdvisoryRecord).order_by(AdvisoryRecord.timestamp.desc()).limit(5)
-            )
-            
-            activity = []
-            for d in recent_diag.scalars().all():
-                activity.append({
-                    "id": d.id,
-                    "type": "diagnosis",
-                    "title": f"Diagnosis: {d.disease}",
-                    "timestamp": d.timestamp.isoformat(),
-                    "model_inferred_severity": d.model_inferred_severity,
-                    "location": {"lat": d.lat, "lng": d.lng}
-                })
+        import asyncio
+        # We spawn separate sessions to execute queries concurrently.
+        # This trades connection pool slots for significantly reduced request latency.
+        async def _count_diag():
+            async with AsyncSessionLocal() as session:
+                return await session.scalar(select(func.count(DiagnosisRecord.id)))
                 
-            for a in recent_adv.scalars().all():
-                activity.append({
-                    "id": a.id,
-                    "type": "advisory",
-                    "title": f"Advisory provided for {a.crop or 'general query'}",
-                    "timestamp": a.timestamp.isoformat(),
-                    "location": {"lat": a.lat, "lng": a.lng}
-                })
+        async def _count_outb():
+            async with AsyncSessionLocal() as session:
+                return await session.scalar(select(func.count(OutbreakRecord.id)).where(OutbreakRecord.status == 'active'))
                 
-            activity.sort(key=lambda x: x["timestamp"], reverse=True)
+        async def _dist_disease():
+            async with AsyncSessionLocal() as session:
+                res = await session.execute(
+                    select(DiagnosisRecord.disease, func.count(DiagnosisRecord.id))
+                    .group_by(DiagnosisRecord.disease)
+                    .order_by(func.count(DiagnosisRecord.id).desc())
+                    .limit(5)
+                )
+                return {row[0]: row[1] for row in res.all() if row[0]}
+                
+        async def _dist_crop():
+            async with AsyncSessionLocal() as session:
+                res = await session.execute(
+                    select(DiagnosisRecord.crop, func.count(DiagnosisRecord.id))
+                    .group_by(DiagnosisRecord.crop)
+                    .order_by(func.count(DiagnosisRecord.id).desc())
+                    .limit(5)
+                )
+                return {row[0]: row[1] for row in res.all() if row[0]}
+                
+        async def _recent_diag():
+            async with AsyncSessionLocal() as session:
+                res = await session.execute(
+                    select(DiagnosisRecord).order_by(DiagnosisRecord.timestamp.desc()).limit(5)
+                )
+                return res.scalars().all()
+                
+        async def _recent_adv():
+            async with AsyncSessionLocal() as session:
+                res = await session.execute(
+                    select(AdvisoryRecord).order_by(AdvisoryRecord.timestamp.desc()).limit(5)
+                )
+                return res.scalars().all()
+                
+        results = await asyncio.gather(
+            _count_diag(),
+            _count_outb(),
+            _dist_disease(),
+            _dist_crop(),
+            _recent_diag(),
+            _recent_adv()
+        )
+        
+        total_diag = results[0]
+        total_outbreaks = results[1]
+        disease_distribution = results[2]
+        crop_distribution = results[3]
+        recent_diag = results[4]
+        recent_adv = results[5]
+        
+        activity = []
+        for d in recent_diag:
+            activity.append({
+                "id": d.id,
+                "type": "diagnosis",
+                "title": f"Diagnosis: {d.disease}",
+                "timestamp": d.timestamp.isoformat(),
+                "model_inferred_severity": d.model_inferred_severity,
+                "location": {"lat": d.lat, "lng": d.lng}
+            })
             
-            return {
-                "total_diagnoses": total_diag,
-                "active_outbreaks": total_outbreaks,
-                "disease_distribution": disease_distribution,
-                "crop_distribution": crop_distribution,
-                "recent_activity": activity[:10]
-            }
+        for a in recent_adv:
+            activity.append({
+                "id": a.id,
+                "type": "advisory",
+                "title": f"Advisory provided for {a.crop or 'general query'}",
+                "timestamp": a.timestamp.isoformat(),
+                "location": {"lat": a.lat, "lng": a.lng}
+            })
+            
+        activity.sort(key=lambda x: x["timestamp"], reverse=True)
+        
+        return {
+            "total_diagnoses": total_diag,
+            "active_outbreaks": total_outbreaks,
+            "disease_distribution": disease_distribution,
+            "crop_distribution": crop_distribution,
+            "recent_activity": activity[:10]
+        }
 
 persistence_service = PersistenceService()

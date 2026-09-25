@@ -365,6 +365,7 @@ export default function ChatPage() {
               )}>
                 {msg.imageUrl && (
                   <div className="mb-3 rounded-lg overflow-hidden border border-white/20">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={msg.imageUrl} alt="Uploaded attachment" className="max-w-full max-h-48 object-cover rounded-md" />
                   </div>
                 )}
@@ -431,6 +432,7 @@ export default function ChatPage() {
           >
             {imageAttachment && (
               <div className="relative inline-block self-start mb-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={imageAttachment} alt="Attachment preview" className="h-16 w-16 object-cover rounded-lg border border-gray-300 shadow-sm" />
                 <button 
                   type="button"

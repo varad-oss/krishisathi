@@ -14,12 +14,44 @@ from config import settings
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
+from core.database import engine
+from core.rate_limit import redis_client
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("🌾 KrishiSathi API starting up...")
+    
+    # 1. Verify Database Connection
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("SELECT 1"))
+        logger.info("✅ Database connection established.")
+    except Exception as e:
+        logger.error(f"❌ Failed to connect to database: {e}")
+        if settings.ENVIRONMENT == "production":
+            raise RuntimeError("Database required for production startup") from e
+            
+    # 2. Verify Redis Connection
+    if settings.ENVIRONMENT == "production":
+        if not redis_client:
+            raise RuntimeError("Redis URL required for production startup")
+        try:
+            await redis_client.ping()
+            logger.info("✅ Redis connection established.")
+        except Exception as e:
+            logger.error(f"❌ Failed to connect to Redis: {e}")
+            raise RuntimeError("Redis required for production startup") from e
+            
     logger.info("📄 API docs available at /docs")
     yield
     logger.info("KrishiSathi API shutting down...")
+    
+    # Graceful Teardown
+    if redis_client:
+        await redis_client.aclose()
+        logger.info("Redis connection closed.")
+    await engine.dispose()
+    logger.info("Database connection pool disposed.")
 
 app = FastAPI(
     title="KrishiSathi API",
@@ -34,14 +66,31 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+import time
+
 @app.middleware("http")
 async def add_request_id(request: Request, call_next):
     req_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
-    logger.info(f"ReqID: {req_id} | {request.method} {request.url.path}")
-    response = await call_next(request)
-    response.headers["X-Request-ID"] = req_id
-    logger.info(f"ReqID: {req_id} | {request.method} {request.url.path} - Status: {response.status_code}")
-    return response
+    start_time = time.time()
+    
+    try:
+        response = await call_next(request)
+        process_time = time.time() - start_time
+        response.headers["X-Request-ID"] = req_id
+        
+        # Structured log for quantitative observability
+        logger.info(
+            f"ReqID: {req_id} | {request.method} {request.url.path} "
+            f"| Status: {response.status_code} | Latency: {process_time:.4f}s"
+        )
+        return response
+    except Exception as e:
+        process_time = time.time() - start_time
+        logger.error(
+            f"ReqID: {req_id} | {request.method} {request.url.path} "
+            f"| Status: 500 | Latency: {process_time:.4f}s | Error: {str(e)}"
+        )
+        raise
 
 origins = [o.strip() for o in settings.CORS_ALLOWED_ORIGINS.split(",") if o.strip()]
 
@@ -95,8 +144,50 @@ async def root():
         },
     }
 
+
+from sqlalchemy import text
+from core.database import AsyncSessionLocal
+from core.rate_limit import redis_client
+
+@app.get("/health/live")
+async def health_live():
+    return {"status": "ok", "service": "krishisathi-api", "liveness": True}
+
+@app.get("/health/ready")
+async def health_ready():
+    status = {"status": "ok", "service": "krishisathi-api", "readiness": True, "dependencies": {}}
+    
+    # Check Database
+    try:
+        async with AsyncSessionLocal() as session:
+            await session.execute(text("SELECT 1"))
+        status["dependencies"]["database"] = "ok"
+    except Exception as e:
+        status["dependencies"]["database"] = "down"
+        status["readiness"] = False
+        
+    # Check Redis (if configured for production)
+    if settings.ENVIRONMENT == "production":
+        if not redis_client:
+            status["dependencies"]["redis"] = "down"
+            status["readiness"] = False
+        else:
+            try:
+                await redis_client.ping()
+                status["dependencies"]["redis"] = "ok"
+            except Exception as e:
+                status["dependencies"]["redis"] = "down"
+                status["readiness"] = False
+    
+    if not status["readiness"]:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(content=status, status_code=503)
+        
+    return status
+
 @app.get("/health")
 async def health_check():
+
     return {"status": "ok", "service": "krishisathi-api", "message": "KrishiSathi API is running"}
 
 if __name__ == "__main__":

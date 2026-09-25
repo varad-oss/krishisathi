@@ -11,9 +11,9 @@ jobs:
     name: Lint & Build Frontend (Next.js)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
       - name: Install Dependencies
@@ -27,9 +27,9 @@ jobs:
     name: Test Backend (FastAPI)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       - name: Check Python Syntax
@@ -38,3 +38,33 @@ jobs:
         run: pip install uv && uv pip install --system -r backend/requirements.txt
       - name: Run Pytest
         run: uv pip install --system pytest pytest-asyncio && cd backend && python -m alembic upgrade head && cd .. && DATABASE_URL="sqlite+aiosqlite:///${PWD}/backend/krishisathi.db" pytest backend/tests/
+
+  test-backend-postgres:
+    name: Test Backend (PostgreSQL Concurrency)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: krishi
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: krishisathi
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Dependencies
+        run: pip install uv && uv pip install --system -r backend/requirements.txt pytest pytest-asyncio asyncpg psycopg2-binary
+      - name: Run Alembic
+        run: cd backend && DATABASE_URL="postgresql+asyncpg://krishi:password@localhost:5432/krishisathi" python -m alembic upgrade head
+      - name: Run Postgres Concurrency Tests
+        run: cd backend && DATABASE_URL="postgresql+asyncpg://krishi:password@localhost:5432/krishisathi" python -m pytest tests/test_p05_postgres.py

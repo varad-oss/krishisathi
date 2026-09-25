@@ -89,7 +89,7 @@ export default function DiagnosePage() {
         language
       );
       setResult(diagnosis);
-    } catch (err) {
+    } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
       } else {
@@ -135,7 +135,7 @@ export default function DiagnosePage() {
       if (response && response.advisory_text) {
         setFollowUpMessages(prev => [...prev, { role: 'assistant', content: response.advisory_text }]);
       }
-    } catch (err) {
+    } catch {
       setFollowUpError(true);
       setFollowUpMessages(prev => [...prev, { role: 'error', content: t('Unable to reach the advisor right now. Please try again.', language) }]);
     } finally {
