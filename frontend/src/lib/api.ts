@@ -19,7 +19,7 @@ import {
   mockAlerts 
 } from './mock-data';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'production' ? 'https://krishisathi-iota.vercel.app' : 'http://localhost:8000');
 export const IS_DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
 export class ApiError extends Error {
@@ -33,7 +33,9 @@ export class ApiError extends Error {
 
 async function fetchWithFallback<T>(url: string, options: RequestInit, fallback: T): Promise<T> {
   try {
-    const response = await fetch(url, options);
+    // Prevent Next.js from statically caching failed local builds
+    const fetchOptions = { ...options, cache: 'no-store' as RequestCache };
+    const response = await fetch(url, fetchOptions);
     if (!response.ok) {
       if (IS_DEMO_MODE) {
         console.warn(`API call failed: ${url}, using fallback data.`);
