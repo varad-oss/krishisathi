@@ -370,26 +370,10 @@ export default function DashboardPage() {
                       <p>Gemini is analyzing latest data...</p>
                     </div>
                   ) : (
-                    <div className="text-green-50 space-y-3">
-                      {report.split("\n").map((line, i) => {
-                        if (!line.trim()) return null;
-                        return (
-                          <p
-                            key={i}
-                            className={
-                              line.startsWith("##")
-                                ? "font-bold text-lg mt-5 text-white"
-                                : line.startsWith("#")
-                                  ? "font-bold text-xl mt-6 text-white"
-                                  : line.startsWith("-") || line.startsWith("*")
-                                    ? "text-green-50 ml-4 border-l-2 border-green-700 pl-3"
-                                    : "text-green-50 leading-relaxed"
-                            }
-                          >
-                            {line.replace(/^#+\s*/, "").replace(/^[*-]\s*/, "").replace(/\*\*/g, "")}
-                          </p>
-                        );
-                      })}
+                    <div className="text-green-50 space-y-3 prose prose-invert max-w-none prose-p:leading-relaxed prose-li:marker:text-green-400">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {report}
+                      </ReactMarkdown>
                     </div>
                   )}
                 </div>
