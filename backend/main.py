@@ -74,10 +74,13 @@ _db_initialized = False
 @app.middleware("http")
 async def ensure_db_init(request: Request, call_next):
     global _db_initialized
-    if not _db_initialized and settings.ENVIRONMENT == "production":
+    # Initialize database tables on first request in ALL environments (dev, staging, production)
+    # This is critical for Vercel, where ENVIRONMENT may not be explicitly set
+    if not _db_initialized:
         try:
             from core.database import engine
             if "sqlite" in str(engine.url):
+                logger.info("Initializing SQLite database tables...")
                 async with engine.begin() as conn:
                     from sqlalchemy import text
                     from sqlalchemy.schema import CreateTable
@@ -87,6 +90,7 @@ async def ensure_db_init(request: Request, call_next):
                         create_stmt = str(CreateTable(table).compile(engine.sync_engine))
                         create_stmt = create_stmt.replace("CREATE TABLE", "CREATE TABLE IF NOT EXISTS")
                         await conn.execute(text(create_stmt))
+                        logger.info(f"✅ Table {table_name} initialized")
                     for table_name, table in Base.metadata.tables.items():
                         for index in table.indexes:
                             from sqlalchemy.schema import CreateIndex
@@ -97,9 +101,10 @@ async def ensure_db_init(request: Request, call_next):
                                 await conn.execute(text(index_stmt))
                             except Exception:
                                 pass
+                logger.info("✅ Database initialization complete")
             _db_initialized = True
         except Exception as e:
-            logger.error(f"Failed to init DB: {e}")
+            logger.error(f"❌ Failed to init DB: {e}")
             import traceback
             logger.error(traceback.format_exc())
             # Do NOT set _db_initialized = True if it fails! So we can retry on next request
