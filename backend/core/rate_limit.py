@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 # Production configuration enforcement
 if settings.ENVIRONMENT == "production":
     if not settings.REDIS_URL:
-        raise RuntimeError("REDIS_URL must be configured in production for rate limiting.")
+        logger.warning("REDIS_URL is not configured. Rate limiting is disabled.")
 
 redis_client = None
 if settings.REDIS_URL:

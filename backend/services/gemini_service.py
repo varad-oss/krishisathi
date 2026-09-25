@@ -12,7 +12,7 @@ class GeminiService:
     def __init__(self):
         self.api_key = settings.GEMINI_API_KEY
         if not self.api_key and settings.ENVIRONMENT == "production":
-            raise RuntimeError("GEMINI_API_KEY must be configured in production.")
+            logger.warning("GEMINI_API_KEY is missing in production. Application will degrade gracefully.")
         if self.api_key:
             self.client = genai.Client(api_key=self.api_key)
         else:

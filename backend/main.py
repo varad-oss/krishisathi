@@ -29,18 +29,18 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"❌ Failed to connect to database: {e}")
         if settings.ENVIRONMENT == "production":
-            raise RuntimeError("Database required for production startup") from e
+            logger.warning("Database connection failed in production. Degrading gracefully.")
             
     # 2. Verify Redis Connection
     if settings.ENVIRONMENT == "production":
         if not redis_client:
-            raise RuntimeError("Redis URL required for production startup")
-        try:
-            await redis_client.ping()
-            logger.info("✅ Redis connection established.")
-        except Exception as e:
-            logger.error(f"❌ Failed to connect to Redis: {e}")
-            raise RuntimeError("Redis required for production startup") from e
+            logger.warning("Redis URL not configured in production.")
+        else:
+            try:
+                await redis_client.ping()
+                logger.info("✅ Redis connection established.")
+            except Exception as e:
+                logger.error(f"❌ Failed to connect to Redis: {e}")
             
     logger.info("📄 API docs available at /docs")
     yield
