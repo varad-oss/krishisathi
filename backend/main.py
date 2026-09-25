@@ -66,6 +66,24 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+_db_initialized = False
+
+@app.middleware("http")
+async def ensure_db_init(request: Request, call_next):
+    global _db_initialized
+    if not _db_initialized and settings.ENVIRONMENT == "production":
+        try:
+            from core.database import Base, engine
+            if "sqlite" in str(engine.url):
+                async with engine.begin() as conn:
+                    await conn.run_sync(Base.metadata.create_all)
+        except Exception as e:
+            logger.error(f"Failed to init DB: {e}")
+        finally:
+            _db_initialized = True
+    return await call_next(request)
+
+
 import time
 
 @app.middleware("http")
