@@ -23,40 +23,24 @@ async def lifespan(app: FastAPI):
     
     # 1. Verify Database Connection
     try:
-        if settings.ENVIRONMENT == "production" and "sqlite" in settings.DATABASE_URL:
-            from sqlalchemy.schema import CreateTable
-            import sqlite3
-            
-            db_path = "/tmp/krishisathi.db"
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-            
-            from core.database import Base
-            for table_name, table in Base.metadata.tables.items():
-                create_stmt = str(CreateTable(table).compile(engine.sync_engine))
-                create_stmt = create_stmt.replace("CREATE TABLE", "CREATE TABLE IF NOT EXISTS")
-                cursor.execute(create_stmt)
-                
-            conn.commit()
-            conn.close()
-            logger.info("✅ SQLite DDL initialized in /tmp.")
-        else:
-            async with engine.begin() as conn:
-                from core.database import Base
-                await conn.run_sync(Base.metadata.create_all)
+        async with engine.begin() as conn:
+            await conn.execute(text("SELECT 1"))
+        logger.info("✅ Database connection established.")
     except Exception as e:
         logger.error(f"❌ Failed to connect to database: {e}")
+        if settings.ENVIRONMENT == "production":
+            raise RuntimeError("Database required for production startup") from e
             
-    # 2. Verify Redis Connection (Bypass if not present)
+    # 2. Verify Redis Connection
     if settings.ENVIRONMENT == "production":
         if not redis_client:
-            logger.warning("⚠️ Redis URL missing. Running in degraded mode without rate-limiting.")
-        else:
-            try:
-                await redis_client.ping()
-                logger.info("✅ Redis connection established.")
-            except Exception as e:
-                logger.error(f"❌ Failed to connect to Redis: {e}")
+            raise RuntimeError("Redis URL required for production startup")
+        try:
+            await redis_client.ping()
+            logger.info("✅ Redis connection established.")
+        except Exception as e:
+            logger.error(f"❌ Failed to connect to Redis: {e}")
+            raise RuntimeError("Redis required for production startup") from e
             
     logger.info("📄 API docs available at /docs")
     yield
