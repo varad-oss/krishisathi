@@ -74,40 +74,19 @@ _db_initialized = False
 @app.middleware("http")
 async def ensure_db_init(request: Request, call_next):
     global _db_initialized
-    # Initialize database tables on first request in ALL environments (dev, staging, production)
-    # This is critical for Vercel, where ENVIRONMENT may not be explicitly set
     if not _db_initialized:
         try:
             from core.database import engine
-            if "sqlite" in str(engine.url):
-                logger.info("Initializing SQLite database tables...")
-                async with engine.begin() as conn:
-                    from sqlalchemy import text
-                    from sqlalchemy.schema import CreateTable
-                    from models.schema import Base, DiagnosisRecord, OutbreakRecord, AdvisoryRecord, FederationSignalRecord
-                    for table_name, table in Base.metadata.tables.items():
-                        # Use sync_engine for compilation to avoid AsyncEngine errors!
-                        create_stmt = str(CreateTable(table).compile(engine.sync_engine))
-                        create_stmt = create_stmt.replace("CREATE TABLE", "CREATE TABLE IF NOT EXISTS")
-                        await conn.execute(text(create_stmt))
-                        logger.info(f"✅ Table {table_name} initialized")
-                    for table_name, table in Base.metadata.tables.items():
-                        for index in table.indexes:
-                            from sqlalchemy.schema import CreateIndex
-                            try:
-                                index_stmt = str(CreateIndex(index).compile(engine.sync_engine))
-                                index_stmt = index_stmt.replace("CREATE INDEX", "CREATE INDEX IF NOT EXISTS")
-                                index_stmt = index_stmt.replace("CREATE UNIQUE INDEX", "CREATE UNIQUE INDEX IF NOT EXISTS")
-                                await conn.execute(text(index_stmt))
-                            except Exception:
-                                pass
-                logger.info("✅ Database initialization complete")
+            from models.schema import Base
+            logger.info(f"Initializing database tables for engine {engine.url}...")
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            logger.info("✅ Database initialization complete")
             _db_initialized = True
         except Exception as e:
             logger.error(f"❌ Failed to init DB: {e}")
             import traceback
             logger.error(traceback.format_exc())
-            # Do NOT set _db_initialized = True if it fails! So we can retry on next request
     return await call_next(request)
 
 
