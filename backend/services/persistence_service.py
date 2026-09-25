@@ -131,7 +131,10 @@ class PersistenceService:
                             retry_ob = retry_res.scalar_one_or_none()
                             
                             if retry_ob:
-                                retry_ob.report_count += 1
+                                # Recount actual diagnoses to avoid double-counting in concurrency race
+                                retry_res_diags = await session.execute(diag_stmt)
+                                cluster_diags = [d for d in retry_res_diags.scalars().all() if _haversine(lat, lng, d.lat, d.lng) <= 50.0]
+                                retry_ob.report_count = len(cluster_diags)
                                 retry_ob.timestamp = datetime.utcnow()
                                 r_crops = list(retry_ob.crop_targets) if retry_ob.crop_targets else []
                                 if crop and crop not in r_crops:
