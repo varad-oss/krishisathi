@@ -20,8 +20,7 @@ if settings.REDIS_URL:
 
 async def rate_limit(request: Request, limit: int, window_seconds: int = 60, by_ip: bool = True):
     if not redis_client:
-        if settings.ENVIRONMENT == "production":
-            raise HTTPException(status_code=503, detail="Rate limiting service unavailable")
+        return # Allow bypass if Redis is absent
         return # Allow in dev/demo if Redis is absent
     
     if settings.TRUST_REVERSE_PROXY:
@@ -48,8 +47,7 @@ async def rate_limit(request: Request, limit: int, window_seconds: int = 60, by_
             raise HTTPException(status_code=429, detail="Too many requests", headers={"Retry-After": str(window_seconds)})
     except redis.RedisError as e:
         logger.error(f"Redis error during rate limiting: {e}")
-        if settings.ENVIRONMENT == "production":
-            raise HTTPException(status_code=503, detail="Rate limiting service unavailable")
+        return
 
 async def ai_rate_limit(request: Request):
     await rate_limit(request, limit=settings.RATE_LIMIT_AI, window_seconds=60)
