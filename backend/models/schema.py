@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Index, String, text, Float, DateTime, Integer, JSON, Boolean
+from sqlalchemy import Column, Index, String, text, Float, DateTime, Integer, JSON
 from core.database import Base
 from datetime import datetime
 import uuid
@@ -13,11 +13,14 @@ class DiagnosisRecord(Base):
     timestamp = Column(DateTime, default=datetime.utcnow, index=True)
     crop = Column(String, nullable=True, index=True)
     disease = Column(String, nullable=False, index=True)
-    model_confidence_score = Column(Float, nullable=False)
-    model_inferred_severity = Column(String, nullable=False)
-    model_inferred_spread_risk = Column(String, nullable=False)
-    lat = Column(Float, nullable=False)
-    lng = Column(Float, nullable=False)
+    # Legacy numeric self-reported score; new records store qualitative certainty instead.
+    model_confidence_score = Column(Float, nullable=True)
+    model_inferred_severity = Column(String, nullable=True)
+    model_inferred_spread_risk = Column(String, nullable=True)
+    diagnosis_status = Column(String, nullable=True, index=True)
+    certainty = Column(String, nullable=True)
+    lat = Column(Float, nullable=True)  # null when the farmer did not share location
+    lng = Column(Float, nullable=True)
     language = Column(String, default="en")
 
 class AdvisoryRecord(Base):

@@ -5,6 +5,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+KVK_PROVENANCE = {
+    "source": "KrishiSathi KVK list (subset)",
+    "kind": "static_reference",
+    "notes": "Covers a limited set of districts; coordinates are approximate district locations. Verify address and contact on the official KVK portal.",
+    "verify_url": "https://kvk.icar.gov.in/",
+}
+
 class KvkService:
     def __init__(self):
         self.locations = []

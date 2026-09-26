@@ -1,58 +1,79 @@
-from typing import Optional, List
-from pydantic import BaseModel, Field, field_validator
 import base64
+from typing import List, Literal, Optional
+
+from pydantic import BaseModel, Field, field_validator
+
+from models.diagnosis import MAX_IMAGE_BYTES, Language
+
+MAX_AUDIO_BYTES = 10 * 1024 * 1024
+
+
+def _decode_limited(v: str, limit: int, label: str) -> str:
+    if v.startswith("data:"):
+        v = v.split(",", 1)[1] if "," in v else ""
+    try:
+        decoded = base64.b64decode(v, validate=True)
+    except ValueError:
+        raise ValueError("Invalid base64 encoding")
+    if len(decoded) > limit:
+        raise ValueError(f"Decoded {label} size exceeds {limit // (1024 * 1024)}MB")
+    return v
+
 
 class AdvisoryRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=2000)
     latitude: float = Field(..., ge=-90, le=90)
     longitude: float = Field(..., ge=-180, le=180)
-    crop_type: Optional[str] = None
+    crop_type: Optional[str] = Field(None, max_length=40)
     image_base64: Optional[str] = Field(None, max_length=10_000_000)
-    language: str = 'en'
+    language: Language = "en"
 
-    @field_validator('image_base64')
+    @field_validator("image_base64")
+    @classmethod
     def validate_image_base64(cls, v):
-        if not v:
-            return v
-        try:
-            if v.startswith('data:'):
-                v = v.split(',', 1)[1]
-            decoded = base64.b64decode(v, validate=True)
-            if len(decoded) > 5 * 1024 * 1024:
-                raise ValueError('Decoded image size exceeds 5MB')
-            return v
-        except ValueError as e:
-            if "exceeds" in str(e):
-                raise
-            raise ValueError('Invalid base64 encoding')
+        return _decode_limited(v, MAX_IMAGE_BYTES, "image") if v else v
+
+
+class FollowUpRequest(AdvisoryRequest):
+    disease_name: Optional[str] = Field(None, max_length=160)
+    severity: Optional[Literal["low", "moderate", "high"]] = None
+
+
+class DataSourceUse(BaseModel):
+    id: str
+    status: Literal["used", "unavailable", "not_provided", "none_found"]
 
 
 class AdvisoryResponse(BaseModel):
     advisory_text: str
     advisory_type: str
-    data_sources: List[str] = Field(default_factory=list)
+    data_sources: List[DataSourceUse] = Field(default_factory=list)
     language: str
-    translated_text: Optional[str] = None
+    generated_at: str
+    recorded: bool = True
+
+
+class TranscribeRequest(BaseModel):
+    audio_base64: str = Field(..., max_length=14_000_000)
+    language: Language = "en"
+
+    @field_validator("audio_base64")
+    @classmethod
+    def validate_audio(cls, v):
+        return _decode_limited(v, MAX_AUDIO_BYTES, "audio")
+
 
 class VoiceAdvisoryRequest(BaseModel):
-    audio_base64: str = Field(..., max_length=10_000_000)
+    audio_base64: str = Field(..., max_length=14_000_000)
     latitude: float = Field(..., ge=-90, le=90)
     longitude: float = Field(..., ge=-180, le=180)
-    language: str = 'hi'
+    crop_type: Optional[str] = Field(None, max_length=40)
+    language: Language = "hi"
 
-    @field_validator('audio_base64')
-    def validate_audio_base64(cls, v):
-        try:
-            if v.startswith('data:'):
-                v = v.split(',', 1)[1]
-            decoded = base64.b64decode(v, validate=True)
-            if len(decoded) > 10 * 1024 * 1024:
-                raise ValueError('Decoded audio size exceeds 10MB')
-            return v
-        except ValueError as e:
-            if "exceeds" in str(e):
-                raise
-            raise ValueError('Invalid base64 encoding')
+    @field_validator("audio_base64")
+    @classmethod
+    def validate_audio(cls, v):
+        return _decode_limited(v, MAX_AUDIO_BYTES, "audio")
 
 
 class VoiceAdvisoryResponse(BaseModel):

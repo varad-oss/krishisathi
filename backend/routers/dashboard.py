@@ -1,52 +1,75 @@
-from fastapi import APIRouter
+import asyncio
+import json
+import logging
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Depends
+
+from core.rate_limit import ai_rate_limit, redis_client
+from models.diagnosis import Language
+from models.exceptions import ServiceUnavailableException
+from routers.states import INDIAN_STATES
+from services import agro_rules
+from services.earth_engine_service import earth_engine_service
 from services.gemini_service import gemini_service
 from services.persistence_service import persistence_service
-from datetime import datetime
-from core.rate_limit import redis_client
-import json
+from services.weather_service import PROVENANCE_BASE, weather_service
 
-
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
+
+STATS_CACHE_SECONDS = 60
+MIN_DIAGNOSES_FOR_REPORT = 5
+REPORT_CACHE_SECONDS = 900
+
+
+async def _cache_get(key: str):
+    if not redis_client:
+        return None
+    try:
+        cached = await redis_client.get(key)
+        return json.loads(cached) if cached else None
+    except Exception as e:
+        logger.warning("Cache read failed for %s: %s", key, e)
+        return None
+
+
+async def _cache_set(key: str, value, seconds: int):
+    if not redis_client:
+        return
+    try:
+        await redis_client.set(key, json.dumps(value), ex=seconds)
+    except Exception as e:
+        logger.warning("Cache write failed for %s: %s", key, e)
 
 
 @router.get("/stats")
 async def get_stats():
-    # Cache dashboard stats for 60 seconds to prevent DB saturation during traffic spikes
-    if redis_client:
-        cached = await redis_client.get("cache:dashboard_stats")
-        if cached:
-            return json.loads(cached)
-            
+    cached = await _cache_get("cache:dashboard_stats:v2")
+    if cached:
+        return cached
     stats = await persistence_service.get_dashboard_stats()
-    
-    if redis_client:
-        await redis_client.set("cache:dashboard_stats", json.dumps(stats), ex=60)
-        
+    await _cache_set("cache:dashboard_stats:v2", stats, STATS_CACHE_SECONDS)
     return stats
 
 
-@router.get("/report")
-async def get_dashboard_report(language: str = 'en'):
-    from fastapi import HTTPException
-    from models.exceptions import ServiceUnavailableException
-    
+@router.get("/report", dependencies=[Depends(ai_rate_limit)])
+async def get_dashboard_report(language: Language = "en"):
     stats = await persistence_service.get_dashboard_stats()
-    report_data = {
-        "stats": stats,
-        "period": "Real-time",
-        "focus_areas": ["Data driven from persistent state"],
-    }
-    try:
-        report_text = gemini_service.generate_dashboard_report(report_data, language)
-        return {
-            "report_text": report_text,
-            "generated_at": datetime.utcnow().isoformat() + "Z",
-            "period": "Real-time (Current Data)",
-        }
-    except ServiceUnavailableException as e:
-        raise HTTPException(status_code=503, detail={"error": "service_unavailable", "message": str(e)})
-    except Exception as e:
-        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": "Failed to generate report."})
+    base = {"generated_at": datetime.now(timezone.utc).isoformat(), "data_as_of": stats["generated_at"], "kind": "ai_generated_summary"}
+    if stats["total_diagnoses"] < MIN_DIAGNOSES_FOR_REPORT:
+        return {**base, "status": "insufficient_data", "report_text": None, "minimum_records": MIN_DIAGNOSES_FOR_REPORT, "records": stats["total_diagnoses"]}
+
+    cache_key = f"cache:dashboard_report:{language}"
+    cached = await _cache_get(cache_key)
+    if cached:
+        return cached
+
+    report_input = {k: v for k, v in stats.items() if k not in ("provenance",)}
+    report_text = await gemini_service.generate_dashboard_report(report_input, language)
+    result = {**base, "status": "available", "report_text": report_text}
+    await _cache_set(cache_key, result, REPORT_CACHE_SECONDS)
+    return result
 
 
 @router.get("/outbreaks")
@@ -56,26 +79,29 @@ async def get_dashboard_outbreaks():
 
 @router.get("/crop-health")
 async def get_crop_health():
-    # Return simulated Indian state NDVI data for the dashboard chart
-    from datetime import datetime
+    """Regional NDVI is not computed yet; say so rather than returning estimates."""
     return {
-        "status": "success",
-        "message": "Regional crop health estimated via simulated pipeline.",
-        "overall_index": 0.62,
-        "measurement_date": datetime.utcnow().isoformat(),
-        "regions": [
-            {"region": "Punjab", "ndvi_score": 0.72, "drought_risk": "Low", "primary_crop": "Wheat", "health_status": "Good"},
-            {"region": "Maharashtra", "ndvi_score": 0.58, "drought_risk": "Moderate", "primary_crop": "Cotton", "health_status": "Fair"},
-            {"region": "Karnataka", "ndvi_score": 0.65, "drought_risk": "Low", "primary_crop": "Rice", "health_status": "Good"},
-            {"region": "Tamil Nadu", "ndvi_score": 0.71, "drought_risk": "Low", "primary_crop": "Rice", "health_status": "Good"},
-            {"region": "Uttar Pradesh", "ndvi_score": 0.45, "drought_risk": "High", "primary_crop": "Wheat", "health_status": "Fair"},
-            {"region": "Madhya Pradesh", "ndvi_score": 0.62, "drought_risk": "Moderate", "primary_crop": "Soybean", "health_status": "Fair"},
-            {"region": "Gujarat", "ndvi_score": 0.68, "drought_risk": "Moderate", "primary_crop": "Cotton", "health_status": "Good"},
-            {"region": "West Bengal", "ndvi_score": 0.55, "drought_risk": "Moderate", "primary_crop": "Rice", "health_status": "Fair"}
-        ]
+        "status": "unavailable",
+        "reason": "not_configured" if not earth_engine_service.initialized else "regional_aggregation_not_implemented",
+        "message": "Regional satellite crop-health aggregation is not available.",
+        "overall_index": None,
+        "regions": [],
     }
 
-@router.get("/activity")
-async def get_recent_activity():
-    stats = await persistence_service.get_dashboard_stats()
-    return stats.get("recent_activity", [])
+
+@router.get("/weather-risk")
+async def get_weather_risk():
+    """Rule-based forecast risks at one reference point per state (indicative, not statewide)."""
+    async def one(state):
+        try:
+            conditions = await weather_service.get_conditions(state["lat"], state["lng"])
+        except ServiceUnavailableException:
+            return {"state": state["code"], "status": "unavailable", "insights": []}
+        return {"state": state["code"], "status": "available", "insights": agro_rules.evaluate(conditions)}
+
+    regions = await asyncio.gather(*(one(s) for s in INDIAN_STATES))
+    return {
+        "regions": regions,
+        "aggregation": "single_reference_point_per_state",
+        "provenance": {**PROVENANCE_BASE, "retrieved_at": datetime.now(timezone.utc).isoformat()},
+    }

@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional
+from typing import List
 from sqlalchemy import select, func
 from core.database import AsyncSessionLocal
 from models.schema import DiagnosisRecord, AdvisoryRecord, OutbreakRecord, FederationSignalRecord
@@ -21,20 +21,56 @@ def _haversine(lat1, lon1, lat2, lon2):
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return R * c
 
+OUTBREAK_RADIUS_KM = 50.0
+OUTBREAK_MIN_REPORTS = 3
+OUTBREAK_WINDOW_DAYS = 7
+OUTBREAK_STALE_DAYS = 21  # outbreaks with no new report for this long are not shown as active
+ELIGIBLE_CERTAINTY = ("moderate", "high")
+PUBLIC_COORD_DECIMALS = 1  # ~11 km; never expose a farmer's exact position
+
+
+def normalize_level(value) -> str | None:
+    """Maps legacy 'Medium'/'High' values and new levels onto low | moderate | high."""
+    if not value:
+        return None
+    v = str(value).strip().lower()
+    return {"medium": "moderate", "severe": "high", "critical": "high"}.get(v, v) if v in ("low", "moderate", "medium", "high", "severe", "critical") else None
+
+
+def outbreak_eligible(diagnosis: dict, lat, lng) -> bool:
+    """Only confident, located disease detections may contribute to outbreak clusters."""
+    return (
+        diagnosis.get("diagnosis_status") == "disease_detected"
+        and diagnosis.get("certainty") in ELIGIBLE_CERTAINTY
+        and bool(diagnosis.get("disease_name"))
+        and lat is not None and lng is not None
+    )
+
+
+def _public_coord(v: float) -> float:
+    return round(v, PUBLIC_COORD_DECIMALS)
+
+
 class PersistenceService:
-    async def save_diagnosis(self, diagnosis_data: dict, crop: str, lat: float, lng: float, language: str) -> None:
+    async def save_diagnosis(self, diagnosis_data: dict, crop: str, lat: float | None, lng: float | None, language: str) -> None:
+        """Records a diagnosis and updates outbreak clusters.
+
+        diagnosis_data keys: disease_name (canonical English), diagnosis_status, certainty, severity, spread_risk.
+        """
         try:
-            disease_name = diagnosis_data.get("disease_name")
-            aggregated_severity = diagnosis_data.get("model_inferred_severity", "Medium")
-            
+            status = diagnosis_data.get("diagnosis_status")
+            disease_name = diagnosis_data.get("disease_name") or status or "unknown"
+            aggregated_severity = normalize_level(diagnosis_data.get("severity")) or "moderate"
+
             # Step 1: Save the diagnosis independently
             async with AsyncSessionLocal() as session:
                 record = DiagnosisRecord(
                     crop=crop,
                     disease=disease_name,
-                    model_confidence_score=diagnosis_data.get("model_confidence_score"),
-                    model_inferred_severity=diagnosis_data.get("model_inferred_severity", "Medium"),
-                    model_inferred_spread_risk=diagnosis_data.get("model_inferred_spread_risk", "Medium"),
+                    diagnosis_status=status,
+                    certainty=diagnosis_data.get("certainty"),
+                    model_inferred_severity=normalize_level(diagnosis_data.get("severity")),
+                    model_inferred_spread_risk=normalize_level(diagnosis_data.get("spread_risk")),
                     lat=lat,
                     lng=lng,
                     language=language
@@ -43,7 +79,7 @@ class PersistenceService:
                 await session.commit()
             
             # Step 2: Evaluate and update outbreaks
-            if not disease_name:
+            if not outbreak_eligible(diagnosis_data, lat, lng):
                 return
                 
             async with AsyncSessionLocal() as session:
@@ -56,7 +92,7 @@ class PersistenceService:
                 active_outbreaks = result.scalars().all()
                 
                 existing_outbreak = None
-                min_dist = 50.0
+                min_dist = OUTBREAK_RADIUS_KM
                 for ob in active_outbreaks:
                     dist = _haversine(lat, lng, ob.lat, ob.lng)
                     if dist <= min_dist:
@@ -70,12 +106,12 @@ class PersistenceService:
                     if crop and crop not in crops:
                         crops.append(crop)
                     existing_outbreak.crop_targets = crops
-                    if aggregated_severity.lower() == "high" and existing_outbreak.aggregated_severity.lower() != "high":
-                        existing_outbreak.aggregated_severity = "High"
+                    if aggregated_severity == "high":
+                        existing_outbreak.aggregated_severity = "high"
                     await session.commit()
                 else:
                     # Look for recent diagnoses to form a cluster
-                    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+                    seven_days_ago = datetime.utcnow() - timedelta(days=OUTBREAK_WINDOW_DAYS)
                     
                     # Bounding box filter to prevent loading all disease records into app memory
                     # 1 degree lat is ~111km, 1 degree lng in India (max 37N) is ~88km.
@@ -85,6 +121,8 @@ class PersistenceService:
                     diag_stmt = select(DiagnosisRecord).where(
                         DiagnosisRecord.disease == disease_name,
                         DiagnosisRecord.timestamp >= seven_days_ago,
+                        DiagnosisRecord.diagnosis_status == "disease_detected",
+                        DiagnosisRecord.certainty.in_(ELIGIBLE_CERTAINTY),
                         DiagnosisRecord.lat >= lat - lat_margin,
                         DiagnosisRecord.lat <= lat + lat_margin,
                         DiagnosisRecord.lng >= lng - lng_margin,
@@ -95,20 +133,20 @@ class PersistenceService:
                     
                     cluster = []
                     for d in recent_diags:
-                        if _haversine(lat, lng, d.lat, d.lng) <= 50.0:
+                        if _haversine(lat, lng, d.lat, d.lng) <= OUTBREAK_RADIUS_KM:
                             cluster.append(d)
                             
-                    if len(cluster) >= 3:
+                    if len(cluster) >= OUTBREAK_MIN_REPORTS:
                         crops = list(set([d.crop for d in cluster if d.crop]))
                         cluster.sort(key=lambda d: d.timestamp)
                         cluster_id = cluster[0].id
                         
                         new_outbreak = OutbreakRecord(
                             disease=disease_name,
-                            lat=lat,
-                            lng=lng,
-                            location_name=f"Cluster near {lat:.2f}, {lng:.2f}",
-                            radius_km=50.0,
+                            lat=round(lat, 2),
+                            lng=round(lng, 2),
+                            location_name=f"Near {_public_coord(lat)}, {_public_coord(lng)}",
+                            radius_km=OUTBREAK_RADIUS_KM,
                             aggregated_severity=aggregated_severity,
                             report_count=len(cluster),
                             crop_targets=crops,
@@ -118,7 +156,7 @@ class PersistenceService:
                         session.add(new_outbreak)
                         try:
                             await session.commit()
-                        except Exception as e: # Catch IntegrityError from unique constraint
+                        except Exception:  # IntegrityError from the unique active-outbreak index
                             await session.rollback()
                             # A concurrent transaction just created this outbreak!
                             # Fetch it and update it
@@ -133,15 +171,15 @@ class PersistenceService:
                             if retry_ob:
                                 # Recount actual diagnoses to avoid double-counting in concurrency race
                                 retry_res_diags = await session.execute(diag_stmt)
-                                cluster_diags = [d for d in retry_res_diags.scalars().all() if _haversine(lat, lng, d.lat, d.lng) <= 50.0]
+                                cluster_diags = [d for d in retry_res_diags.scalars().all() if _haversine(lat, lng, d.lat, d.lng) <= OUTBREAK_RADIUS_KM]
                                 retry_ob.report_count = len(cluster_diags)
                                 retry_ob.timestamp = datetime.utcnow()
                                 r_crops = list(retry_ob.crop_targets) if retry_ob.crop_targets else []
                                 if crop and crop not in r_crops:
                                     r_crops.append(crop)
                                 retry_ob.crop_targets = r_crops
-                                if aggregated_severity.lower() == "high":
-                                    retry_ob.aggregated_severity = "High"
+                                if aggregated_severity == "high":
+                                    retry_ob.aggregated_severity = "high"
                                 await session.commit()
 
         except Exception as e:
@@ -167,10 +205,12 @@ class PersistenceService:
             raise
     
     async def get_outbreaks(self, limit: int = 100, active_only: bool = True) -> List[dict]:
+        """Outbreak clusters with coordinates rounded to ~11 km. Stale clusters are excluded when active_only."""
         async with AsyncSessionLocal() as session:
             stmt = select(OutbreakRecord)
             if active_only:
-                stmt = stmt.where(OutbreakRecord.status == 'active')
+                cutoff = datetime.utcnow() - timedelta(days=OUTBREAK_STALE_DAYS)
+                stmt = stmt.where(OutbreakRecord.status == 'active', OutbreakRecord.timestamp >= cutoff)
             stmt = stmt.order_by(OutbreakRecord.timestamp.desc()).limit(limit)
             result = await session.execute(stmt)
             records = result.scalars().all()
@@ -178,13 +218,13 @@ class PersistenceService:
                 {
                     "id": r.id,
                     "disease": r.disease,
-                    "location": r.location_name,
-                    "lat": r.lat,
-                    "lng": r.lng,
+                    "location": f"Near {_public_coord(r.lat)}, {_public_coord(r.lng)}",
+                    "lat": _public_coord(r.lat),
+                    "lng": _public_coord(r.lng),
                     "radius_km": r.radius_km,
-                    "severity": r.aggregated_severity,
+                    "severity": normalize_level(r.aggregated_severity) or "moderate",
                     "report_count": r.report_count,
-                    "crop_targets": r.crop_targets,
+                    "crop_targets": r.crop_targets or [],
                     "timestamp": r.timestamp.isoformat(),
                     "status": r.status
                 } for r in records
@@ -238,98 +278,65 @@ class PersistenceService:
             return signals
 
     async def get_dashboard_stats(self) -> dict:
+        """Aggregated counts from stored records only. No external or estimated figures."""
         import asyncio
-        # We spawn separate sessions to execute queries concurrently.
-        # This trades connection pool slots for significantly reduced request latency.
-        async def _count_diag():
+        now = datetime.utcnow()
+        week_ago, two_weeks_ago, month_ago = now - timedelta(days=7), now - timedelta(days=14), now - timedelta(days=30)
+        detected = DiagnosisRecord.diagnosis_status == "disease_detected"
+
+        async def scalar(stmt):
             async with AsyncSessionLocal() as session:
-                return await session.scalar(select(func.count(DiagnosisRecord.id)))
-                
-        async def _count_outb():
+                return await session.scalar(stmt) or 0
+
+        async def rows(stmt):
             async with AsyncSessionLocal() as session:
-                return await session.scalar(select(func.count(OutbreakRecord.id)).where(OutbreakRecord.status == 'active'))
-                
-        async def _dist_disease():
-            async with AsyncSessionLocal() as session:
-                res = await session.execute(
-                    select(DiagnosisRecord.disease, func.count(DiagnosisRecord.id))
-                    .group_by(DiagnosisRecord.disease)
-                    .order_by(func.count(DiagnosisRecord.id).desc())
-                    .limit(5)
-                )
-                return {row[0]: row[1] for row in res.all() if row[0]}
-                
-        async def _dist_crop():
-            async with AsyncSessionLocal() as session:
-                res = await session.execute(
-                    select(DiagnosisRecord.crop, func.count(DiagnosisRecord.id))
-                    .group_by(DiagnosisRecord.crop)
-                    .order_by(func.count(DiagnosisRecord.id).desc())
-                    .limit(5)
-                )
-                return {row[0]: row[1] for row in res.all() if row[0]}
-                
-        async def _recent_diag():
-            async with AsyncSessionLocal() as session:
-                res = await session.execute(
-                    select(DiagnosisRecord).order_by(DiagnosisRecord.timestamp.desc()).limit(5)
-                )
-                return res.scalars().all()
-                
-        async def _recent_adv():
-            async with AsyncSessionLocal() as session:
-                res = await session.execute(
-                    select(AdvisoryRecord).order_by(AdvisoryRecord.timestamp.desc()).limit(5)
-                )
-                return res.scalars().all()
-                
-        results = await asyncio.gather(
-            _count_diag(),
-            _count_outb(),
-            _dist_disease(),
-            _dist_crop(),
-            _recent_diag(),
-            _recent_adv()
+                return (await session.execute(stmt)).all()
+
+        def distribution(column, where):
+            return (
+                select(column, func.count(DiagnosisRecord.id))
+                .where(where, column.is_not(None))
+                .group_by(column)
+                .order_by(func.count(DiagnosisRecord.id).desc())
+                .limit(8)
+            )
+
+        day = func.date(DiagnosisRecord.timestamp)
+        (total_diag, diag_7d, diag_prev_7d, total_adv, disease_rows, crop_rows, status_rows, daily_rows, cells, outbreaks) = await asyncio.gather(
+            scalar(select(func.count(DiagnosisRecord.id))),
+            scalar(select(func.count(DiagnosisRecord.id)).where(DiagnosisRecord.timestamp >= week_ago)),
+            scalar(select(func.count(DiagnosisRecord.id)).where(DiagnosisRecord.timestamp >= two_weeks_ago, DiagnosisRecord.timestamp < week_ago)),
+            scalar(select(func.count(AdvisoryRecord.id))),
+            rows(distribution(DiagnosisRecord.disease, detected)),
+            rows(distribution(DiagnosisRecord.crop, DiagnosisRecord.timestamp >= month_ago)),
+            rows(distribution(DiagnosisRecord.diagnosis_status, DiagnosisRecord.timestamp >= month_ago)),
+            rows(select(day, func.count(DiagnosisRecord.id)).where(DiagnosisRecord.timestamp >= month_ago).group_by(day).order_by(day)),
+            rows(
+                select(func.round(DiagnosisRecord.lat * 2) / 2, func.round(DiagnosisRecord.lng * 2) / 2)
+                .where(DiagnosisRecord.lat.is_not(None), DiagnosisRecord.timestamp >= month_ago)
+                .distinct()
+            ),
+            self.get_outbreaks(),
         )
-        
-        total_diag = results[0]
-        total_outbreaks = results[1]
-        disease_distribution = results[2]
-        crop_distribution = results[3]
-        recent_diag = results[4]
-        recent_adv = results[5]
-        
-        activity = []
-        for d in recent_diag:
-            activity.append({
-                "id": d.id,
-                "type": "diagnosis",
-                "title": f"Diagnosis: {d.disease}",
-                "timestamp": d.timestamp.isoformat(),
-                "model_inferred_severity": d.model_inferred_severity,
-                "location": {"lat": d.lat, "lng": d.lng}
-            })
-            
-        for a in recent_adv:
-            activity.append({
-                "id": a.id,
-                "type": "advisory",
-                "title": f"Advisory provided for {a.crop or 'general query'}",
-                "timestamp": a.timestamp.isoformat(),
-                "location": {"lat": a.lat, "lng": a.lng}
-            })
-            
-        activity.sort(key=lambda x: x["timestamp"], reverse=True)
-        
+
         return {
+            "generated_at": now.isoformat() + "Z",
             "total_diagnoses": total_diag,
-            "active_outbreaks": total_outbreaks,
-            "disease_distribution": disease_distribution,
-            "crop_distribution": crop_distribution,
-            "recent_activity": activity[:10],
-            "farmers_reached": 28710000,
-            "languages_served": 10,
-            "diagnoses_trend": 14.5
+            "diagnoses_last_7_days": diag_7d,
+            "diagnoses_previous_7_days": diag_prev_7d,
+            "total_advisories": total_adv,
+            "active_outbreaks": len(outbreaks),
+            "disease_distribution": {r[0]: r[1] for r in disease_rows},
+            "crop_distribution_30d": {r[0]: r[1] for r in crop_rows},
+            "status_distribution_30d": {r[0]: r[1] for r in status_rows},
+            "daily_diagnoses_30d": [{"date": str(r[0]), "count": r[1]} for r in daily_rows],
+            "coverage": {"grid_cells_30d": len(cells), "grid_size_deg": 0.5},
+            "provenance": {
+                "source": "KrishiSathi diagnosis and advisory records",
+                "kind": "ai_classified_user_reports",
+                "notes": "Counts of photos submitted to KrishiSathi and classified by an AI model. They are not official crop statistics and reflect where the app is used.",
+            },
         }
+
 
 persistence_service = PersistenceService()

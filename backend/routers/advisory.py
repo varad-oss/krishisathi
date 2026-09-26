@@ -1,256 +1,143 @@
-import logging
-from core.rate_limit import ai_rate_limit
-from fastapi import Depends, APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
-import io
+import asyncio
 import base64
-from gtts import gTTS
-from google import genai
-from google.genai import types
+import io
+import logging
+from datetime import datetime, timezone
 
-from models.advisory import AdvisoryRequest, AdvisoryResponse, VoiceAdvisoryRequest, VoiceAdvisoryResponse
-from models.exceptions import ServiceUnavailableException
-from services.gemini_service import gemini_service
+from fastapi import APIRouter, Depends, Query
+from fastapi.responses import Response
+from gtts import gTTS
+
+from core.errors import ApiError
+from core.rate_limit import ai_rate_limit, tts_rate_limit
+from models.advisory import (
+    AdvisoryRequest,
+    AdvisoryResponse,
+    FollowUpRequest,
+    TranscribeRequest,
+    VoiceAdvisoryRequest,
+    VoiceAdvisoryResponse,
+)
+from models.diagnosis import Language
+from services.advisory_context import build_context
+from services.crops import normalize_crop
+from services.gemini_service import gemini_service, one_line
+from services.images import sniff_image
 from services.persistence_service import persistence_service
-from services.weather_service import weather_service
-from services.translation import translation_service
-from config import settings
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(dependencies=[Depends(ai_rate_limit)], prefix="/api/advisory", tags=["Advisory"])
+router = APIRouter(prefix="/api/advisory", tags=["Advisory"])
+ai_limited = [Depends(ai_rate_limit)]
+
+TTS_MAX_CHARS = 1500
+
 
 def get_audio_mime_type(audio_bytes: bytes) -> str:
-    if audio_bytes.startswith(b'RIFF'):
-        return 'audio/wav'
-    elif audio_bytes.startswith(b'\x1A\x45\xdf\xa3'):
-        return 'audio/webm'
-    elif audio_bytes.startswith(b'OggS'):
-        return 'audio/ogg'
-    elif audio_bytes.startswith(b'ID3') or audio_bytes.startswith(b'\xff\xfb') or audio_bytes.startswith(b'\xff\xf3') or audio_bytes.startswith(b'\xff\xf2'):
-        return 'audio/mp3'
-    else:
-        raise HTTPException(status_code=415, detail='Unsupported audio format')
+    if audio_bytes.startswith(b"RIFF"):
+        return "audio/wav"
+    if audio_bytes.startswith(b"\x1A\x45\xdf\xa3"):
+        return "audio/webm"
+    if audio_bytes.startswith(b"OggS"):
+        return "audio/ogg"
+    if audio_bytes.startswith((b"ID3", b"\xff\xfb", b"\xff\xf3", b"\xff\xf2")):
+        return "audio/mp3"
+    if audio_bytes[4:8] == b"ftyp":
+        return "audio/mp4"
+    raise ApiError(415, "UNSUPPORTED_MEDIA_TYPE", "Unsupported audio format")
 
 
-from pydantic import BaseModel
-from pydantic import Field
-class TranscribeRequest(BaseModel):
-    audio_base64: str = Field(..., max_length=10_000_000)
-    language: str = 'en'
+def _decode_image(image_base64: str | None) -> tuple[bytes | None, str | None]:
+    if not image_base64:
+        return None, None
+    data = base64.b64decode(image_base64)
+    return data, sniff_image(data)
 
-@router.post("/transcribe")
-async def transcribe_audio(request: TranscribeRequest):
-    import binascii
+
+async def _answer(request: AdvisoryRequest, advisory_type: str, diagnosis_context: str | None = None) -> AdvisoryResponse:
+    crop = normalize_crop(request.crop_type)
+    image_bytes, image_mime = _decode_image(request.image_base64)
+    context_block, sources = await build_context(request.latitude, request.longitude, crop)
+    text = await gemini_service.generate_advisory(
+        request.query, context_block, request.language, crop,
+        image_bytes=image_bytes, image_mime=image_mime, diagnosis_context=diagnosis_context,
+    )
+
+    recorded = True
     try:
-        try:
-            audio_bytes = base64.b64decode(request.audio_base64)
-        except binascii.Error:
-            raise HTTPException(status_code=400, detail={"error": "invalid_input", "message": "Invalid base64 encoding."})
-            
-        mime_type = get_audio_mime_type(audio_bytes)
-        
-        try:
-            client = genai.Client(api_key=settings.GEMINI_API_KEY)
-            audio_part = types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)
-            
-            response = client.models.generate_content(
-                model=settings.GEMINI_TRANSCRIPTION_MODEL,
-                contents=[
-                    audio_part, 
-                    f"Transcribe the audio exactly. You MUST output the text in the native script of the language code '{request.language}' (e.g. use Devanagari for hi/mr, Gujarati script for gu, Tamil script for ta, etc). Do NOT romanize or use English letters unless the user actually spoke English. Return only the transcribed text, nothing else."
-                ]
-            )
-            
-            transcribed_text = response.text.strip()
-            return {"text": transcribed_text}
-        except Exception as e:
-            logger.error(f"Transcription failed: {e}")
-            raise ServiceUnavailableException("Transcription service is temporarily unavailable.")
-    except HTTPException:
-        raise
-    except ServiceUnavailableException as e:
-        raise HTTPException(status_code=503, detail={"error": "service_unavailable", "message": str(e)})
+        await persistence_service.save_advisory(
+            request.query, text, crop, request.latitude, request.longitude, request.language,
+            [s["id"] for s in sources if s["status"] == "used"],
+        )
     except Exception as e:
-        logger.error(f"Error in transcribe_audio: {e}")
-        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": "An unexpected error occurred during transcription."})
+        logger.error("Failed to persist advisory: %s", e)
+        recorded = False
 
-@router.post("", response_model=AdvisoryResponse)
+    return AdvisoryResponse(
+        advisory_text=text,
+        advisory_type=advisory_type,
+        data_sources=sources,
+        language=request.language,
+        generated_at=datetime.now(timezone.utc).isoformat(),
+        recorded=recorded,
+    )
+
+
+@router.post("", response_model=AdvisoryResponse, dependencies=ai_limited)
 async def get_advisory(request: AdvisoryRequest):
+    return await _answer(request, "general")
+
+
+@router.post("/followup", response_model=AdvisoryResponse, dependencies=ai_limited)
+async def get_followup_advisory(request: FollowUpRequest):
+    """Follow-up question about an earlier photo diagnosis, grounded with disease reference data."""
+    context = None
+    if request.disease_name:
+        context = one_line(request.disease_name)
+        if request.severity:
+            context += f" (severity: {request.severity})"
+    return await _answer(request, "followup", diagnosis_context=context)
+
+
+@router.post("/transcribe", dependencies=ai_limited)
+async def transcribe_audio(request: TranscribeRequest):
+    audio_bytes = base64.b64decode(request.audio_base64)
+    text = await gemini_service.transcribe(audio_bytes, get_audio_mime_type(audio_bytes), request.language)
+    return {"text": text}
+
+
+async def _speak(text: str, lang: str) -> bytes:
+    def render() -> bytes:
+        fp = io.BytesIO()
+        gTTS(text=text, lang=lang).write_to_fp(fp)
+        return fp.getvalue()
     try:
-        weather = await weather_service.get_current_weather(request.latitude, request.longitude)
-        
-        query_en = request.query
-        if request.language != 'en':
-            query_en = translation_service.translate_text(request.query, request.language, 'en')
-            
-        context = {
-            "weather": weather,
-            "crop_type": request.crop_type,
-            "location": {"lat": request.latitude, "lng": request.longitude}
-        }
-        
-        # Try agent first (Task T1.3)
-        try:
-            from services.agent_service import agent_service
-            advisory_en = agent_service.process_advisory(query_en, context, image_base64=request.image_base64)
-        except Exception as e:
-            logger.error(f"Agent service failed: {e}")
-            raise ServiceUnavailableException("Advisory agent service is temporarily unavailable.") from e
-        
-        advisory_final = advisory_en
-        translated_text = None
-        if request.language != 'en':
-            advisory_final = translation_service.translate_text(advisory_en, 'en', request.language)
-            translated_text = advisory_final
-            
-
-        try:
-            await persistence_service.save_advisory(request.query, advisory_final, request.crop_type, request.latitude, request.longitude, request.language, ["weather", "gemini"])
-        except Exception as e:
-            logger.error(f"Failed to persist advisory: {e}")
-            raise HTTPException(status_code=503, detail={"error": "persistence_unavailable", "message": "Failed to durably record advisory."})
-            
-        return AdvisoryResponse(
-            advisory_text=advisory_final,
-            advisory_type="general",
-            data_sources=["weather", "gemini"],
-            language=request.language,
-            translated_text=translated_text
-        )
-    except ServiceUnavailableException as e:
-        raise HTTPException(status_code=503, detail={"error": "service_unavailable", "message": str(e)})
+        return await asyncio.wait_for(asyncio.to_thread(render), timeout=30)
     except Exception as e:
-        logger.error(f"Error in get_advisory: {e}")
-        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": "An unexpected error occurred."})
+        logger.error("Text-to-speech failed: %s", e)
+        raise ApiError(503, "SERVICE_UNAVAILABLE", "Text-to-speech is temporarily unavailable.")
 
-@router.post("/followup")
-async def get_followup_advisory(request: AdvisoryRequest, disease_name: str = '', severity: str = '', crop_type: str = ''):
-    """
-    Follow-up advisory that includes disease reference grounding.
-    Unlike the generic advisory, this NEVER returns a silent mock fallback — 
-    it raises an HTTP error so the frontend can show a real error state.
-    """
-    try:
-        from services.disease_reference_service import disease_reference_service
-        
-        # Get grounding context from the orphaned disease reference data
-        grounding = disease_reference_service.get_grounding_context(crop_type, '')
-        
-        # Build enriched query with diagnosis context
-        context_prefix = f"The farmer's crop has been diagnosed with {disease_name} (severity: {severity}). "
-        context_prefix += f"Reference data: {grounding}\n\n"
-        enriched_query = context_prefix + "Farmer's follow-up question: " + request.query
-        
-        weather = await weather_service.get_current_weather(request.latitude, request.longitude)
-        
-        query_en = enriched_query
-        if request.language != 'en':
-            query_en = translation_service.translate_text(enriched_query, request.language, 'en')
-        
-        context = {
-            "weather": weather,
-            "crop_type": crop_type or request.crop_type,
-            "location": {"lat": request.latitude, "lng": request.longitude},
-            "diagnosis_context": f"{disease_name} ({severity})"
-        }
-        
-        advisory_en = gemini_service.generate_advisory(query_en, context, image_base64=request.image_base64)
-        
-        advisory_final = advisory_en
-        if request.language != 'en':
-            advisory_final = translation_service.translate_text(advisory_en, 'en', request.language)
-        
 
-        try:
-            await persistence_service.save_advisory(request.query, advisory_final, crop_type or request.crop_type, request.latitude, request.longitude, request.language, ["weather", "gemini", "disease_reference"])
-        except Exception as e:
-            logger.error(f"Failed to persist followup advisory: {e}")
-            raise HTTPException(status_code=503, detail={"error": "persistence_unavailable", "message": "Failed to durably record followup advisory."})
-        
-        return AdvisoryResponse(
-            advisory_text=advisory_final,
-            advisory_type="followup",
-            data_sources=["weather", "gemini", "disease_reference"],
-            language=request.language,
-            translated_text=advisory_final if request.language != 'en' else None
-        )
-    except ServiceUnavailableException as e:
-        raise HTTPException(status_code=503, detail={"error": "service_unavailable", "message": str(e)})
-    except Exception as e:
-        logger.error(f"Error in followup advisory: {e}")
-        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": "Advisory service unavailable."})
-
-@router.post("/voice", response_model=VoiceAdvisoryResponse)
+@router.post("/voice", response_model=VoiceAdvisoryResponse, dependencies=ai_limited)
 async def get_voice_advisory(request: VoiceAdvisoryRequest):
-    import binascii
-    try:
-        try:
-            audio_bytes = base64.b64decode(request.audio_base64)
-        except binascii.Error:
-            raise HTTPException(status_code=400, detail={"error": "invalid_input", "message": "Invalid base64 encoding."})
-        mime_type = get_audio_mime_type(audio_bytes)
-        
-        # 1. Native Gemini Audio Transcription
-        try:
-            client = genai.Client(api_key=settings.GEMINI_API_KEY)
-            audio_part = types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)
-            
-            response = client.models.generate_content(
-                model=settings.GEMINI_TRANSCRIPTION_MODEL,
-                contents=[
-                    audio_part, 
-                    "Transcribe the audio exactly. Return only the transcribed text, nothing else."
-                ]
-            )
-            
-            transcribed_text = response.text.strip()
-            logger.info(f"Transcribed audio to: {transcribed_text}")
-        except Exception as e:
-            logger.error(f"Transcription failed: {e}")
-            raise ServiceUnavailableException("Transcription service is temporarily unavailable.")
-            
-        
-        advisory_req = AdvisoryRequest(
-            query=transcribed_text,
-            latitude=request.latitude,
-            longitude=request.longitude,
-            language=request.language
-        )
-        
-        advisory_response = await get_advisory(advisory_req)
-        
-        tts_lang = request.language if request.language in ['en', 'hi', 'mr', 'ta', 'te', 'bn', 'pt', 'ru', 'zh'] else 'en'
-        tts = gTTS(text=advisory_response.advisory_text, lang=tts_lang)
-        fp = io.BytesIO()
-        tts.write_to_fp(fp)
-        audio_b64 = base64.b64encode(fp.getvalue()).decode('utf-8')
-        
-        return VoiceAdvisoryResponse(
-            transcribed_text=transcribed_text,
-            advisory=advisory_response,
-            audio_response_base64=audio_b64
-        )
-    except HTTPException:
-        raise
-    except ServiceUnavailableException as e:
-        raise HTTPException(status_code=503, detail={"error": "service_unavailable", "message": str(e)})
-    except Exception as e:
-        logger.error(f"Error in get_voice_advisory: {e}")
-        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": "An unexpected error occurred during voice processing."})
+    audio_bytes = base64.b64decode(request.audio_base64)
+    transcribed = await gemini_service.transcribe(audio_bytes, get_audio_mime_type(audio_bytes), request.language)
+    if not transcribed:
+        raise ApiError(422, "NO_SPEECH", "No speech was detected in the recording.")
+    advisory = await _answer(
+        AdvisoryRequest(query=transcribed[:2000], latitude=request.latitude, longitude=request.longitude,
+                        crop_type=request.crop_type, language=request.language),
+        "voice",
+    )
+    audio = await _speak(advisory.advisory_text[:TTS_MAX_CHARS], request.language)
+    return VoiceAdvisoryResponse(
+        transcribed_text=transcribed,
+        advisory=advisory,
+        audio_response_base64=base64.b64encode(audio).decode("utf-8"),
+    )
 
-@router.get("/tts")
-async def text_to_speech(text: str, lang: str = "en"):
-    try:
-        from core.rate_limit import ai_rate_limit
-        from fastapi import Response
-        safe_lang = lang if lang in ['en', 'hi', 'mr', 'ta', 'te', 'bn', 'pt', 'ru', 'zh'] else 'en'
-        tts = gTTS(text=text, lang=safe_lang)
-        fp = io.BytesIO()
-        tts.write_to_fp(fp)
-        audio_data = fp.getvalue()
-        return Response(content=audio_data, media_type="audio/mpeg")
-    except Exception as e:
-        logger.error(f"Error in text_to_speech: {e}")
-        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": "Text-to-speech conversion failed."})
 
+@router.get("/tts", dependencies=[Depends(tts_rate_limit)])
+async def text_to_speech(text: str = Query(..., min_length=1, max_length=TTS_MAX_CHARS), lang: Language = "en"):
+    audio = await _speak(text, lang)
+    return Response(content=audio, media_type="audio/mpeg", headers={"Cache-Control": "private, max-age=3600"})

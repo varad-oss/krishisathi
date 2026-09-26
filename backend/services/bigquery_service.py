@@ -60,7 +60,7 @@ class BigQueryService:
                                 self.table_ref,
                                 job_config=job_config
                             )
-                        # Ensure the job is sent before exiting thread
+                        job.result(timeout=60)  # surface load errors instead of dropping them silently
                     finally:
                         try:
                             import os

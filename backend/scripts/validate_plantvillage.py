@@ -8,8 +8,10 @@ from datetime import datetime
 
 # Make sure we can import from backend
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from services.disease_reference_service import disease_reference_service
 from services.gemini_service import gemini_service
-from sklearn.metrics import classification_report
+from services.images import sniff_image
+from sklearn.metrics import classification_report  # dev-only: pip install scikit-learn
 
 # We'll test against a subset of diseases that our system is somewhat familiar with
 # We map PlantVillage folder names to our expected ground truth labels
@@ -40,7 +42,7 @@ async def download_image(client: httpx.AsyncClient, url: str) -> bytes:
 async def run_validation_suite():
     print("🌾 KrishiSathi Real Validation Suite")
     print("---------------------------------------------")
-    print(f"Loading test set from PlantVillage GitHub mirror...")
+    print("Loading test set from PlantVillage GitHub mirror...")
     
     # We need Gemini API key for this to work
     if not os.getenv("GEMINI_API_KEY"):
@@ -70,14 +72,13 @@ async def run_validation_suite():
                     # Provide generic crop context based on folder name
                     crop_type = folder_name.split("___")[0].replace("_", " ")
                     
-                    response = gemini_service.diagnose_crop_disease(
-                        image_bytes=image_bytes,
-                        crop_type=crop_type,
-                        location_context={"region": "Validation Test", "climate": "Unknown"}
+                    ai = await gemini_service.diagnose_crop_disease(
+                        image_bytes, sniff_image(image_bytes), crop_type, "en",
+                        disease_reference_service.get_grounding_context(crop_type, None), "UNAVAILABLE",
                     )
-                    
-                    pred_label = response.get("disease_name", "Unknown")
-                    confidence = response.get("confidence", 0.0)
+
+                    pred_label = ai.disease_name_en or ai.diagnosis_status
+                    confidence = ai.certainty
                     
                     # Normalize prediction to match ground truth classes roughly
                     # Gemini might say "Potato Early Blight", we want to see if "Early Blight" is in it

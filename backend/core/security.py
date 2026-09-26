@@ -1,42 +1,47 @@
-import jwt
-from fastapi import Depends, HTTPException, Security, Request
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel
 import logging
+
+import jwt
+from fastapi import Depends, Security
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import BaseModel
+
 from config import settings
+from core.errors import ApiError
 
 logger = logging.getLogger(__name__)
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
+
 
 class Principal(BaseModel):
     user_id: str
     role: str
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security)) -> Principal:
+
+def get_current_user(credentials: HTTPAuthorizationCredentials | None = Security(security)) -> Principal:
+    """Validates an HS256 JWT signed with settings.JWT_SECRET.
+
+    Fails closed: when no secret is configured, authenticated endpoints are disabled
+    rather than accepting arbitrary tokens.
     """
-    Validates OIDC-compatible JWT token.
-    Uses settings.JWT_SECRET (if provided) to verify the signature.
-    """
-    token = credentials.credentials
     if not settings.JWT_SECRET:
-        logger.warning("JWT_SECRET is not configured. Falling back to dummy authorization for portfolio demo.")
-        if token == "mock-system-token-123":
-            return Principal(user_id="demo-system", role="system")
-        return Principal(user_id="demo-user", role="user")
-        
+        raise ApiError(503, "AUTH_NOT_CONFIGURED", "Authenticated publishing is not configured on this server.", retryable=False)
+    if credentials is None:
+        raise ApiError(401, "UNAUTHORIZED", "Authentication required.")
+
     try:
-        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
-        user_id = payload.get("sub")
-        role = payload.get("role", "user")
-        if not user_id:
-            raise HTTPException(status_code=401, detail="Invalid token: missing subject")
-        return Principal(user_id=str(user_id), role=str(role))
+        payload = jwt.decode(credentials.credentials, settings.JWT_SECRET, algorithms=["HS256"])
     except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired")
+        raise ApiError(401, "TOKEN_EXPIRED", "Token expired.")
     except jwt.PyJWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        raise ApiError(401, "UNAUTHORIZED", "Invalid token.")
+
+    user_id = payload.get("sub")
+    if not user_id:
+        raise ApiError(401, "UNAUTHORIZED", "Invalid token: missing subject.")
+    return Principal(user_id=str(user_id), role=str(payload.get("role", "user")))
+
 
 def require_system_role(principal: Principal = Depends(get_current_user)) -> Principal:
-    if principal.role not in ["system", "admin"]:
-        raise HTTPException(status_code=403, detail="Forbidden: Insufficient privileges")
+    if principal.role not in ("system", "admin"):
+        raise ApiError(403, "FORBIDDEN", "Forbidden: insufficient privileges.")
     return principal

@@ -5,6 +5,7 @@ import pytest
 from httpx import AsyncClient, ASGITransport
 from main import app
 
+
 @pytest.mark.asyncio
 async def test_crop_health_unavailable():
     """Prove that hard-coded crop-health values are not returned."""

@@ -41,19 +41,7 @@ def test_regional_agri_signal_creation():
     assert signal.severity == "high"
 
 def test_state_config_creation():
-    config = StateConfig(
-        code="PB",
-        name="Punjab",
-        capital="Chandigarh",
-        lat=31.1471,
-        lng=75.3412,
-        default_language="pa",
-        primary_crops=["Wheat", "Rice"],
-        districts=23,
-        arable_land_mha=4.2,
-        farmers_reached=2000000,
-        active_alerts=2,
-        top_crop="Wheat"
-    )
+    config = StateConfig(code="PB", name="Punjab", lat=31.1471, lng=75.3412, default_language="pa", primary_crops=["Wheat", "Rice"])
     assert config.code == "PB"
     assert len(config.primary_crops) == 2
+    assert "farmers_reached" not in StateConfig.model_fields

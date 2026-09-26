@@ -6,7 +6,7 @@ agricultural system can use to POST signals to the shared endpoint or
 GET aggregated views. This is the core "Digital Public Good" data contract.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import List, Optional
 from datetime import datetime
 from enum import Enum
@@ -38,23 +38,22 @@ class RegionalAgriSignal(BaseModel):
     anonymized signals flow through this schema.
     """
     signal_id: Optional[str] = Field(None, description="Auto-generated if not provided")
-    from_state: str = Field(..., description="ISO-style state code (e.g., 'MH', 'PB')", min_length=2, max_length=2)
-    to_state: Optional[str] = Field(None, description="Target state code, or null for broadcast")
+    from_state: str = Field(..., description="ISO-style state code (e.g., 'MH', 'PB')", pattern=r"^[A-Z]{2}$")
+    to_state: Optional[str] = Field(None, description="Target state code, or null for broadcast", pattern=r"^[A-Z]{2}$")
     signal_type: SignalType
     severity: SeverityLevel
     message: str = Field(..., description="Human-readable signal description", max_length=1000)
     disease_name: Optional[str] = Field(None, max_length=200)
     affected_crop: Optional[str] = Field(None, max_length=200)
     affected_district: Optional[str] = Field(None, max_length=200)
-    affected_area_km2: Optional[float] = None
-    report_count: Optional[int] = Field(None, description="Number of aggregated farmer reports")
-    ndvi_trend: Optional[float] = Field(None, description="NDVI change over last 2 weeks (-1.0 to 1.0)")
-    soil_health_index: Optional[float] = Field(None, description="Composite soil health score (0-100)")
+    affected_area_km2: Optional[float] = Field(None, ge=0)
+    report_count: Optional[int] = Field(None, ge=0, description="Number of aggregated farmer reports")
+    ndvi_trend: Optional[float] = Field(None, ge=-1, le=1, description="NDVI change over last 2 weeks (-1.0 to 1.0)")
+    soil_health_index: Optional[float] = Field(None, ge=0, le=100, description="Composite soil health score (0-100)")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     metadata: Optional[dict] = Field(None, description="Additional key-value metadata")
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(json_schema_extra={
             "example": {
                 "from_state": "MH",
                 "to_state": "KA",
@@ -68,7 +67,7 @@ class RegionalAgriSignal(BaseModel):
                 "report_count": 89,
                 "ndvi_trend": -0.12
             }
-        }
+    })
 
 
 class StateConfig(BaseModel):
@@ -78,16 +77,10 @@ class StateConfig(BaseModel):
     """
     code: str = Field(..., description="2-letter state code")
     name: str
-    capital: str
-    lat: float
+    lat: float = Field(..., description="Reference point used for indicative state-level forecasts")
     lng: float
     default_language: str
     primary_crops: List[str]
-    districts: int
-    arable_land_mha: float
-    farmers_reached: int
-    active_alerts: int
-    top_crop: str
 
 
 class AggregatedStateReport(BaseModel):

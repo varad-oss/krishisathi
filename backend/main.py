@@ -1,219 +1,147 @@
-import sys
-import os
-import uuid
+import asyncio
 import logging
 from contextlib import asynccontextmanager
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'bot', 'webhook'))
 
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
-from routers import diagnose, advisory, alerts, weather, dashboard, states, debug, kvk
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
+
 from config import settings
+from core.database import AsyncSessionLocal, engine
+from core.errors import install_error_handlers
+from core.middleware import RequestContextMiddleware
+from core.rate_limit import redis_client
+from routers import advisory, alerts, dashboard, debug, diagnose, farm, kvk, meta, states, weather
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
-from core.database import engine
-from core.rate_limit import redis_client
+_db_ready = False
+_db_lock = asyncio.Lock()
+
+
+async def ensure_tables() -> bool:
+    """Creates missing tables once per process.
+
+    Serverless deployments (Vercel) may not run Alembic or ASGI lifespan, so this also
+    runs lazily before the first request. Alembic remains the source of truth for migrations.
+    """
+    global _db_ready
+    if _db_ready:
+        return True
+    async with _db_lock:
+        if _db_ready:
+            return True
+        try:
+            from models.schema import Base
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            _db_ready = True
+        except Exception as e:
+            logger.error("Database initialization failed: %s", e)
+    return _db_ready
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("🌾 KrishiSathi API starting up...")
-    
-    # 1. Verify Database Connection
-    try:
-        async with engine.begin() as conn:
-            await conn.execute(text("SELECT 1"))
-        logger.info("✅ Database connection established.")
-    except Exception as e:
-        logger.error(f"❌ Failed to connect to database: {e}")
-        if settings.ENVIRONMENT == "production":
-            logger.warning("Database connection failed in production. Degrading gracefully.")
-            
-    # 2. Verify Redis Connection
-    if settings.ENVIRONMENT == "production":
-        if not redis_client:
-            logger.warning("Redis URL not configured in production.")
-        else:
-            try:
-                await redis_client.ping()
-                logger.info("✅ Redis connection established.")
-            except Exception as e:
-                logger.error(f"❌ Failed to connect to Redis: {e}")
-            
-    logger.info("📄 API docs available at /docs")
+    logger.info("KrishiSathi API starting (environment=%s)", settings.ENVIRONMENT)
+    if await ensure_tables():
+        logger.info("Database ready.")
+    if redis_client:
+        try:
+            await redis_client.ping()
+            logger.info("Redis ready.")
+        except Exception as e:
+            logger.error("Redis unreachable; using in-process rate limiting: %s", e)
     yield
-    logger.info("KrishiSathi API shutting down...")
-    
-    # Graceful Teardown
+    logger.info("KrishiSathi API shutting down.")
     if redis_client:
         await redis_client.aclose()
-        logger.info("Redis connection closed.")
     await engine.dispose()
-    logger.info("Database connection pool disposed.")
-
-
 
 
 app = FastAPI(
     title="KrishiSathi API",
     description=(
-        "🌾 AI-powered agriculture intelligence platform for Indian states. "
-        "Provides crop disease diagnosis, agro-advisory, weather, outbreak alerts, "
-        "and policymaker analytics — powered by Google Gemini AI."
+        "Agricultural intelligence for Indian farmers and administrators: crop disease diagnosis, grounded "
+        "advisories, weather-based alerts, soil and regenerative recommendations, and aggregated outbreak data. "
+        "Every error uses the envelope {error: {code, message, request_id, retryable}}."
     ),
-    version="1.0.0",
+    version="2.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan,
 )
+install_error_handlers(app)
 
-_db_initialized = False
 
 @app.middleware("http")
-async def ensure_db_init(request: Request, call_next):
-    global _db_initialized
-    if not _db_initialized:
-        try:
-            from core.database import engine
-            from models.schema import Base
-            logger.info(f"Initializing database tables for engine {engine.url}...")
-            async with engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
-            logger.info("✅ Database initialization complete")
-            _db_initialized = True
-        except Exception as e:
-            logger.error(f"❌ Failed to init DB: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
+async def lazy_db_init(request, call_next):
+    await ensure_tables()
     return await call_next(request)
 
 
-import time
-
-@app.middleware("http")
-async def add_request_id(request: Request, call_next):
-    req_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
-    start_time = time.time()
-    
-    try:
-        response = await call_next(request)
-        process_time = time.time() - start_time
-        response.headers["X-Request-ID"] = req_id
-        
-        # Structured log for quantitative observability
-        logger.info(
-            f"ReqID: {req_id} | {request.method} {request.url.path} "
-            f"| Status: {response.status_code} | Latency: {process_time:.4f}s"
-        )
-        return response
-    except Exception as e:
-        process_time = time.time() - start_time
-        logger.error(
-            f"ReqID: {req_id} | {request.method} {request.url.path} "
-            f"| Status: 500 | Latency: {process_time:.4f}s | Error: {str(e)}"
-        )
-        from fastapi.responses import JSONResponse
-        return JSONResponse(status_code=500, content={"detail": f"Internal Server Error: {str(e)}"})
-
-origins = [o.strip() for o in settings.CORS_ALLOWED_ORIGINS.split(",") if o.strip()]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins + ['*'], # Added wildcard for preview environments
-    allow_credentials=True,
+    allow_origins=[o.strip() for o in settings.CORS_ALLOWED_ORIGINS.split(",") if o.strip()],
+    allow_origin_regex=settings.CORS_ALLOWED_ORIGIN_REGEX,
+    allow_credentials=False,  # the API uses bearer tokens, never cookies
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["*"],
+    allow_headers=["Content-Type", "Authorization", "Idempotency-Key", "X-Request-ID"],
+    expose_headers=["X-Request-ID", "Retry-After"],
+    max_age=600,
 )
+# Added last so it is outermost: every response (including CORS and errors) gets a request ID.
+app.add_middleware(RequestContextMiddleware)
 
-app.include_router(diagnose.router)
-app.include_router(advisory.router)
-app.include_router(alerts.router)
-app.include_router(weather.router)
-app.include_router(dashboard.router)
-app.include_router(states.router)
-app.include_router(debug.router)
-app.include_router(kvk.router)
-
-try:
-    from handler import router as bot_router
-    app.include_router(bot_router)
-    logger.info("✅ WhatsApp bot webhook loaded")
-except ImportError:
-    logger.info("ℹ️  WhatsApp bot webhook not loaded (Twilio not installed or bot module not found)")
+for module in (diagnose, advisory, alerts, weather, farm, dashboard, states, kvk, meta, debug):
+    app.include_router(module.router)
 
 
 @app.get("/")
 async def root():
     return {
         "name": "KrishiSathi API",
-        "tagline": "AI-Powered Agriculture Intelligence for Indian States",
-        "version": "1.0.0",
+        "version": app.version,
         "docs": "/docs",
-        "health": "/health",
-        "google_ai_services": [
-            f"Gemini Models used: {settings.GEMINI_DIAGNOSIS_MODEL}, {settings.GEMINI_AGENT_MODEL}",
-            "Google Earth Engine (Sentinel-2 NDVI Pipeline)",
-            "Open-Meteo API (Live Weather, Precipitation, Soil Moisture)",
-            "gTTS (Text-to-Speech Audio Generation for WhatsApp)",
-        ],
-        "endpoints": {
-            "diagnose": "/api/diagnose",
-            "advisory": "/api/advisory",
-            "weather": "/api/weather",
-            "alerts": "/api/alerts",
-            "dashboard": "/api/dashboard/stats",
-            "state_exchange": "/api/states/exchange/signals",
-            "kvk": "/api/kvk/nearest"
-        },
+        "health": {"liveness": "/health/live", "readiness": "/health/ready"},
+        "sources": "/api/sources",
     }
 
 
-from sqlalchemy import text
-from core.database import AsyncSessionLocal
-from core.rate_limit import redis_client
-
 @app.get("/health/live")
+@app.get("/health", include_in_schema=False)
 async def health_live():
-    return {"status": "ok", "service": "krishisathi-api", "liveness": True}
+    return {"status": "ok", "service": "krishisathi-api"}
+
 
 @app.get("/health/ready")
 async def health_ready():
-    status = {"status": "ok", "service": "krishisathi-api", "readiness": True, "dependencies": {}}
-    
-    # Check Database
+    dependencies = {}
+    ready = True
     try:
         async with AsyncSessionLocal() as session:
             await session.execute(text("SELECT 1"))
-        status["dependencies"]["database"] = "ok"
-    except Exception as e:
-        status["dependencies"]["database"] = "down"
-        status["readiness"] = False
-        
-    # Check Redis (if configured for production)
-    if settings.ENVIRONMENT == "production":
-        if not redis_client:
-            status["dependencies"]["redis"] = "down"
-            status["readiness"] = False
-        else:
-            try:
-                await redis_client.ping()
-                status["dependencies"]["redis"] = "ok"
-            except Exception as e:
-                status["dependencies"]["redis"] = "down"
-                status["readiness"] = False
-    
-    if not status["readiness"]:
-        from fastapi.responses import JSONResponse
-        return JSONResponse(content=status, status_code=503)
-        
-    return status
+        dependencies["database"] = "ok"
+    except Exception:
+        dependencies["database"] = "down"
+        ready = False
 
-@app.get("/health")
-async def health_check():
+    if redis_client:
+        try:
+            await redis_client.ping()
+            dependencies["redis"] = "ok"
+        except Exception:
+            dependencies["redis"] = "down"
+            ready = settings.ENVIRONMENT != "production" and ready
+    else:
+        dependencies["redis"] = "not_configured"
 
-    return {"status": "ok", "service": "krishisathi-api", "message": "KrishiSathi API is running"}
+    body = {"status": "ok" if ready else "degraded", "service": "krishisathi-api", "ready": ready, "dependencies": dependencies}
+    return JSONResponse(body, status_code=200 if ready else 503)
+
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

@@ -12,6 +12,7 @@ from core.database import AsyncSessionLocal
 from models.schema import OutbreakRecord, DiagnosisRecord
 from sqlalchemy import select, delete
 from services.persistence_service import persistence_service
+from helpers import RUST
 
 @pytest.mark.asyncio
 async def test_concurrent_outbreak_creation_count():
@@ -21,14 +22,14 @@ async def test_concurrent_outbreak_creation_count():
         await session.commit()
     
     # Pre-insert 2 diagnoses
-    await persistence_service.save_diagnosis({"disease_name": "Rust", "model_confidence_score": 0.9, "model_inferred_severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
-    await persistence_service.save_diagnosis({"disease_name": "Rust", "model_confidence_score": 0.9, "model_inferred_severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
+    await persistence_service.save_diagnosis(RUST, "Wheat", 10.0, 10.0, "en")
+    await persistence_service.save_diagnosis(RUST, "Wheat", 10.0, 10.0, "en")
     
     # Fire 3 concurrent diagnosis saves
     tasks = [
-        persistence_service.save_diagnosis({"disease_name": "Rust", "model_confidence_score": 0.9, "model_inferred_severity": "Medium"}, "Wheat", 10.0, 10.0, "en"),
-        persistence_service.save_diagnosis({"disease_name": "Rust", "model_confidence_score": 0.9, "model_inferred_severity": "Medium"}, "Wheat", 10.0, 10.0, "en"),
-        persistence_service.save_diagnosis({"disease_name": "Rust", "model_confidence_score": 0.9, "model_inferred_severity": "Medium"}, "Wheat", 10.0, 10.0, "en")
+        persistence_service.save_diagnosis(RUST, "Wheat", 10.0, 10.0, "en"),
+        persistence_service.save_diagnosis(RUST, "Wheat", 10.0, 10.0, "en"),
+        persistence_service.save_diagnosis(RUST, "Wheat", 10.0, 10.0, "en")
     ]
     await asyncio.gather(*tasks, return_exceptions=True)
     

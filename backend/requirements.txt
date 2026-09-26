@@ -2,22 +2,12 @@ fastapi
 uvicorn[standard]
 python-multipart
 google-genai
-google-cloud-translate
-google-cloud-speech
-google-cloud-texttospeech
-google-cloud-firestore
-google-cloud-storage
-google-cloud-bigquery
 httpx
 pydantic
 pydantic-settings
 python-dotenv
 Pillow
-twilio
 gtts
-earthengine-api
-scikit-learn
-
 PyJWT>=2.8.0
 redis>=5.0.0
 sqlalchemy
@@ -25,3 +15,7 @@ alembic
 asyncpg
 aiosqlite
 greenlet
+
+# Optional integrations (import-guarded): Earth Engine NDVI and BigQuery telemetry
+earthengine-api
+google-cloud-bigquery
