@@ -1,136 +1,140 @@
 <div align="center">
   <h1>KrishiSathi (कृषि साथी)</h1>
-  
-  <p><strong>A zero-billing, multimodal AI diagnostic platform and voice-first advisory network for Indian agriculture.</strong></p>
-
-  <p>
-    <strong><a href="https://ai-krishisathi.vercel.app/" target="_blank">🔗 Live Demo Website</a></strong>
-    &nbsp;&nbsp; | &nbsp;&nbsp;
-    <strong><a href="#architecture">🏗️ View Architecture</a></strong>
-  </p>
+  <p><strong>Trustworthy, multilingual agricultural intelligence for small farmers and the officials who support them.</strong></p>
+  <p><a href="https://ai-krishisathi.vercel.app/">Live site</a> · <a href="#architecture">Architecture</a> · <a href="docs/AUDIT.md">Audit &amp; change log</a></p>
 </div>
 
 ---
 
-![KrishiSathi Dashboard](assets/dashboard_screenshot.png)
+![KrishiSathi landing page](assets/landing.png)
 
-## The Problem
-Indian farmers in low-resource areas face two major barriers to adopting modern agricultural tech: illiteracy and extreme linguistic diversity. Traditional apps rely heavily on text and English interfaces, leaving farmers unable to access critical crop diagnostics or weather advisories. **KrishiSathi** solves this by providing a hyper-localized, 100% voice-first interface that understands 10 regional Indian languages and diagnoses crop diseases from a single smartphone photo.
+## What it does
 
-## Features
-* **Multimodal RAG Diagnostics:** Upload a photo of a diseased crop, and the backend dynamically injects real-time weather and soil data (via Open-Meteo) into the Gemini 3.8 Flash prompt to generate a highly accurate, hyper-local treatment plan.
-* **Voice-First Accessibility:** Features a custom client-side Voice Activity Detection (VAD) engine that auto-terminates recording upon silence, paired with a robust Text-to-Speech (TTS) audio streaming pipeline.
-* **Strict Non-Romanized Localization:** AI prompt engineering enforces native Indic script outputs (e.g., pure Marathi/Hindi without Hinglish transliteration) and native numeral formatting across the UI.
-* **Explicit Failure Semantics:** The system enforces strict API contracts — network or data failures trigger clear UI error states rather than silently substituting synthetic or default data. 
+| Farmers ask | KrishiSathi answers with | Based on |
+|---|---|---|
+| What should I do today? | Ranked risks and the one action that matters now | Open-Meteo forecast + published IMD thresholds |
+| What will the weather do? | 7-day forecast translated into farming meaning (rain, heat, cold, fungal conditions, dry spells, spray wind) | Open-Meteo (model estimates, labelled as such) |
+| What is wrong with my crop? | Diagnosis with **status** (disease / healthy / uncertain / not a plant), **certainty** (low / moderate / high), symptoms seen, alternatives and safe next steps | Gemini vision + curated ICAR disease reference |
+| How can I improve my soil? | Regenerative practices ranked for the farm: why, what, when, expected benefit and the data behind it | ISRIC SoilGrids + Soil Health Card rating classes + forecast |
+| Is there a risk nearby? | Weather alerts and disease clusters reported within ~100 km | Forecast rules + anonymised, AI-classified farmer reports |
+| Where are risks rising? (policymakers) | Real counts, trends, clusters, per-state forecast risk and an AI briefing, each with source and limitations | Aggregated diagnoses (coarsened to ~11 km) |
 
-## Modes of Operation
+Available in English, हिन्दी, मराठी, தமிழ், తెలుగు, বাংলা, ಕನ್ನಡ, ગુજરાતી, ਪੰਜਾਬੀ and മലയാളം with native scripts and numerals.
 
-* **Production Mode (`NEXT_PUBLIC_DEMO_MODE="false"`)**: Requires a fully configured backend with active API keys (Gemini, Open-Meteo). Explicitly fails with HTTP 503 errors if external measurement data (weather, satellite) is unavailable, preventing the silent display of fabricated data to farmers.
-* **Demo Mode (`NEXT_PUBLIC_DEMO_MODE="true"`)**: An explicit UI-only mode that hydrates the dashboard and charts with hardcoded mock data for demonstration purposes without requiring a live backend.
+## Real data only
 
-## Limitations & External Dependencies
-* **Earth Engine NDVI Pipeline**: The Sentinel-2 NDVI calculation requires a valid Google Earth Engine service account. If unauthenticated, the service will return an explicit `unavailable` status rather than mocked measurements.
-* **BigQuery Telemetry**: Diagnosis logs are emitted via an asynchronous fire-and-forget task. If BigQuery is unconfigured, logs are safely dropped with a console warning.
+KrishiSathi never fills a gap with invented numbers.
+
+* If a source fails or is not configured, the UI shows an explicit **unavailable** state and the API returns an error or `{"status": "unavailable"}`. There is no demo mode and no mock fallback.
+* Every panel shows its **provenance**: source, kind (model estimate, forecast, satellite observation, AI-generated, verified reference, rule-based) and time.
+* AI output is always labelled and kept separate from verified data. Chemical treatments are shown only when the diagnosis matches the curated reference and certainty is not low. Everything else directs the farmer to their KVK.
+* Satellite crop health is shown only when Earth Engine is configured. Regional crop-health aggregation is not implemented, so the policy dashboard says so.
+* Diagnosis accuracy has **not** been measured on an Indian field dataset. `backend/scripts/validate_plantvillage.py` can measure it.
 
 ## Architecture
 
 ```mermaid
 graph TD
-    %% Clients
-    FarmerWeb[Farmer Web App] -->|Next.js/React| Frontend
-    PolicyWeb[Policymaker Dashboard] -->|Next.js/React| Frontend
-
-    %% Frontend to Backend
-    Frontend -->|REST API| FastAPI[FastAPI Backend]
-    
-    %% Backend Services
-    FastAPI -->|Image + Prompt| Gemini[Gemini 3.8 Flash API]
-    FastAPI -->|Live Weather/Soil| OpenMeteo[Open-Meteo API]
-    FastAPI -->|Audio Generation| gTTS[Text-to-Speech Engine]
-    
-    %% Deployment Layer
-    VercelEdge[Vercel Serverless / Edge] -.-> Frontend
-    VercelServerless[Vercel Serverless] -.-> FastAPI
-    
-    %% Styling
-    classDef client color:#000000,fill:#d4edda,stroke:#28a745,stroke-width:2px;
-    classDef server color:#000000,fill:#cce5ff,stroke:#007bff,stroke-width:2px;
-    classDef external color:#000000,fill:#f8d7da,stroke:#dc3545,stroke-width:2px;
-    classDef infra color:#000000,fill:#f3f4f6,stroke:#6b7280,stroke-width:2px,stroke-dasharray: 5 5;
-    
-    class FarmerWeb,PolicyWeb client;
-    class FastAPI,Frontend server;
-    class Gemini,OpenMeteo,gTTS external;
-    class VercelEdge,VercelServerless infra;
+    Farmer[Farmer web app] --> FE[Next.js 16 frontend]
+    Policy[Policymaker dashboard] --> FE
+    FE -->|REST, JSON error envelope, x-request-id| API[FastAPI backend]
+    API --> Rules[Agro rules: IMD thresholds]
+    API --> Regen[Regenerative recommender]
+    API -->|image + grounded context| Gemini[Google Gemini]
+    API --> OM[Open-Meteo forecast]
+    API --> SG[ISRIC SoilGrids]
+    API -.optional.-> EE[Earth Engine Sentinel-2 NDVI]
+    API --> DB[(SQLite / Postgres)]
+    API -.optional.-> Redis[(Redis: rate limit, idempotency, cache)]
+    API --> TTS[gTTS voice]
 ```
 
-## Tech Stack
+**Backend** (`backend/`): FastAPI, async SQLAlchemy + Alembic, pydantic v2.
 
-| Domain | Technology |
-|---|---|
-| **Frontend** | Next.js 14, React 18, Tailwind CSS, Web Audio API |
-| **Backend** | Python 3.11, FastAPI, Uvicorn, Google GenAI SDK |
-| **AI / APIs** | Gemini 3.8 Flash, Open-Meteo, gTTS |
-| **DevOps** | Vercel Serverless Functions (`vercel.json`), GitHub Actions |
+* `core/`: error envelope `{"error": {"code", "message", "request_id", "retryable"}}`, request-ID and security-header middleware, rate limiting (Redis with an in-process fallback), JWT auth that fails closed.
+* `services/`: weather, agro rules, soil, regenerative practices, Earth Engine, Gemini (timeouts, schema validation, prompt-injection fencing), grounding context, persistence.
+* `routers/`:
+  * farmer: `/api/farm/*`, `/api/diagnose`, `/api/advisory/*`, `/api/alerts`, `/api/kvk`
+  * policymaker: `/api/dashboard/*`, `/api/states/*`
+  * metadata: `/api/sources`, `/health/live`, `/health/ready`
 
-## Running Locally
+**Frontend** (`frontend/`): Next.js 16 App Router, React 19, Tailwind v4.
 
-### 1. Clone the Repository
+* Pages: `/`, `/farm`, `/diagnose`, `/advisor`, `/dashboard`, `/about`.
+* `lib/api.ts` gives typed calls with timeouts and parses the error envelope.
+* `lib/i18n.tsx` lazily loads locales and formats numbers in native numerals.
+* Charts and maps load lazily.
+
+## Running locally
+
 ```bash
-git clone https://github.com/varad-oss/krishisathi.git
-cd krishisathi
-```
-
-### 2. Backend Setup (FastAPI)
-```bash
+# Backend
 cd backend
-python3 -m venv venv
-source venv/bin/activate
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env          # set GEMINI_API_KEY; everything else is optional
+alembic upgrade head
+uvicorn main:app --reload --port 8000     # docs at http://localhost:8000/docs
 
-# Create environment file
-echo 'GEMINI_API_KEY="your-api-key"' > .env
-
-# Optional Model Configuration (defaults to 3.x series)
-echo 'GEMINI_DIAGNOSIS_MODEL="gemini-3.8-flash"' >> .env
-echo 'GEMINI_ADVISORY_MODEL="gemini-3.8-flash"' >> .env
-echo 'GEMINI_TRANSLATION_MODEL="gemini-3.5-flash-lite"' >> .env
-echo 'GEMINI_TRANSCRIPTION_MODEL="gemini-3.5-transcribe"' >> .env
-echo 'GEMINI_AGENT_MODEL="gemini-3.8-flash"' >> .env
-
-# Start the server on port 8000
-uvicorn main:app --reload --port 8000
-```
-*API documentation will be available at [http://localhost:8000/docs](http://localhost:8000/docs).*
-
-#### Knowledge Base & Provenance
-KrishiSathi uses a deterministically grounded knowledge base located at `backend/data/disease_reference.json`.
-- **Data Provenance:** All disease data and treatment guidelines are sourced directly from authoritative agricultural institutions (e.g., ICAR-IIRR, ICAR-IIWBR). The Gemini models use this strictly for reference and are instructed not to invent or hallucinate unsupported treatments or pesticide doses.
-- **Regional Limitations:** While the system attempts to match crop and state contexts, highly localized state-specific datasets are still limited. If no state match is found, the system defaults to general crop-specific disease reference data.
-
-### 3. Frontend Setup (Next.js)
-In a new terminal tab:
-```bash
+# Frontend (new terminal)
 cd frontend
-npm install
-
-# Point the frontend to the local backend
-echo 'NEXT_PUBLIC_API_URL="http://localhost:8000"' > .env.local
-# Set NEXT_PUBLIC_DEMO_MODE="true" to enable mock UI data without a backend
-echo 'NEXT_PUBLIC_DEMO_MODE="false"' >> .env.local
-
-# Start the frontend
-npm run dev
+npm ci
+cp .env.example .env.local    # NEXT_PUBLIC_API_URL=http://localhost:8000
+npm run dev                   # http://localhost:3000
 ```
-*The app will be available at [http://localhost:3000](http://localhost:3000).*
 
-## Challenges & What I'd Improve
-**The Hardest Bug:** Bridging the streaming audio pipeline between Python and React was by far the toughest technical challenge. Initially, the FastAPI backend was returning audio as a chunked `StreamingResponse`. The browser's native `HTMLAudioElement` struggled to buffer the MP3 without a known `Content-Length` header, which subsequently caused React 18's strict-mode to aggressively unmount the component and throw full-screen `AbortError` crashes. I solved this by calculating the exact byte-size of the audio file in-memory on the backend before sending the response, and implementing a graceful `catch(e => e.name === 'AbortError')` block in the frontend state manager.
+See `backend/.env.example` for the backend environment variables:
 
-**Future Improvements:** Currently, the system utilizes an in-memory datastore and free-tier APIs to strictly maintain a zero-billing footprint. For a true production rollout to thousands of KVKs, I would replace the local state with a robust Redis caching layer and migrate the backend to a dedicated Kubernetes cluster to handle concurrent image processing loads.
+* `GEMINI_API_KEY` and model overrides
+* `DATABASE_URL`, `REDIS_URL`
+* `JWT_SECRET`
+* `CORS_ALLOWED_ORIGINS` / `CORS_ALLOWED_ORIGIN_REGEX`
+* `EE_SERVICE_ACCOUNT_KEY_JSON`
+* `AI_TIMEOUT_SECONDS`, `EXTERNAL_API_TIMEOUT_SECONDS`
 
-## Team
-**Solo Developer** — Architected and built entirely by Varad Pandare (IIT Kharagpur) for the Google Build with AI Hackathon.
+In `ENVIRONMENT=production` the backend requires a real database and Redis.
+
+## Validation
+
+```bash
+# Backend: 116 tests (the Postgres concurrency test runs in CI with a Postgres service)
+cd backend && python -m pytest -q
+
+# Frontend
+cd frontend
+npm run lint
+npm run typecheck
+npm test                      # locale integrity: keys, placeholders, no English leftovers, native numerals
+npm run build
+npx playwright install chromium   # once
+npm run test:e2e              # user journeys on desktop and Pixel 7, against recorded API fixtures
+```
+
+End-to-end tests serve the production build and answer every API call from `frontend/e2e/fixtures/api.json`. That fixture was recorded from the real backend routes, so the tests are deterministic and need no network.
+
+To capture screenshots for visual QA, run `SCREENSHOTS=1 SCREENSHOT_LANG=hi npx playwright test screenshots --project=desktop`.
+
+After changing a locale, run `node scripts/localize-digits.mjs` to convert ASCII digits to native numerals.
+
+## Data sources
+
+| Source | Use | Notes |
+|---|---|---|
+| [Open-Meteo](https://open-meteo.com) | Current conditions, 7-day forecast, soil moisture, ET₀ | Model estimates, not station readings |
+| [ISRIC SoilGrids 2.0](https://soilgrids.org) | pH, organic carbon, clay, sand (0–15 cm) | 250 m predictions; not a field test |
+| India Meteorological Department | Heavy-rain, heat and cold thresholds | Used in `services/agro_rules.py` |
+| Soil Health Card scheme | pH and organic-carbon rating classes | Used in `services/soil_service.py` |
+| Google Earth Engine (optional) | Sentinel-2 NDVI around the farm | Unavailable unless a service account is configured |
+| Google Gemini | Photo diagnosis, advisory, transcription, policy briefing | Always labelled AI-generated |
+| `backend/data/disease_reference.json` | Curated disease symptoms and management (ICAR institutes) | Small and growing |
+| `backend/data/kvk_locations.json` | Nearest Krishi Vigyan Kendra | Approximate; verify on the KVK portal |
+
+## Limitations
+
+* Translations are careful but should be reviewed by native-speaking agronomists.
+* Disease clusters reflect where the app is used and are AI-classified, not lab-confirmed.
+* The policy dashboard uses one forecast point per state for weather risk, so it is indicative only.
 
 ## License
-[Apache License 2.0](LICENSE) — This project is positioned as a Digital Public Good.
+
+[Apache License 2.0](LICENSE). KrishiSathi is positioned as a Digital Public Good. Built by Varad Pandare (IIT Kharagpur) for the Google Build with AI Hackathon.

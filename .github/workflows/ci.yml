@@ -8,20 +8,47 @@ on:
 
 jobs:
   lint-build-frontend:
-    name: Lint & Build Frontend (Next.js)
+    name: Frontend lint, types, i18n & build
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-      - name: Install Dependencies
-        run: cd frontend && npm ci
-      - name: Run Linter
-        run: cd frontend && npm run lint
-      - name: Build Frontend
-        run: cd frontend && npm run build
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - name: Locale integrity (keys, placeholders, native numerals)
+        run: npm test
+      - run: npm run build
+
+  e2e-frontend:
+    name: Frontend end-to-end journeys (Playwright)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: frontend/test-results
+          retention-days: 7
 
   test-backend:
     name: Test Backend (FastAPI)

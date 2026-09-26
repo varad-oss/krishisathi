@@ -102,3 +102,68 @@ Next.js 16 (App Router, all pages "use client")          FastAPI (Vercel serverl
 5. Frontend: a typed API client, localized error codes, lazy-loaded locale files, shared state and provenance components, and a farm profile. Then a redesign of every page around the farmer and policymaker jobs.
 6. Tests: backend regression tests, i18n completeness checks, and Playwright end-to-end tests of the main journeys, including failure states.
 7. Visual QA at 320–1280 px, documentation, and an updated Graphify graph.
+
+## 9. What was done
+
+**Fallbacks removed.** F1–F14 are all resolved.
+
+| Item | Resolution |
+|---|---|
+| F1 | Regional crop health returns an explicit `unavailable` status. Point-level NDVI comes from Earth Engine only when it is configured. |
+| F2, F3 | Dashboard and state endpoints return only real counts with provenance. |
+| F4 | Mock data and demo mode are deleted. |
+| F5 | The confidence percentage is replaced by the model's qualitative certainty plus a reason. |
+| F6 | No default location. Diagnosis runs without weather context when no location is set. |
+| F7 | `affected_area_km2` is replaced by the actual `alert_radius_km`. |
+| F8 | Only confident `disease_detected` results with a location feed clusters. Clusters older than 21 days are dropped. |
+| F9, F10 | Invented claims are removed. The About page states that accuracy has not been measured. |
+| F11 | The chat page is replaced by the grounded advisor, which lists the data sources it used and marks unavailable ones. |
+| F12 | Auth fails closed (503 without `JWT_SECRET`) and the hardcoded token is gone. |
+| F13 | Rate limiting falls back to an in-process window when Redis is absent. |
+| F14 | `.env.example` is rewritten. |
+
+**Backend**
+
+* Every error uses one envelope: `{"error":{"code","message","request_id","retryable"}}`.
+* Request-ID propagation, structured access logs, security headers, and a restricted CORS configuration.
+* Liveness and readiness probes.
+* `/api/debug/db` is removed.
+* The weather contract is fixed and extended with forecast, ET₀ and soil moisture.
+* New services:
+  * rule-based agronomic insights using IMD thresholds, each carrying its basis and source
+  * SoilGrids soil properties with Soil Health Card ratings
+  * a regenerative-practice recommender that exposes its triggers
+  * farm-level `/api/farm/*` endpoints
+* Gemini calls are async with timeouts and validated against a schema.
+* Prompt-injection fencing wraps farmer input.
+* Chemical options are gated on a matched verified reference and adequate certainty.
+* Uploaded images are validated by content, not by the file extension.
+* Stored locations are coarsened to about 1 km, and public output is coarsened to about 11 km.
+
+**Frontend**
+
+* Every page is redesigned: landing, farm dashboard, diagnosis, advisor, policy dashboard, and data & methods.
+* A typed API client with timeouts and localized error codes.
+* Every screen has loading, error-with-retry (showing the request ID), empty and unavailable states.
+* A provenance line appears on every data panel.
+* Ten languages with native numerals, loaded lazily.
+* Mobile bottom navigation.
+* Charts and maps are lazy-loaded.
+* CSP and security headers.
+
+**Tests and CI**
+
+* Backend: 116 tests.
+* Locale integrity tests.
+* 10 Playwright journeys plus overflow checks at 320 px and 360 px, each run on desktop and Pixel 7.
+* CI runs lint, typecheck, i18n, build, e2e, backend tests on SQLite, and the Postgres concurrency test.
+
+## 10. What remains
+
+* Measure diagnosis accuracy on an Indian field dataset. The script exists; the dataset and results do not.
+* Have native-speaking agronomists review all nine translations.
+* Aggregate regional satellite crop health (Earth Engine batch job + storage). It is currently reported as unavailable.
+* Expand `disease_reference.json`. Reference text is English-only and is labelled as such in the UI.
+* Build an issuing flow for publisher tokens. Tokens are currently minted out of band with `JWT_SECRET`.
+* Add offline support with a service worker for low-connectivity areas.
+* Verify the Open-Meteo and SoilGrids field names against the live APIs in staging. The development sandbox could not reach them; the parsers were written from the providers' published schemas and are covered by fixture tests.
