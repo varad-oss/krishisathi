@@ -1,225 +1,126 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// BCP47 language map for Web Speech API
-// This is the single source of truth for all speech-related language codes.
-// Browser SpeechRecognition and SpeechSynthesis both use BCP47 tags.
-export const LANG_TO_BCP47: Record<string, string> = {
-  en: 'en-IN',
-  hi: 'hi-IN',
-  mr: 'mr-IN',
-  ta: 'ta-IN',
-  te: 'te-IN',
-  bn: 'bn-IN',
-  kn: 'kn-IN',
-  gu: 'gu-IN',
-  pa: 'pa-IN',
-  ml: 'ml-IN',
+'use client';
+
+import { ApiError, transcribeAudio, ttsUrl } from './api';
+import type { LanguageCode } from './types';
+
+const BCP47: Record<LanguageCode, string> = {
+  en: 'en-IN', hi: 'hi-IN', mr: 'mr-IN', ta: 'ta-IN', te: 'te-IN', bn: 'bn-IN', kn: 'kn-IN', gu: 'gu-IN', pa: 'pa-IN', ml: 'ml-IN',
 };
 
-export function getBCP47(langCode: string): string {
-  return LANG_TO_BCP47[langCode] || 'en-IN';
-}
-
-/**
- * Speak text aloud using the browser's SpeechSynthesis API.
- * Uses the correct BCP47 tag for the given language code.
- */
 let currentAudio: HTMLAudioElement | null = null;
-let stateListeners: ((isSpeaking: boolean) => void)[] = [];
+let listeners: ((speaking: boolean) => void)[] = [];
+const notify = (s: boolean) => listeners.forEach((l) => l(s));
 
-export function onSpeechStateChange(listener: (isSpeaking: boolean) => void) {
-  stateListeners.push(listener);
-  // Return current state immediately
-  listener(isSpeaking());
-  return () => { stateListeners = stateListeners.filter(l => l !== listener); };
+export function onSpeechStateChange(listener: (speaking: boolean) => void) {
+  listeners.push(listener);
+  return () => {
+    listeners = listeners.filter((l) => l !== listener);
+  };
 }
 
-function notifyStateChange(state: boolean) {
-  stateListeners.forEach(l => l(state));
-}
+/** Uses a native voice for the language when the device has one; otherwise server-side TTS. */
+export function speakText(text: string, lang: LanguageCode): void {
+  if (typeof window === 'undefined' || !text.trim()) return;
+  stopSpeaking();
+  notify(true);
+  const plain = text.replace(/[#*_`>|-]/g, ' ');
 
-export function isSpeaking(): boolean {
-  if (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis.speaking) return true;
-  if (currentAudio && !currentAudio.paused) return true;
-  return false;
-}
-
-export function speakText(text: string, langCode: string): void {
-  if (typeof window === 'undefined') return;
-  
-  stopSpeaking(); // Stop any ongoing speech
-  notifyStateChange(true);
-
-  // 1. Check if browser has a native voice for this language
-  let hasVoice = false;
-  if ('speechSynthesis' in window) {
-    const voices = window.speechSynthesis.getVoices();
-    const targetLang = getBCP47(langCode).toLowerCase();
-    hasVoice = voices.some(v => v.lang.toLowerCase().startsWith(targetLang) || v.lang.toLowerCase().startsWith(langCode.toLowerCase()));
-  }
-
-  // 2. If native voice exists, use it
-  if (hasVoice && 'speechSynthesis' in window) {
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = getBCP47(langCode);
-    utterance.rate = 0.9;
-    utterance.onend = () => notifyStateChange(false);
-    utterance.onerror = () => notifyStateChange(false);
-    window.speechSynthesis.speak(utterance);
+  const tag = BCP47[lang].toLowerCase();
+  const voices = 'speechSynthesis' in window ? window.speechSynthesis.getVoices() : [];
+  if (voices.some((v) => v.lang.toLowerCase().startsWith(tag) || v.lang.toLowerCase().startsWith(lang))) {
+    const u = new SpeechSynthesisUtterance(plain);
+    u.lang = BCP47[lang];
+    u.rate = 0.9;
+    u.onend = u.onerror = () => notify(false);
+    window.speechSynthesis.speak(u);
     return;
   }
 
-  // 3. Fallback to Server-Side gTTS API
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-  const url = `${API_BASE}/api/advisory/tts?text=${encodeURIComponent(text)}&lang=${langCode}`;
-  
-  currentAudio = new Audio(url);
-  currentAudio.onended = () => notifyStateChange(false);
-  currentAudio.onerror = () => notifyStateChange(false);
-  currentAudio.play().catch(e => {
-    if (e.name === 'AbortError') {
-      return; // Ignore aborts from rapid re-renders
-    }
-    console.error("Audio playback failed:", e);
-    notifyStateChange(false);
+  currentAudio = new Audio(ttsUrl(plain, lang));
+  currentAudio.onended = currentAudio.onerror = () => notify(false);
+  currentAudio.play().catch((e) => {
+    if (e?.name !== 'AbortError') notify(false);
   });
 }
 
 export function stopSpeaking(): void {
-  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-    window.speechSynthesis.cancel();
-  }
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
   if (currentAudio) {
     currentAudio.pause();
-    currentAudio.currentTime = 0;
     currentAudio = null;
   }
-  notifyStateChange(false);
+  notify(false);
+}
+
+export const recordingSupported = () =>
+  typeof window !== 'undefined' && !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== 'undefined';
+
+let recorder: MediaRecorder | null = null;
+let audioCtx: AudioContext | null = null;
+let frame: number | null = null;
+
+function cleanup() {
+  if (frame) cancelAnimationFrame(frame);
+  frame = null;
+  audioCtx?.close().catch(() => {});
+  audioCtx = null;
 }
 
 /**
- * Check if SpeechRecognition is available in the current browser.
+ * Records until ~2.5 s of silence (or stopRecording), then transcribes on the server.
+ * Errors are passed to onError as ApiError or a DOMException (e.g. NotAllowedError).
  */
-export function isSpeechRecognitionSupported(): boolean {
-  if (typeof window === 'undefined') return false;
-  return !!((window as unknown as { SpeechRecognition?: any, webkitSpeechRecognition?: any, AudioContext?: any, webkitAudioContext?: any }).SpeechRecognition || (window as unknown as { SpeechRecognition?: any, webkitSpeechRecognition?: any, AudioContext?: any, webkitAudioContext?: any }).webkitSpeechRecognition);
-}
-
-/**
- * Create a SpeechRecognition instance configured for the given language.
- * Returns null if not supported.
- */
-export function createSpeechRecognition(langCode: string): unknown | null {
-  if (!isSpeechRecognitionSupported()) return null;
-  const SpeechRecognition = (window as unknown as { SpeechRecognition?: any, webkitSpeechRecognition?: any, AudioContext?: any, webkitAudioContext?: any }).SpeechRecognition || (window as unknown as { SpeechRecognition?: any, webkitSpeechRecognition?: any, AudioContext?: any, webkitAudioContext?: any }).webkitSpeechRecognition;
-  const recognition = new SpeechRecognition();
-  recognition.lang = getBCP47(langCode);
-  recognition.interimResults = true;
-  recognition.continuous = false;
-  recognition.maxAlternatives = 1;
-  return recognition;
-}
-
-
-
-let mediaRecorder: MediaRecorder | null = null;
-let audioChunks: Blob[] = [];
-let audioContext: AudioContext | null = null;
-let silenceTimer: number | null = null;
-
-export async function startRecording(langCode: string, onResult: (text: string) => void, onError: (err: unknown) => void, onEnd: () => void) {
+export async function startRecording(lang: LanguageCode, onResult: (text: string) => void, onError: (err: unknown) => void, onEnd: () => void) {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorder = new MediaRecorder(stream);
-    audioChunks = [];
+    recorder = new MediaRecorder(stream);
+    const chunks: Blob[] = [];
 
-    // Setup silence detection
-    const AudioContext = window.AudioContext || (window as unknown as { SpeechRecognition?: any, webkitSpeechRecognition?: any, AudioContext?: any, webkitAudioContext?: any }).webkitAudioContext;
-    audioContext = new AudioContext();
-    const source = audioContext.createMediaStreamSource(stream);
-    const analyser = audioContext.createAnalyser();
-    analyser.minDecibels = -60; // Silence threshold
-    source.connect(analyser);
-    
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-    let silenceStart = Date.now();
-    
-    const checkSilence = () => {
-      if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
-      analyser.getByteFrequencyData(dataArray);
-      const isSpeaking = dataArray.some(val => val > 10);
-      
-      if (isSpeaking) {
-        silenceStart = Date.now();
-      } else {
-        // If silent for 2.5 seconds, auto stop
-        if (Date.now() - silenceStart > 2500) {
-          stopRecording();
-          return;
-        }
-      }
-      silenceTimer = requestAnimationFrame(checkSilence);
+    audioCtx = new AudioContext();
+    const analyser = audioCtx.createAnalyser();
+    analyser.minDecibels = -60;
+    audioCtx.createMediaStreamSource(stream).connect(analyser);
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    let lastSound = Date.now();
+    const watch = () => {
+      if (!recorder || recorder.state === 'inactive') return;
+      analyser.getByteFrequencyData(data);
+      if (data.some((v) => v > 10)) lastSound = Date.now();
+      else if (Date.now() - lastSound > 2500) return stopRecording();
+      frame = requestAnimationFrame(watch);
     };
-    checkSilence();
+    watch();
 
-    mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        audioChunks.push(event.data);
+    recorder.ondataavailable = (e) => e.data.size > 0 && chunks.push(e.data);
+    recorder.onstop = async () => {
+      cleanup();
+      stream.getTracks().forEach((t) => t.stop());
+      try {
+        const blob = new Blob(chunks, { type: recorder?.mimeType || 'audio/webm' });
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(String(reader.result).split(',')[1] ?? '');
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(blob);
+        });
+        const { text } = await transcribeAudio(base64, lang);
+        if (text) onResult(text);
+        else onError(new ApiError('No speech detected', 'NO_SPEECH', 422, true));
+      } catch (e) {
+        onError(e);
+      } finally {
+        onEnd();
       }
     };
-
-    mediaRecorder.onstop = async () => {
-      if (silenceTimer) cancelAnimationFrame(silenceTimer);
-      if (audioContext) {
-        audioContext.close();
-        audioContext = null;
-      }
-      
-      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-      const reader = new FileReader();
-      reader.readAsDataURL(audioBlob);
-      reader.onloadend = async () => {
-        const base64Audio = (reader.result as string).split(',')[1];
-        
-        try {
-          const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
-          const res = await fetch(`${API_BASE}/api/advisory/transcribe`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ audio_base64: base64Audio, language: langCode })
-          });
-          const data = await res.json();
-          if (data.text) {
-            onResult(data.text);
-          }
-        } catch (e) {
-          console.error("Transcription failed", e);
-          onError(e);
-        } finally {
-          onEnd();
-        }
-      };
-    };
-
-    mediaRecorder.start();
+    recorder.start();
   } catch (err) {
-    console.error("Microphone access denied", err);
+    cleanup();
     onError(err);
     onEnd();
   }
 }
 
 export function stopRecording() {
-  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-    mediaRecorder.stop();
-    mediaRecorder.stream.getTracks().forEach(track => track.stop());
-  }
-  if (silenceTimer) {
-    cancelAnimationFrame(silenceTimer);
-    silenceTimer = null;
-  }
-  if (audioContext) {
-    audioContext.close().catch(() => {});
-    audioContext = null;
-  }
+  if (recorder && recorder.state !== 'inactive') recorder.stop();
+  cleanup();
 }

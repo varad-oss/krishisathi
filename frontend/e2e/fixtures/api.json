@@ -1,0 +1,1348 @@
+{
+ "conditions": {
+  "location": {
+   "lat": 18.52,
+   "lng": 73.856,
+   "timezone": "Asia/Kolkata",
+   "elevation_m": 560.0
+  },
+  "current": {
+   "valid_at": "2026-09-26T10:15",
+   "temperature_c": 29.4,
+   "humidity_pct": 64,
+   "precipitation_mm": 0.0,
+   "wind_kmh": 8.5,
+   "weather_code": 1,
+   "condition": "mainly_clear",
+   "soil_moisture_0_1cm": 0.21,
+   "soil_moisture_3_9cm": 0.27
+  },
+  "daily": [
+   {
+    "date": "2026-09-26",
+    "weather_code": 1,
+    "condition": "mainly_clear",
+    "temp_max_c": 32.0,
+    "temp_min_c": 22.0,
+    "precipitation_mm": 0.0,
+    "precipitation_probability_pct": 10,
+    "et0_mm": 4.1,
+    "humidity_mean_pct": 60,
+    "wind_max_kmh": 12
+   },
+   {
+    "date": "2026-09-27",
+    "weather_code": 61,
+    "condition": "rain",
+    "temp_max_c": 30.0,
+    "temp_min_c": 21.0,
+    "precipitation_mm": 12.0,
+    "precipitation_probability_pct": 80,
+    "et0_mm": 3.0,
+    "humidity_mean_pct": 88,
+    "wind_max_kmh": 18
+   },
+   {
+    "date": "2026-09-28",
+    "weather_code": 3,
+    "condition": "overcast",
+    "temp_max_c": 41.2,
+    "temp_min_c": 21.5,
+    "precipitation_mm": 1.0,
+    "precipitation_probability_pct": 30,
+    "et0_mm": 3.8,
+    "humidity_mean_pct": 70,
+    "wind_max_kmh": 10
+   },
+   {
+    "date": "2026-09-29",
+    "weather_code": 0,
+    "condition": "clear",
+    "temp_max_c": 33.0,
+    "temp_min_c": 22.0,
+    "precipitation_mm": 0.0,
+    "precipitation_probability_pct": 5,
+    "et0_mm": 4.5,
+    "humidity_mean_pct": 55,
+    "wind_max_kmh": 9
+   },
+   {
+    "date": "2026-09-30",
+    "weather_code": 0,
+    "condition": "clear",
+    "temp_max_c": 33.5,
+    "temp_min_c": 22.0,
+    "precipitation_mm": 0.0,
+    "precipitation_probability_pct": 5,
+    "et0_mm": 4.6,
+    "humidity_mean_pct": 50,
+    "wind_max_kmh": 9
+   },
+   {
+    "date": "2026-10-01",
+    "weather_code": 1,
+    "condition": "mainly_clear",
+    "temp_max_c": 34.0,
+    "temp_min_c": 23.0,
+    "precipitation_mm": 0.0,
+    "precipitation_probability_pct": 5,
+    "et0_mm": 4.7,
+    "humidity_mean_pct": 50,
+    "wind_max_kmh": 10
+   },
+   {
+    "date": "2026-10-02",
+    "weather_code": 2,
+    "condition": "partly_cloudy",
+    "temp_max_c": 33.0,
+    "temp_min_c": 22.5,
+    "precipitation_mm": 0.0,
+    "precipitation_probability_pct": 10,
+    "et0_mm": 4.5,
+    "humidity_mean_pct": 52,
+    "wind_max_kmh": 11
+   }
+  ],
+  "provenance": {
+   "source": "Open-Meteo",
+   "source_url": "https://open-meteo.com/",
+   "kind": "model",
+   "notes": "Current values are numerical weather model estimates (15-minute resolution), not ground-station observations. Daily values are forecasts.",
+   "retrieved_at": "2026-09-26T02:06:41.757159+00:00",
+   "valid_at": "2026-09-26T10:15",
+   "timezone": "Asia/Kolkata"
+  },
+  "insights": [
+   {
+    "id": "heat_stress",
+    "category": "crop_stress",
+    "severity": "watch",
+    "date": "2026-09-28",
+    "params": {
+     "temp_max_c": 41.2
+    },
+    "basis": {
+     "kind": "forecast",
+     "threshold": {
+      "temp_max_c_gte": 40.0
+     },
+     "source": {
+      "name": "India Meteorological Department (IMD)",
+      "url": "https://mausam.imd.gov.in/"
+     }
+    }
+   },
+   {
+    "id": "fungal_risk",
+    "category": "disease",
+    "severity": "watch",
+    "date": "2026-09-27",
+    "params": {
+     "humidity_mean_pct": 88.0,
+     "temp_mean_c": 25.5
+    },
+    "basis": {
+     "kind": "forecast",
+     "threshold": {
+      "humidity_mean_pct_gte": 85.0,
+      "temp_mean_c_range": [
+       15.0,
+       30.0
+      ]
+     },
+     "source": {
+      "name": "General agronomic guidance (KrishiSathi rule)",
+      "url": null
+     }
+    }
+   },
+   {
+    "id": "rain_expected",
+    "category": "water",
+    "severity": "info",
+    "date": "2026-09-27",
+    "params": {
+     "precipitation_mm": 12.0,
+     "probability_pct": 80.0
+    },
+    "basis": {
+     "kind": "forecast",
+     "threshold": {
+      "precipitation_mm_gte": 5.0,
+      "probability_pct_gte": 60
+     },
+     "source": {
+      "name": "General agronomic guidance (KrishiSathi rule)",
+      "url": null
+     }
+    }
+   }
+  ]
+ },
+ "regenerative": {
+  "crop": "Tomato",
+  "soil": {
+   "status": "available",
+   "properties": {
+    "ph": 8.0,
+    "organic_carbon_pct": 0.46,
+    "total_nitrogen_g_per_kg": 0.7,
+    "clay_pct": 44.0,
+    "sand_pct": 24.33
+   },
+   "ratings": {
+    "ph": "alkaline",
+    "organic_carbon": "low",
+    "source": {
+     "name": "Soil Health Card scheme ratings (Govt. of India)",
+     "url": "https://soilhealth.dac.gov.in/"
+    }
+   },
+   "provenance": {
+    "source": "ISRIC SoilGrids 2.0",
+    "source_url": "https://soilgrids.org/",
+    "kind": "model",
+    "resolution": "250 m",
+    "depth": "0-15 cm",
+    "notes": "Predicted from global soil models, not measured on your field. Use a Soil Health Card lab test before changing fertilizer or amendments.",
+    "retrieved_at": "2026-09-26T02:06:41.802896+00:00"
+   }
+  },
+  "inputs": {
+   "soil": "available",
+   "weather": "available",
+   "crop": "provided"
+  },
+  "recommendations": [
+   {
+    "id": "organic_matter",
+    "priority": "high",
+    "triggers": [
+     {
+      "signal": "soil_organic_carbon",
+      "value": 0.46,
+      "rating": "low"
+     }
+    ],
+    "params": {}
+   },
+   {
+    "id": "cover_crop",
+    "priority": "high",
+    "triggers": [
+     {
+      "signal": "soil_organic_carbon",
+      "value": 0.46,
+      "rating": "low"
+     }
+    ],
+    "params": {}
+   },
+   {
+    "id": "soil_test",
+    "priority": "medium",
+    "triggers": [
+     {
+      "signal": "soil_organic_carbon",
+      "value": 0.46,
+      "rating": "low"
+     }
+    ],
+    "params": {}
+   },
+   {
+    "id": "crop_rotation",
+    "priority": "medium",
+    "triggers": [
+     {
+      "signal": "crop",
+      "value": "Tomato",
+      "rating": "vegetable"
+     }
+    ],
+    "params": {}
+   },
+   {
+    "id": "water_conservation",
+    "priority": "medium",
+    "triggers": [],
+    "params": {}
+   },
+   {
+    "id": "integrated_nutrients",
+    "priority": "medium",
+    "triggers": [
+     {
+      "signal": "soil_organic_carbon",
+      "value": 0.46,
+      "rating": "low"
+     }
+    ],
+    "params": {}
+   },
+   {
+    "id": "reduced_tillage",
+    "priority": "low",
+    "triggers": [],
+    "params": {}
+   },
+   {
+    "id": "biodiversity",
+    "priority": "low",
+    "triggers": [],
+    "params": {}
+   }
+  ]
+ },
+ "weather_risk": {
+  "regions": [
+   {
+    "state": "PB",
+    "status": "available",
+    "insights": [
+     {
+      "id": "heat_stress",
+      "category": "crop_stress",
+      "severity": "watch",
+      "date": "2026-09-28",
+      "params": {
+       "temp_max_c": 41.2
+      },
+      "basis": {
+       "kind": "forecast",
+       "threshold": {
+        "temp_max_c_gte": 40.0
+       },
+       "source": {
+        "name": "India Meteorological Department (IMD)",
+        "url": "https://mausam.imd.gov.in/"
+       }
+      }
+     },
+     {
+      "id": "fungal_risk",
+      "category": "disease",
+      "severity": "watch",
+      "date": "2026-09-27",
+      "params": {
+       "humidity_mean_pct": 88.0,
+       "temp_mean_c": 25.5
+      },
+      "basis": {
+       "kind": "forecast",
+       "threshold": {
+        "humidity_mean_pct_gte": 85.0,
+        "temp_mean_c_range": [
+         15.0,
+         30.0
+        ]
+       },
+       "source": {
+        "name": "General agronomic guidance (KrishiSathi rule)",
+        "url": null
+       }
+      }
+     },
+     {
+      "id": "rain_expected",
+      "category": "water",
+      "severity": "info",
+      "date": "2026-09-27",
+      "params": {
+       "precipitation_mm": 12.0,
+       "probability_pct": 80.0
+      },
+      "basis": {
+       "kind": "forecast",
+       "threshold": {
+        "precipitation_mm_gte": 5.0,
+        "probability_pct_gte": 60
+       },
+       "source": {
+        "name": "General agronomic guidance (KrishiSathi rule)",
+        "url": null
+       }
+      }
+     }
+    ]
+   },
+   {
+    "state": "MH",
+    "status": "available",
+    "insights": [
+     {
+      "id": "heat_stress",
+      "category": "crop_stress",
+      "severity": "watch",
+      "date": "2026-09-28",
+      "params": {
+       "temp_max_c": 41.2
+      },
+      "basis": {
+       "kind": "forecast",
+       "threshold": {
+        "temp_max_c_gte": 40.0
+       },
+       "source": {
+        "name": "India Meteorological Department (IMD)",
+        "url": "https://mausam.imd.gov.in/"
+       }
+      }
+     },
+     {
+      "id": "fungal_risk",
+      "category": "disease",
+      "severity": "watch",
+      "date": "2026-09-27",
+      "params": {
+       "humidity_mean_pct": 88.0,
+       "temp_mean_c": 25.5
+      },
+      "basis": {
+       "kind": "forecast",
+       "threshold": {
+        "humidity_mean_pct_gte": 85.0,
+        "temp_mean_c_range": [
+         15.0,
+         30.0
+        ]
+       },
+       "source": {
+        "name": "General agronomic guidance (KrishiSathi rule)",
+        "url": null
+       }
+      }
+     },
+     {
+      "id": "rain_expected",
+      "category": "water",
+      "severity": "info",
+      "date": "2026-09-27",
+      "params": {
+       "precipitation_mm": 12.0,
+       "probability_pct": 80.0
+      },
+      "basis": {
+       "kind": "forecast",
+       "threshold": {
+        "precipitation_mm_gte": 5.0,
+        "probability_pct_gte": 60
+       },
+       "source": {
+        "name": "General agronomic guidance (KrishiSathi rule)",
+        "url": null
+       }
+      }
+     }
+    ]
+   },
+   {
+    "state": "KA",
+    "status": "available",
+    "insights": [
+     {
+      "id": "heat_stress",
+      "category": "crop_stress",
+      "severity": "watch",
+      "date": "2026-09-28",
+      "params": {
+       "temp_max_c": 41.2
+      },
+      "basis": {
+       "kind": "forecast",
+       "threshold": {
+        "temp_max_c_gte": 40.0
+       },
+       "source": {
+        "name": "India Meteorological Department (IMD)",
+        "url": "https://mausam.imd.gov.in/"
+       }
+      }
+     },
+     {
+      "id": "fungal_risk",
+      "category": "disease",
+      "severity": "watch",
+      "date": "2026-09-27",
+      "params": {
+       "humidity_mean_pct": 88.0,
+       "temp_mean_c": 25.5
+      },
+      "basis": {
+       "kind": "forecast",
+       "threshold": {
+        "humidity_mean_pct_gte": 85.0,
+        "temp_mean_c_range": [
+         15.0,
+         30.0
+        ]
+       },
+       "source": {
+        "name": "General agronomic guidance (KrishiSathi rule)",
+        "url": null
+       }
+      }
+     },
+     {
+      "id": "rain_expected",
+      "category": "water",
+      "severity": "info",
+      "date": "2026-09-27",
+      "params": {
+       "precipitation_mm": 12.0,
+       "probability_pct": 80.0
+      },
+      "basis": {
+       "kind": "forecast",
+       "threshold": {
+        "precipitation_mm_gte": 5.0,
+        "probability_pct_gte": 60
+       },
+       "source": {
+        "name": "General agronomic guidance (KrishiSathi rule)",
+        "url": null
+       }
+      }
+     }
+    ]
+   },
+   {
+    "state": "TN",
+    "status": "available",
+    "insights": [
+     {
+      "id": "heat_stress",
+      "category": "crop_stress",
+      "severity": "watch",
+      "date": "2026-09-28",
+      "params": {
+       "temp_max_c": 41.2
+      },
+      "basis": {
+       "kind": "forecast",
+       "threshold": {
+        "temp_max_c_gte": 40.0
+       },
+       "source": {
+        "name": "India Meteorological Department (IMD)",
+        "url": "https://mausam.imd.gov.in/"
+       }
+      }
+     },
+     {
+      "id": "fungal_risk",
+      "category": "disease",
+      "severity": "watch",
+      "date": "2026-09-27",
+      "params": {
+       "humidity_mean_pct": 88.0,
+       "temp_mean_c": 25.5
+      },
+      "basis": {
+       "kind": "forecast",
+       "threshold": {
+        "humidity_mean_pct_gte": 85.0,
+        "temp_mean_c_range": [
+         15.0,
+         30.0
+        ]
+       },
+       "source": {
+        "name": "General agronomic guidance (KrishiSathi rule)",
+        "url": null
+       }
+      }
+     },
+     {
+      "id": "rain_expected",
+      "category": "water",
+      "severity": "info",
+      "date": "2026-09-27",
+      "params": {
+       "precipitation_mm": 12.0,
+       "probability_pct": 80.0
+      },
+      "basis": {
+       "kind": "forecast",
+       "threshold": {
+        "precipitation_mm_gte": 5.0,
+        "probability_pct_gte": 60
+       },
+       "source": {
+        "name": "General agronomic guidance (KrishiSathi rule)",
+        "url": null
+       }
+      }
+     }
+    ]
+   },
+   {
+    "state": "UP",
+    "status": "available",
+    "insights": [
+     {
+      "id": "heat_stress",
+      "category": "crop_stress",
+      "severity": "watch",
+      "date": "2026-09-28",
+      "params": {
+       "temp_max_c": 41.2
+      },
+      "basis": {
+       "kind": "forecast",
+       "threshold": {
+        "temp_max_c_gte": 40.0
+       },
+       "source": {
+        "name": "India Meteorological Department (IMD)",
+        "url": "https://mausam.imd.gov.in/"
+       }
+      }
+     },
+     {
+      "id": "fungal_risk",
+      "category": "disease",
+      "severity": "watch",
+      "date": "2026-09-27",
+      "params": {
+       "humidity_mean_pct": 88.0,
+       "temp_mean_c": 25.5
+      },
+      "basis": {
+       "kind": "forecast",
+       "threshold": {
+        "humidity_mean_pct_gte": 85.0,
+        "temp_mean_c_range": [
+         15.0,
+         30.0
+        ]
+       },
+       "source": {
+        "name": "General agronomic guidance (KrishiSathi rule)",
+        "url": null
+       }
+      }
+     },
+     {
+      "id": "rain_expected",
+      "category": "water",
+      "severity": "info",
+      "date": "2026-09-27",
+      "params": {
+       "precipitation_mm": 12.0,
+       "probability_pct": 80.0
+      },
+      "basis": {
+       "kind": "forecast",
+       "threshold": {
+        "precipitation_mm_gte": 5.0,
+        "probability_pct_gte": 60
+       },
+       "source": {
+        "name": "General agronomic guidance (KrishiSathi rule)",
+        "url": null
+       }
+      }
+     }
+    ]
+   },
+   {
+    "state": "MP",
+    "status": "available",
+    "insights": [
+     {
+      "id": "heat_stress",
+      "category": "crop_stress",
+      "severity": "watch",
+      "date": "2026-09-28",
+      "params": {
+       "temp_max_c": 41.2
+      },
+      "basis": {
+       "kind": "forecast",
+       "threshold": {
+        "temp_max_c_gte": 40.0
+       },
+       "source": {
+        "name": "India Meteorological Department (IMD)",
+        "url": "https://mausam.imd.gov.in/"
+       }
+      }
+     },
+     {
+      "id": "fungal_risk",
+      "category": "disease",
+      "severity": "watch",
+      "date": "2026-09-27",
+      "params": {
+       "humidity_mean_pct": 88.0,
+       "temp_mean_c": 25.5
+      },
+      "basis": {
+       "kind": "forecast",
+       "threshold": {
+        "humidity_mean_pct_gte": 85.0,
+        "temp_mean_c_range": [
+         15.0,
+         30.0
+        ]
+       },
+       "source": {
+        "name": "General agronomic guidance (KrishiSathi rule)",
+        "url": null
+       }
+      }
+     },
+     {
+      "id": "rain_expected",
+      "category": "water",
+      "severity": "info",
+      "date": "2026-09-27",
+      "params": {
+       "precipitation_mm": 12.0,
+       "probability_pct": 80.0
+      },
+      "basis": {
+       "kind": "forecast",
+       "threshold": {
+        "precipitation_mm_gte": 5.0,
+        "probability_pct_gte": 60
+       },
+       "source": {
+        "name": "General agronomic guidance (KrishiSathi rule)",
+        "url": null
+       }
+      }
+     }
+    ]
+   },
+   {
+    "state": "GJ",
+    "status": "available",
+    "insights": [
+     {
+      "id": "heat_stress",
+      "category": "crop_stress",
+      "severity": "watch",
+      "date": "2026-09-28",
+      "params": {
+       "temp_max_c": 41.2
+      },
+      "basis": {
+       "kind": "forecast",
+       "threshold": {
+        "temp_max_c_gte": 40.0
+       },
+       "source": {
+        "name": "India Meteorological Department (IMD)",
+        "url": "https://mausam.imd.gov.in/"
+       }
+      }
+     },
+     {
+      "id": "fungal_risk",
+      "category": "disease",
+      "severity": "watch",
+      "date": "2026-09-27",
+      "params": {
+       "humidity_mean_pct": 88.0,
+       "temp_mean_c": 25.5
+      },
+      "basis": {
+       "kind": "forecast",
+       "threshold": {
+        "humidity_mean_pct_gte": 85.0,
+        "temp_mean_c_range": [
+         15.0,
+         30.0
+        ]
+       },
+       "source": {
+        "name": "General agronomic guidance (KrishiSathi rule)",
+        "url": null
+       }
+      }
+     },
+     {
+      "id": "rain_expected",
+      "category": "water",
+      "severity": "info",
+      "date": "2026-09-27",
+      "params": {
+       "precipitation_mm": 12.0,
+       "probability_pct": 80.0
+      },
+      "basis": {
+       "kind": "forecast",
+       "threshold": {
+        "precipitation_mm_gte": 5.0,
+        "probability_pct_gte": 60
+       },
+       "source": {
+        "name": "General agronomic guidance (KrishiSathi rule)",
+        "url": null
+       }
+      }
+     }
+    ]
+   },
+   {
+    "state": "WB",
+    "status": "available",
+    "insights": [
+     {
+      "id": "heat_stress",
+      "category": "crop_stress",
+      "severity": "watch",
+      "date": "2026-09-28",
+      "params": {
+       "temp_max_c": 41.2
+      },
+      "basis": {
+       "kind": "forecast",
+       "threshold": {
+        "temp_max_c_gte": 40.0
+       },
+       "source": {
+        "name": "India Meteorological Department (IMD)",
+        "url": "https://mausam.imd.gov.in/"
+       }
+      }
+     },
+     {
+      "id": "fungal_risk",
+      "category": "disease",
+      "severity": "watch",
+      "date": "2026-09-27",
+      "params": {
+       "humidity_mean_pct": 88.0,
+       "temp_mean_c": 25.5
+      },
+      "basis": {
+       "kind": "forecast",
+       "threshold": {
+        "humidity_mean_pct_gte": 85.0,
+        "temp_mean_c_range": [
+         15.0,
+         30.0
+        ]
+       },
+       "source": {
+        "name": "General agronomic guidance (KrishiSathi rule)",
+        "url": null
+       }
+      }
+     },
+     {
+      "id": "rain_expected",
+      "category": "water",
+      "severity": "info",
+      "date": "2026-09-27",
+      "params": {
+       "precipitation_mm": 12.0,
+       "probability_pct": 80.0
+      },
+      "basis": {
+       "kind": "forecast",
+       "threshold": {
+        "precipitation_mm_gte": 5.0,
+        "probability_pct_gte": 60
+       },
+       "source": {
+        "name": "General agronomic guidance (KrishiSathi rule)",
+        "url": null
+       }
+      }
+     }
+    ]
+   }
+  ],
+  "aggregation": "single_reference_point_per_state",
+  "provenance": {
+   "source": "Open-Meteo",
+   "source_url": "https://open-meteo.com/",
+   "kind": "model",
+   "notes": "Current values are numerical weather model estimates (15-minute resolution), not ground-station observations. Daily values are forecasts.",
+   "retrieved_at": "2026-09-26T02:06:42.153826+00:00"
+  }
+ },
+ "crop_health": {
+  "status": "unavailable",
+  "reason": "not_configured",
+  "provenance": {
+   "source": "Sentinel-2 surface reflectance via Google Earth Engine",
+   "source_url": "https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR_HARMONIZED",
+   "kind": "satellite_observation",
+   "resolution": "10 m (averaged over a 250 m radius)",
+   "notes": "Median NDVI of low-cloud scenes. NDVI depends on crop type and growth stage; compare it with your own field over time, not with other crops."
+  }
+ },
+ "kvk": {
+  "name": "KVK Pune",
+  "state": "MH",
+  "district": "Pune",
+  "lat": 18.52,
+  "lng": 73.856,
+  "distance_km": 0.0,
+  "provenance": {
+   "source": "KrishiSathi KVK list (subset)",
+   "kind": "static_reference",
+   "notes": "Covers a limited set of districts; coordinates are approximate district locations. Verify address and contact on the official KVK portal.",
+   "verify_url": "https://kvk.icar.gov.in/"
+  }
+ },
+ "alerts": {
+  "alerts": [
+   {
+    "id": "2a27c3d9-8c02-4371-9575-ea5dc4ca513c",
+    "disease": "Late Blight",
+    "distance_km": 10,
+    "location": "Near 18.6, 73.9",
+    "severity": "high",
+    "report_count": 4,
+    "crop_targets": [
+     "Tomato"
+    ],
+    "last_report_at": "2026-09-26T02:06:42.192264"
+   }
+  ],
+  "provenance": {
+   "source": "KrishiSathi community reports",
+   "kind": "ai_classified_user_reports",
+   "notes": "Clusters of at least 3 AI-classified photo diagnoses of the same disease within 50 km in 7 days. Not laboratory-confirmed."
+  }
+ },
+ "stats": {
+  "generated_at": "2026-09-26T02:06:42.272298Z",
+  "total_diagnoses": 8,
+  "diagnoses_last_7_days": 8,
+  "diagnoses_previous_7_days": 0,
+  "total_advisories": 0,
+  "active_outbreaks": 2,
+  "disease_distribution": {
+   "Late Blight": 4,
+   "Wheat Rust / Stripe Rust": 3
+  },
+  "crop_distribution_30d": {
+   "Tomato": 4,
+   "Wheat": 3,
+   "Rice": 1
+  },
+  "status_distribution_30d": {
+   "disease_detected": 7,
+   "healthy": 1
+  },
+  "daily_diagnoses_30d": [
+   {
+    "date": "2026-09-26",
+    "count": 8
+   }
+  ],
+  "coverage": {
+   "grid_cells_30d": 2,
+   "grid_size_deg": 0.5
+  },
+  "provenance": {
+   "source": "KrishiSathi diagnosis and advisory records",
+   "kind": "ai_classified_user_reports",
+   "notes": "Counts of photos submitted to KrishiSathi and classified by an AI model. They are not official crop statistics and reflect where the app is used."
+  }
+ },
+ "outbreaks": [
+  {
+   "id": "f49f467e-2923-43d2-b117-4c88965cc22d",
+   "disease": "Wheat Rust / Stripe Rust",
+   "location": "Near 30.9, 75.8",
+   "lat": 30.9,
+   "lng": 75.8,
+   "radius_km": 50.0,
+   "severity": "moderate",
+   "report_count": 3,
+   "crop_targets": [
+    "Wheat"
+   ],
+   "timestamp": "2026-09-26T02:06:42.205270",
+   "status": "active"
+  },
+  {
+   "id": "2a27c3d9-8c02-4371-9575-ea5dc4ca513c",
+   "disease": "Late Blight",
+   "location": "Near 18.6, 73.9",
+   "lat": 18.6,
+   "lng": 73.9,
+   "radius_km": 50.0,
+   "severity": "high",
+   "report_count": 4,
+   "crop_targets": [
+    "Tomato"
+   ],
+   "timestamp": "2026-09-26T02:06:42.192264",
+   "status": "active"
+  }
+ ],
+ "states": {
+  "states": [
+   {
+    "code": "PB",
+    "name": "Punjab",
+    "lat": 31.1471,
+    "lng": 75.3412,
+    "default_language": "pa",
+    "primary_crops": [
+     "Wheat",
+     "Rice",
+     "Cotton",
+     "Sugarcane"
+    ]
+   },
+   {
+    "code": "MH",
+    "name": "Maharashtra",
+    "lat": 19.7515,
+    "lng": 75.7139,
+    "default_language": "mr",
+    "primary_crops": [
+     "Cotton",
+     "Sugarcane",
+     "Soybean",
+     "Rice",
+     "Onion"
+    ]
+   },
+   {
+    "code": "KA",
+    "name": "Karnataka",
+    "lat": 15.3173,
+    "lng": 75.7139,
+    "default_language": "kn",
+    "primary_crops": [
+     "Rice",
+     "Sugarcane",
+     "Cotton",
+     "Finger millet",
+     "Maize"
+    ]
+   },
+   {
+    "code": "TN",
+    "name": "Tamil Nadu",
+    "lat": 11.1271,
+    "lng": 78.6569,
+    "default_language": "ta",
+    "primary_crops": [
+     "Rice",
+     "Sugarcane",
+     "Cotton",
+     "Groundnut"
+    ]
+   },
+   {
+    "code": "UP",
+    "name": "Uttar Pradesh",
+    "lat": 26.8467,
+    "lng": 80.9462,
+    "default_language": "hi",
+    "primary_crops": [
+     "Wheat",
+     "Rice",
+     "Sugarcane",
+     "Potato",
+     "Mustard"
+    ]
+   },
+   {
+    "code": "MP",
+    "name": "Madhya Pradesh",
+    "lat": 22.9734,
+    "lng": 78.6569,
+    "default_language": "hi",
+    "primary_crops": [
+     "Soybean",
+     "Wheat",
+     "Rice",
+     "Cotton",
+     "Maize"
+    ]
+   },
+   {
+    "code": "GJ",
+    "name": "Gujarat",
+    "lat": 22.2587,
+    "lng": 71.1924,
+    "default_language": "gu",
+    "primary_crops": [
+     "Cotton",
+     "Groundnut",
+     "Wheat",
+     "Rice"
+    ]
+   },
+   {
+    "code": "WB",
+    "name": "West Bengal",
+    "lat": 22.9868,
+    "lng": 87.855,
+    "default_language": "bn",
+    "primary_crops": [
+     "Rice",
+     "Potato",
+     "Wheat"
+    ]
+   }
+  ],
+  "total_states": 8
+ },
+ "signals": {
+  "total_signals": 1,
+  "states_reporting": 1,
+  "critical_alerts": 0,
+  "disease_signals": 1,
+  "pest_signals": 0,
+  "weather_signals": 0,
+  "signals": [
+   {
+    "signal_id": "s1",
+    "from_state": "MH",
+    "to_state": "KA",
+    "signal_type": "disease_alert",
+    "severity": "high",
+    "message": "Late blight clusters reported near Pune; northern Karnataka tomato growers should scout fields.",
+    "timestamp": "2026-09-25T09:00:00",
+    "metadata": null
+   }
+  ],
+  "generated_at": "2026-09-26T00:00:00",
+  "note": "All data is aggregated and anonymized. Raw farmer records remain within each state's deployment."
+ },
+ "sources": {
+  "sources": [
+   {
+    "id": "weather",
+    "name": "Open-Meteo forecast API",
+    "url": "https://open-meteo.com/",
+    "kind": "model",
+    "status": "configured",
+    "used_for": [
+     "weather",
+     "alerts",
+     "advisory"
+    ]
+   },
+   {
+    "id": "soil",
+    "name": "ISRIC SoilGrids 2.0",
+    "url": "https://soilgrids.org/",
+    "kind": "model",
+    "status": "configured",
+    "used_for": [
+     "soil",
+     "regenerative",
+     "advisory"
+    ]
+   },
+   {
+    "id": "satellite",
+    "name": "Sentinel-2 via Google Earth Engine",
+    "url": "https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR_HARMONIZED",
+    "kind": "satellite_observation",
+    "status": "not_configured",
+    "used_for": [
+     "crop_health"
+    ]
+   },
+   {
+    "id": "ai",
+    "name": "Google Gemini (gemini-2.5-flash)",
+    "url": "https://ai.google.dev/",
+    "kind": "ai_model",
+    "status": "not_configured",
+    "used_for": [
+     "diagnosis",
+     "advisory",
+     "report"
+    ]
+   },
+   {
+    "id": "disease_reference",
+    "name": "Curated disease reference (ICAR institutes)",
+    "url": null,
+    "kind": "curated_reference",
+    "status": "configured",
+    "used_for": [
+     "diagnosis",
+     "advisory"
+    ]
+   },
+   {
+    "id": "community_reports",
+    "name": "KrishiSathi diagnosis records",
+    "url": null,
+    "kind": "ai_classified_user_reports",
+    "status": "configured",
+    "used_for": [
+     "outbreaks",
+     "policy_dashboard"
+    ]
+   },
+   {
+    "id": "federation",
+    "name": "Cross-state federation signals",
+    "url": null,
+    "kind": "authenticated_submissions",
+    "status": "not_configured",
+    "used_for": [
+     "policy_dashboard"
+    ]
+   }
+  ]
+ },
+ "diagnosis": {
+  "status": "disease_detected",
+  "certainty": "moderate",
+  "certainty_reason": "Dark, water-soaked lesions with pale margins on several leaves match late blight; the photo does not show the leaf underside, so white growth cannot be confirmed.",
+  "image_quality": "good",
+  "disease_name": "Late blight",
+  "scientific_name": "Phytophthora infestans",
+  "affected_part": "Leaves",
+  "observed_symptoms": [
+   "Dark brown, water-soaked patches on leaf edges",
+   "Pale green margins around lesions",
+   "Several leaves affected"
+  ],
+  "alternative_causes": [
+   "Early blight (usually has concentric rings)",
+   "Bacterial leaf spot"
+  ],
+  "severity": "high",
+  "spread_risk": "high",
+  "urgency": "immediate",
+  "treatment": {
+   "immediate": [
+    "Remove and destroy badly affected leaves",
+    "Avoid overhead watering"
+   ],
+   "organic": [
+    "Improve spacing and air flow between plants"
+   ],
+   "chemical": [
+    "Mancozeb 75 WP as a preventive spray (per reference)"
+   ],
+   "prevention": [
+    "Use healthy seedlings",
+    "Rotate with non-solanaceous crops"
+   ]
+  },
+  "summary": "The leaves show lesions typical of late blight. Humid weather this week can speed its spread.",
+  "reference": {
+   "id": "late-blight-potato",
+   "name": "Late Blight",
+   "scientific_name": "Phytophthora infestans",
+   "symptoms": "Water-soaked irregular spots on leaves that turn brown/black. White cottony growth on the underside during humid weather. Rapid necrosis of vines.",
+   "treatment": "Ensure proper drainage and use healthy seed tubers. Preventative sprays of Mancozeb 75 WP or systemic fungicides like Metalaxyl are recommended. Consult ICAR-CPRI guidelines for exact dosage.",
+   "sources": [
+    {
+     "organization": "ICAR-Central Potato Research Institute",
+     "title": "Late Blight of Potato and its Management",
+     "url": "https://cpri.icar.gov.in/"
+    }
+   ]
+  },
+  "context_used": {
+   "crop": "provided",
+   "location": "provided",
+   "weather": "used",
+   "reference": "matched"
+  },
+  "recorded": true,
+  "language": "en",
+  "generated_by": {
+   "kind": "ai_model",
+   "model": "gemini-2.5-flash"
+  }
+ },
+ "diagnosis_uncertain": {
+  "status": "uncertain",
+  "certainty": "low",
+  "certainty_reason": "The photo is blurry and the affected area is small.",
+  "image_quality": "poor",
+  "disease_name": null,
+  "scientific_name": null,
+  "affected_part": "Leaves",
+  "observed_symptoms": [
+   "Small yellow patches"
+  ],
+  "alternative_causes": [
+   "Nutrient deficiency",
+   "Early fungal infection"
+  ],
+  "severity": null,
+  "spread_risk": null,
+  "urgency": "soon",
+  "treatment": {
+   "immediate": [
+    "Take a sharper photo in daylight"
+   ],
+   "organic": [],
+   "chemical": [],
+   "prevention": []
+  },
+  "summary": "The cause cannot be identified from this photo.",
+  "reference": null,
+  "context_used": {
+   "crop": "provided",
+   "location": "provided",
+   "weather": "used",
+   "reference": "none_found"
+  },
+  "recorded": true,
+  "language": "en",
+  "generated_by": {
+   "kind": "ai_model",
+   "model": "gemini-2.5-flash"
+  }
+ },
+ "advisory": {
+  "advisory_text": "**What to do now:** Rain of about 12 mm is forecast for tomorrow, so hold irrigation today.\n\n**Why:** The forecast shows an 80% chance of rain and humidity near 88%.\n\n**Watch for:** Leaf spots after the rain; humid days favour late blight in tomato.",
+  "advisory_type": "general",
+  "data_sources": [
+   {
+    "id": "weather",
+    "status": "used"
+   },
+   {
+    "id": "soil",
+    "status": "used"
+   },
+   {
+    "id": "outbreaks",
+    "status": "used"
+   },
+   {
+    "id": "disease_reference",
+    "status": "used"
+   },
+   {
+    "id": "kvk",
+    "status": "used"
+   }
+  ],
+  "language": "en",
+  "generated_at": "2026-09-26T10:20:00+00:00",
+  "recorded": true
+ },
+ "report": {
+  "status": "available",
+  "report_text": "### Key observations\n- 7 confident disease detections in the last 7 days, concentrated around Pune (late blight, tomato) and Ludhiana (stripe rust, wheat).\n\n### Suggested follow-up\n- Ask KVK staff to verify the Pune cluster in the field.\n\n### Limitations\n- Small sample; not official statistics.",
+  "generated_at": "2026-09-26T10:30:00+00:00",
+  "data_as_of": "2026-09-26T10:29:00Z",
+  "kind": "ai_generated_summary"
+ },
+ "error_503": {
+  "error": {
+   "code": "SERVICE_UNAVAILABLE",
+   "message": "Weather data is temporarily unavailable.",
+   "request_id": "3f2a9c1e7b2d4a0f",
+   "retryable": true
+  }
+ }
+}

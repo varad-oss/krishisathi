@@ -1,130 +1,159 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { Camera, MessageSquare, ShieldAlert, BarChart3, Globe2, Sprout } from "lucide-react";
-import { useLanguage } from "@/lib/LanguageContext";
-import { t } from "@/lib/translations";
+import Link from 'next/link';
+import {
+  ArrowRight, BarChart3, Bell, Camera, CheckCircle2, CloudSun, Cpu, Languages, Layers, Leaf, Satellite, ShieldCheck, Sprout, Users,
+} from 'lucide-react';
+import { buttonClass } from '@/components/ui';
+import { useI18n } from '@/lib/i18n';
+import { SUPPORTED_LANGUAGES } from '@/lib/languages';
+import type { MessageKey } from '@/locales/en';
+import { cn } from '@/lib/utils';
+
+const FEATURES: { key: string; icon: React.ElementType; href: string }[] = [
+  { key: 'today', icon: Sprout, href: '/farm#today' },
+  { key: 'diagnose', icon: Camera, href: '/diagnose' },
+  { key: 'weather', icon: CloudSun, href: '/farm#weather' },
+  { key: 'regen', icon: Leaf, href: '/farm#soil' },
+  { key: 'alerts', icon: Bell, href: '/farm#alerts' },
+  { key: 'policy', icon: BarChart3, href: '/dashboard' },
+];
+
+function WorkflowDiagram() {
+  const { t } = useI18n();
+  const signals = [
+    { icon: CloudSun, label: 'wx' },
+    { icon: Layers, label: 'soil' },
+    { icon: Satellite, label: 'sat' },
+    { icon: Camera, label: 'photo' },
+    { icon: Users, label: 'reports' },
+  ];
+  const col = 'flex flex-1 flex-col rounded-2xl border border-line bg-surface p-5 shadow-[var(--shadow-card)]';
+  return (
+    <div className="flex flex-col items-stretch gap-3 lg:flex-row lg:items-center">
+      <div className={col}>
+        <p className="text-xs font-semibold uppercase tracking-wide text-leaf-700">1 · {t('landing.flow.signals')}</p>
+        <div className="my-3 flex gap-2" aria-hidden>
+          {signals.map((s) => (
+            <span key={s.label} className="flex h-9 w-9 items-center justify-center rounded-lg bg-leaf-50 text-leaf-700">
+              <s.icon className="h-4 w-4" />
+            </span>
+          ))}
+        </div>
+        <p className="text-sm text-ink-soft">{t('landing.flow.signalsBody')}</p>
+      </div>
+      <ArrowRight className="mx-auto h-5 w-5 rotate-90 text-line-strong lg:rotate-0" aria-hidden />
+      <div className={col}>
+        <p className="text-xs font-semibold uppercase tracking-wide text-leaf-700">2 · {t('landing.flow.reasoning')}</p>
+        <div className="my-3 flex gap-2" aria-hidden>
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-50 text-sky-700"><Cpu className="h-4 w-4" /></span>
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-50 text-sky-700"><ShieldCheck className="h-4 w-4" /></span>
+        </div>
+        <p className="text-sm text-ink-soft">{t('landing.flow.reasoningBody')}</p>
+      </div>
+      <ArrowRight className="mx-auto h-5 w-5 rotate-90 text-line-strong lg:rotate-0" aria-hidden />
+      <div className={cn(col, 'border-leaf-200 bg-leaf-50')}>
+        <p className="text-xs font-semibold uppercase tracking-wide text-leaf-700">3 · {t('landing.flow.action')}</p>
+        <div className="my-3 flex gap-2" aria-hidden>
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-surface text-leaf-700"><CheckCircle2 className="h-4 w-4" /></span>
+        </div>
+        <p className="text-sm text-ink-soft">{t('landing.flow.actionBody')}</p>
+      </div>
+    </div>
+  );
+}
 
 export default function Home() {
-  const { language } = useLanguage();
+  const { t } = useI18n();
   return (
-    <div className="flex-1 bg-white">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden bg-green-50 pt-24 pb-32">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center animate-fade-in">
-          <div className="inline-flex items-center gap-2 rounded-full bg-green-100 px-4 py-2 text-sm font-medium text-green-800 mb-8">
-            <span className="flex h-2 w-2 rounded-full bg-green-600"></span>
-            {t("Interoperable Digital Agriculture Network", language)}
-          </div>
-          
-          <h1 className="mx-auto max-w-4xl text-5xl font-extrabold tracking-tight text-gray-900 sm:text-6xl lg:text-7xl">
-            {t("KrishiSathi", language)}
-            <span className="block text-3xl sm:text-4xl lg:text-5xl mt-2 text-green-700">
-              {t("Climate-Resilient Farming Intelligence", language)}
-            </span>
-          </h1>
-          
-          <p className="mx-auto mt-6 max-w-3xl text-lg text-gray-600 sm:text-xl">            {t("A scalable digital public good enabling Indian states to share agricultural data models. Delivering real-time, localized agro-advisories, regenerative crop recommendations based on satellite data, soil health, and weather forecasting.", language)}
+    <div className="flex-1">
+      <section className="relative overflow-hidden bg-leaf-900 text-white">
+        <svg aria-hidden className="absolute inset-x-0 bottom-0 h-24 w-full text-leaf-700/40" viewBox="0 0 1200 100" preserveAspectRatio="none">
+          <path d="M0 70 C 200 40, 400 40, 600 60 S 1000 90, 1200 55 V100 H0Z" fill="currentColor" />
+          <path d="M0 85 C 250 65, 500 70, 700 82 S 1050 95, 1200 80 V100 H0Z" fill="currentColor" opacity="0.6" />
+        </svg>
+        <div className="relative mx-auto max-w-6xl px-4 pb-20 pt-14 sm:px-6 sm:pt-20">
+          <p className="inline-flex items-center gap-2 rounded-full bg-leaf-700/70 px-3 py-1 text-xs font-medium text-leaf-100 ring-1 ring-leaf-500/50">
+            <Sprout className="h-3.5 w-3.5" aria-hidden /> {t('landing.badge')}
           </p>
-          
-          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link
-              href="/chat"
-              className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-lg bg-green-700 px-8 py-4 text-lg font-semibold text-white shadow-lg shadow-green-700/30 transition-all hover:bg-green-800 hover:-translate-y-1"
-            >
-              <MessageSquare className="h-5 w-5" />
-              {t("Get Regenerative Advisory", language)}
+          <h1 className="mt-5 max-w-3xl text-3xl font-semibold leading-tight tracking-tight sm:text-5xl sm:leading-[1.1]">{t('landing.title')}</h1>
+          <p className="mt-5 max-w-2xl text-base text-leaf-100 sm:text-lg">{t('landing.subtitle')}</p>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <Link href="/farm" className={cn(buttonClass.primary, 'bg-white text-leaf-900 hover:bg-leaf-50')}>
+              <Sprout className="h-4 w-4" aria-hidden /> {t('landing.ctaFarm')}
             </Link>
-            <Link
-              href="/diagnose"
-              className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-lg bg-white border-2 border-gray-200 px-8 py-4 text-lg font-semibold text-gray-700 transition-all hover:border-green-600 hover:text-green-700 hover:-translate-y-1"
-            >
-              <Camera className="h-5 w-5" />
-              {t("Crop Diagnostic Tool", language)}
+            <Link href="/diagnose" className={cn(buttonClass.secondary, 'border-leaf-500 bg-transparent text-white hover:border-white hover:text-white')}>
+              <Camera className="h-4 w-4" aria-hidden /> {t('landing.ctaDiagnose')}
+            </Link>
+            <Link href="/dashboard" className={cn(buttonClass.ghost, 'text-leaf-100 hover:bg-leaf-700/60')}>
+              {t('landing.ctaPolicy')} <ArrowRight className="h-4 w-4" aria-hidden />
             </Link>
           </div>
         </div>
       </section>
 
-      {/* How It Works Section */}
-      <section className="py-24 bg-white">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">{t("Comprehensive Agricultural Network", language)}</h2>
-            <p className="mt-4 text-lg text-gray-600">{t("Strengthening cooperation on sustainable food production", language)}</p>
-          </div>
+      <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6" aria-labelledby="how-title">
+        <h2 id="how-title" className="text-2xl font-semibold tracking-tight sm:text-3xl">{t('landing.flow.title')}</h2>
+        <p className="mb-8 mt-2 text-ink-soft">{t('landing.flow.subtitle')}</p>
+        <WorkflowDiagram />
+      </section>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-            {[
-              { icon: Globe2, title: t("1. Data Aggregation", language), desc: t("We ingest live satellite NDVI data, Open-Meteo weather forecasts, and regional soil health metrics.", language) },
-              { icon: Sprout, title: t("2. Regenerative AI", language), desc: t("Gemini 2.5 generates hyper-localized, regenerative crop recommendations tailored to your exact microclimate.", language) },
-              { icon: ShieldAlert, title: t("3. Interoperable Sync", language), desc: t("Data models and disease outbreak patterns are shared securely across Indian states to strengthen national resilience.", language) }
-            ].map((step, idx) => (
-              <div key={idx} className="flex flex-col items-center text-center group">
-                <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-green-100 text-green-700 transition-all group-hover:scale-110 group-hover:bg-green-600 group-hover:text-white mb-6">
-                  <step.icon className="h-10 w-10" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">{step.title}</h3>
-                <p className="text-gray-600">{step.desc}</p>
-              </div>
+      <section className="border-y border-line bg-surface" aria-labelledby="features-title">
+        <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
+          <h2 id="features-title" className="mb-8 text-2xl font-semibold tracking-tight sm:text-3xl">{t('landing.features.title')}</h2>
+          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {FEATURES.map((f) => (
+              <li key={f.key}>
+                <Link href={f.href} className="group flex h-full flex-col rounded-2xl border border-line bg-paper p-5 transition-colors hover:border-leaf-500 hover:bg-surface">
+                  <f.icon className="h-6 w-6 text-leaf-600" aria-hidden />
+                  <h3 className="mt-3 font-semibold">{t(`landing.feature.${f.key}.title` as MessageKey)}</h3>
+                  <p className="mt-1 flex-1 text-sm text-ink-soft">{t(`landing.feature.${f.key}.body` as MessageKey)}</p>
+                  <ArrowRight className="mt-3 h-4 w-4 text-leaf-600 transition-transform group-hover:translate-x-1" aria-hidden />
+                </Link>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       </section>
 
-      {/* Key Features Grid */}
-      <section className="py-24 bg-gray-50 border-y">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">{t("Comprehensive Platform", language)}</h2>
-            <p className="mt-4 text-lg text-gray-600">{t("Built for farmers, optimized for policymakers", language)}</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[
-              { icon: Camera, title: t("Crop Disease Diagnosis", language), desc: t("AI-powered computer vision to instantly identify 38+ common crop diseases from photos.", language) },
-              { icon: Globe2, title: t("10+ Languages", language), desc: t("Fully accessible in Hindi, Marathi, Tamil, Telugu, Bengali, Kannada, Gujarati, Punjabi, Malayalam, and more regional dialects.", language) },
-              { icon: Globe2, title: t("Satellite Monitoring", language), desc: t("Earth Engine integration for NDVI crop health tracking across vast regions.", language) },
-              { icon: ShieldAlert, title: t("Real-time Alerts", language), desc: t("Automated early warning systems for disease outbreaks and extreme weather.", language) },
-              { icon: BarChart3, title: t("Policymaker Dashboard", language), desc: t("Aggregated, anonymized data for national-level agricultural decision making.", language) },
-              { icon: MessageSquare, title: t("Cross-State Intelligence", language), desc: t("Seamless cross-state data sharing and shared learning models between Indian states.", language) }
-            ].map((feature, idx) => (
-              <div key={idx} className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 transition-all hover:shadow-md hover:border-green-200">
-                <feature.icon className="h-8 w-8 text-green-600 mb-4" />
-                <h3 className="text-lg font-bold text-gray-900 mb-2">{feature.title}</h3>
-                <p className="text-gray-600">{feature.desc}</p>
-              </div>
+      <section className="mx-auto grid max-w-6xl gap-5 px-4 py-14 sm:px-6 lg:grid-cols-2">
+        <div className="rounded-2xl border border-line bg-surface p-6" aria-labelledby="trust-title">
+          <ShieldCheck className="h-7 w-7 text-leaf-600" aria-hidden />
+          <h2 id="trust-title" className="mt-3 text-xl font-semibold">{t('landing.trust.title')}</h2>
+          <p className="mt-2 text-ink-soft">{t('landing.trust.body')}</p>
+          <ul className="mt-4 space-y-2 text-sm">
+            {(['landing.trust.point1', 'landing.trust.point2', 'landing.trust.point3', 'landing.trust.point4'] as const).map((k) => (
+              <li key={k} className="flex items-start gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-leaf-600" aria-hidden /> {t(k)}
+              </li>
             ))}
-          </div>
+          </ul>
+          <Link href="/about" className={cn(buttonClass.ghost, 'mt-4 -ml-3')}>
+            {t('nav.about')} <ArrowRight className="h-4 w-4" aria-hidden />
+          </Link>
+        </div>
+        <div className="rounded-2xl border border-line bg-surface p-6" aria-labelledby="lang-title">
+          <Languages className="h-7 w-7 text-leaf-600" aria-hidden />
+          <h2 id="lang-title" className="mt-3 text-xl font-semibold">{t('landing.lang.title')}</h2>
+          <p className="mt-2 text-ink-soft">{t('landing.lang.body')}</p>
+          <ul className="mt-4 flex flex-wrap gap-2">
+            {SUPPORTED_LANGUAGES.map((l) => (
+              <li key={l.code} lang={l.code} className="rounded-full bg-paper px-3 py-1 text-sm ring-1 ring-line">
+                {l.nativeName}
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 
-      {/* Tech Stack Section */}
-      <section className="py-24 bg-white">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl mb-12">{t("Powered by Google AI", language)}</h2>
-          <div className="flex flex-wrap justify-center gap-8 items-center">
-            {["Gemini 2.5 Flash", "Vertex AI Studio", "Google Earth Engine", "Translation API", "Google Maps Platform"].map((tech, idx) => (
-              <div key={idx} className="px-6 py-3 rounded-full bg-gray-50 border text-gray-700 font-medium shadow-sm">
-                {tech}
-              </div>
-            ))}
+      <section className="bg-leaf-50" aria-labelledby="cta-title">
+        <div className="mx-auto flex max-w-6xl flex-col items-start gap-4 px-4 py-12 sm:px-6 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 id="cta-title" className="text-2xl font-semibold tracking-tight">{t('landing.cta.title')}</h2>
+            <p className="mt-1 text-ink-soft">{t('landing.cta.body')}</p>
           </div>
-        </div>
-      </section>
-
-      {/* Footer CTA */}
-      <section className="py-24 bg-green-900 text-white">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-6">{t("Ready to protect your harvest?", language)}</h2>
-          <p className="text-xl text-green-100 mb-10 max-w-2xl mx-auto">
-            {t("Join millions of Indian farmers using KrishiSathi to ensure food security and improve yields.", language)}
-          </p>
-          <Link
-            href="/diagnose"
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-white px-8 py-4 text-lg font-bold text-green-900 transition-all hover:bg-green-50 hover:scale-105"
-          >
-            {t("Start Diagnosing Now", language)}
+          <Link href="/farm" className={buttonClass.primary}>
+            {t('landing.ctaFarm')} <ArrowRight className="h-4 w-4" aria-hidden />
           </Link>
         </div>
       </section>

@@ -6,13 +6,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test tests/i18n.test.mjs",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.20",
-    "@vis.gl/react-google-maps": "^1.9.0",
     "clsx": "^2.1.1",
-    "date-fns": "^4.4.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.33.0",
     "next": "16.3.6",
@@ -25,6 +26,7 @@
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "@tailwindcss/postcss": "^4",
     "@types/leaflet": "^1.9.22",
     "@types/node": "^20",

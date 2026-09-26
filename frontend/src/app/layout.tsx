@@ -1,32 +1,38 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
-import { LanguageProvider } from '@/lib/LanguageContext';
+import MobileNav from '@/components/layout/MobileNav';
+import Providers from './providers';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ['latin'], display: 'swap', variable: '--font-inter' });
 
 export const metadata: Metadata = {
-  title: 'KrishiSathi | AI-Powered Agriculture Intelligence',
-  description: 'AI-Powered Agriculture Intelligence for Indian States',
+  title: { default: 'KrishiSathi — Agricultural intelligence for climate-resilient farming', template: '%s · KrishiSathi' },
+  description:
+    'Explained, localized farm advice from weather forecasts, soil data, satellite signals and crop photos, with honest data provenance. Available in 10 Indian languages.',
+  manifest: '/manifest.json',
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#245533',
+};
+
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <body className={`${inter.className} min-h-screen flex flex-col`}>
-        <LanguageProvider>
+    <html lang="en" className={inter.variable}>
+      <body className="flex min-h-screen flex-col font-sans antialiased">
+        <Providers>
           <Header />
-          <main className="flex-1 flex flex-col">
+          <main id="main" className="flex flex-1 flex-col pb-20 md:pb-0">
             {children}
           </main>
           <Footer />
-        </LanguageProvider>
+          <MobileNav />
+        </Providers>
       </body>
     </html>
   );

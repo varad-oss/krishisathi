@@ -1,77 +1,95 @@
-import { ShieldCheck, Database, Zap } from 'lucide-react';
+'use client';
 
-export default function AboutModelPage() {
+import { BookOpen, Camera, Database, Lock, Scale } from 'lucide-react';
+import { Card, CardTitle, ErrorState, LoadingBlock } from '@/components/ui';
+import { getSources } from '@/lib/api';
+import { useI18n } from '@/lib/i18n';
+import { useResource } from '@/lib/use-resource';
+import type { MessageKey } from '@/locales/en';
+import { cn } from '@/lib/utils';
+
+export default function AboutPage() {
+  const { t } = useI18n();
+  const sources = useResource((s) => getSources(s), []);
+
   return (
-    <div className="flex-1 bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto space-y-8">
-        
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900">About Our AI Model</h1>
-          <p className="mt-4 text-lg text-gray-600">
-            KrishiSathi&apos;s diagnosis engine is powered by Google&apos;s Gemini 2.5 Flash, 
-            fine-tuned and validated against Indian agricultural datasets.
-          </p>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 space-y-6">
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-green-50 text-green-600 rounded-xl">
-              <ShieldCheck className="h-6 w-6" />
-            </div>
-            <div>
-              <h3 className="text-xl font-bold text-gray-900">Validation & Accuracy</h3>
-              <p className="mt-2 text-gray-600 leading-relaxed">
-                Our model was rigorously validated against a localized subset of the 
-                <strong> PlantVillage dataset</strong>, encompassing over 54,000 images 
-                of crop leaves across 14 crop species and 26 diseases. In our benchmark tests:
-              </p>
-              <ul className="mt-4 space-y-2 text-gray-700 list-disc pl-5">
-                <li><strong>93.4% overall Top-1 accuracy</strong> on the holdout test set</li>
-                <li><strong>97.1% accuracy</strong> distinguishing healthy vs. diseased tissue</li>
-                <li><strong>91.2% precision</strong> on common Indian cash crops (Cotton, Sugarcane)</li>
-              </ul>
-            </div>
-          </div>
-
-          <hr className="border-gray-100" />
-
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
-              <Database className="h-6 w-6" />
-            </div>
-            <div>
-              <h3 className="text-xl font-bold text-gray-900">Data Sources</h3>
-              <p className="mt-2 text-gray-600 leading-relaxed">
-                Beyond image recognition, diagnoses and advisories are contextually enriched 
-                with real-time regional data to improve accuracy and relevance:
-              </p>
-              <ul className="mt-4 space-y-2 text-gray-700 list-disc pl-5">
-                <li><strong>Live Meteorological Data:</strong> Open-Meteo for localized temperature, humidity, and rainfall context</li>
-                <li><strong>Soil Health context:</strong> Proxy data based on India&apos;s Soil Health Card scheme averages</li>
-                <li><strong>Crop Calendars:</strong> State-specific sowing and harvesting windows</li>
-              </ul>
-            </div>
-          </div>
-
-          <hr className="border-gray-100" />
-
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-orange-50 text-orange-600 rounded-xl">
-              <Zap className="h-6 w-6" />
-            </div>
-            <div>
-              <h3 className="text-xl font-bold text-gray-900">Safety & Fallbacks</h3>
-              <p className="mt-2 text-gray-600 leading-relaxed">
-                Agricultural AI must be safe. We implement strict guardrails:
-              </p>
-              <ul className="mt-4 space-y-2 text-gray-700 list-disc pl-5">
-                <li><strong>Low-Confidence Threshold:</strong> Any diagnosis with &lt;75% confidence triggers an automatic fallback warning advising the farmer to consult a local Krishi Vigyan Kendra (KVK).</li>
-                <li><strong>No Harmful Interventions:</strong> All chemical treatments are cross-referenced with Central Insecticides Board & Registration Committee (CIB&RC) approved lists.</li>
-              </ul>
-            </div>
-          </div>
-        </div>
+    <div className="mx-auto w-full max-w-3xl space-y-5 px-4 pb-10 pt-6 sm:px-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t('about.title')}</h1>
+        <p className="mt-1 text-ink-soft">{t('about.subtitle')}</p>
       </div>
+
+      <Card aria-labelledby="sources-title">
+        <CardTitle icon={Database} id="sources-title">
+          {t('about.sources.title')}
+        </CardTitle>
+        {sources.status === 'loading' && <LoadingBlock lines={5} />}
+        {sources.status === 'error' && <ErrorState error={sources.error} onRetry={sources.reload} title={t('about.sources.unavailable')} />}
+        {sources.data && (
+          <ul className="divide-y divide-line">
+            {sources.data.map((s) => (
+              <li key={s.id} className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-medium" lang="en">
+                    {s.url ? (
+                      <a href={s.url} target="_blank" rel="noopener noreferrer" className="underline decoration-line-strong underline-offset-2 hover:text-leaf-700">
+                        {s.name}
+                      </a>
+                    ) : (
+                      s.name
+                    )}
+                  </p>
+                  <p className="text-xs text-ink-faint">{t(`kind.${s.kind}` as MessageKey)}</p>
+                </div>
+                <span
+                  className={cn(
+                    'self-start rounded-full px-2.5 py-0.5 text-xs font-semibold sm:self-center',
+                    s.status === 'configured' ? 'bg-leaf-50 text-leaf-700' : 'bg-paper text-ink-faint ring-1 ring-line',
+                  )}
+                >
+                  {t(`about.sources.status.${s.status}` as MessageKey)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      <Card aria-labelledby="diag-title">
+        <CardTitle icon={Camera} id="diag-title">
+          {t('about.diagnosis.title')}
+        </CardTitle>
+        <div className="space-y-3 text-ink-soft">
+          <p>{t('about.diagnosis.body')}</p>
+          <p>{t('about.diagnosis.safety')}</p>
+          <p className="font-medium text-ink">{t('about.diagnosis.accuracy')}</p>
+        </div>
+      </Card>
+
+      <Card aria-labelledby="rules-title">
+        <CardTitle icon={Scale} id="rules-title">
+          {t('about.rules.title')}
+        </CardTitle>
+        <p className="text-ink-soft">{t('about.rules.body')}</p>
+      </Card>
+
+      <Card aria-labelledby="privacy-title">
+        <CardTitle icon={Lock} id="privacy-title">
+          {t('about.privacy.title')}
+        </CardTitle>
+        <p className="text-ink-soft">{t('about.privacy.body')}</p>
+      </Card>
+
+      <Card aria-labelledby="limits-title" className="bg-soil-50/60">
+        <CardTitle icon={BookOpen} id="limits-title">
+          {t('about.limits.title')}
+        </CardTitle>
+        <ul className="list-disc space-y-1.5 pl-5 text-ink-soft">
+          {(['about.limits.1', 'about.limits.2', 'about.limits.3', 'about.limits.4'] as const).map((k) => (
+            <li key={k}>{t(k)}</li>
+          ))}
+        </ul>
+      </Card>
     </div>
   );
 }

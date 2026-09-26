@@ -1,15 +1,17 @@
+'use client';
+
 import Link from 'next/link';
+import { buttonClass } from '@/components/ui';
+import { useI18n } from '@/lib/i18n';
 
 export default function NotFound() {
+  const { t } = useI18n();
   return (
-    <div className="flex flex-col items-center justify-center min-h-[50vh] p-8 text-center">
-      <h2 className="text-3xl font-bold text-gray-800 mb-4">Page Not Found</h2>
-      <p className="text-gray-600 mb-8">The page you are looking for does not exist or has been moved.</p>
-      <Link 
-        href="/"
-        className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-      >
-        Return Home
+    <div className="mx-auto flex max-w-md flex-1 flex-col items-center justify-center px-4 py-20 text-center">
+      <h1 className="text-2xl font-semibold">{t('notFound.title')}</h1>
+      <p className="mt-2 text-ink-soft">{t('notFound.body')}</p>
+      <Link href="/" className={`${buttonClass.primary} mt-6`}>
+        {t('notFound.home')}
       </Link>
     </div>
   );

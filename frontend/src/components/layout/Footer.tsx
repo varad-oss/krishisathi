@@ -1,43 +1,30 @@
+'use client';
+
 import Link from 'next/link';
+import { useI18n } from '@/lib/i18n';
+import Logo from './Logo';
 
 export default function Footer() {
+  const { t } = useI18n();
   return (
-    <footer className="bg-gray-50 border-t">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-          <div className="flex flex-col items-center sm:items-start">
-            <span className="text-xl font-bold text-green-900 flex items-center gap-2">
-              🌾 KrishiSathi
-            </span>
-            <p className="mt-2 text-sm text-gray-500">
-              Built for Build with AI: Code for Communities
+    <footer className="border-t border-line bg-surface">
+      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+          <div className="max-w-md">
+            <p className="flex items-center gap-2 font-semibold text-ink">
+              <Logo className="h-6 w-6" /> {t('app.name')}
             </p>
+            <p className="mt-2 text-sm text-ink-soft">{t('footer.disclaimer')}</p>
           </div>
-          
-          <div className="flex flex-col items-center sm:items-end gap-2">
-            <div className="flex gap-4">
-              <Link href="#" className="text-sm text-gray-600 hover:text-green-700">
-                GitHub
-              </Link>
-              <Link href="#" className="text-sm text-gray-600 hover:text-green-700">
-                AgriN Initiative
-              </Link>
-              <Link href="#" className="text-sm text-gray-600 hover:text-green-700">
-                Privacy
-              </Link>
-            </div>
-            <div className="mt-2 flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 border border-blue-100">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
-              </span>
-              Powered by Google AI
-            </div>
-          </div>
+          <nav aria-label={t('nav.about')} className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+            <Link href="/about" className="text-ink-soft hover:text-leaf-700">{t('nav.about')}</Link>
+            <Link href="/dashboard" className="text-ink-soft hover:text-leaf-700">{t('nav.policy')}</Link>
+            <a href="https://github.com/varad-oss/krishisathi" target="_blank" rel="noopener noreferrer" className="text-ink-soft hover:text-leaf-700">
+              {t('footer.code')}
+            </a>
+          </nav>
         </div>
-        <div className="mt-8 border-t border-gray-200 pt-8 text-center text-sm text-gray-500">
-          &copy; {new Date().getFullYear()} KrishiSathi. All rights reserved.
-        </div>
+        <p className="mt-6 border-t border-line pt-4 text-xs text-ink-faint">{t('footer.built')}</p>
       </div>
     </footer>
   );

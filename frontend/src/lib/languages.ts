@@ -1,4 +1,4 @@
-import { Language } from './types';
+import type { Language } from './types';
 
 export const SUPPORTED_LANGUAGES: Language[] = [
   { code: 'en', name: 'English', nativeName: 'English' },
@@ -12,8 +12,3 @@ export const SUPPORTED_LANGUAGES: Language[] = [
   { code: 'pa', name: 'Punjabi', nativeName: 'ਪੰਜਾਬੀ' },
   { code: 'ml', name: 'Malayalam', nativeName: 'മലയാളം' },
 ];
-
-export function getLanguageName(code: string): string {
-  const lang = SUPPORTED_LANGUAGES.find(l => l.code === code);
-  return lang?.nativeName || 'English';
-}

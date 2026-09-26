@@ -1,30 +1,21 @@
-'use client'; // Error components must be Client Components
+'use client';
 
 import { useEffect } from 'react';
+import { buttonClass } from '@/components/ui';
+import { useI18n } from '@/lib/i18n';
 
-export default function Error({
-  error,
-  reset,
-}: {
-  error: Error & { digest?: string };
-  reset: () => void;
-}) {
+export default function ErrorPage({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  const { t } = useI18n();
   useEffect(() => {
-    // Log the error to an error reporting service
     console.error(error);
   }, [error]);
-
   return (
-    <div className="flex flex-col items-center justify-center min-h-[50vh] p-8 text-center">
-      <h2 className="text-2xl font-bold text-red-600 mb-4">Something went wrong!</h2>
-      <p className="text-gray-600 mb-6">
-        {error.message || "An unexpected error occurred while communicating with the server."}
-      </p>
-      <button
-        onClick={() => reset()}
-        className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-      >
-        Try again
+    <div role="alert" className="mx-auto flex max-w-md flex-1 flex-col items-center justify-center px-4 py-20 text-center">
+      <h1 className="text-2xl font-semibold">{t('errorPage.title')}</h1>
+      <p className="mt-2 text-ink-soft">{t('errorPage.body')}</p>
+      {error.digest && <p className="mt-1 text-xs text-ink-faint">{t('error.reference', { id: error.digest })}</p>}
+      <button type="button" onClick={reset} className={`${buttonClass.primary} mt-6`}>
+        {t('action.retry')}
       </button>
     </div>
   );

@@ -1,58 +1,101 @@
-@import "leaflet/dist/leaflet.css";
-
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+/*
+ * KrishiSathi design tokens: calm earth tones, one leaf-green action colour,
+ * and severity colours reserved for risk only (never decoration).
+ */
+@theme {
+  --font-sans: var(--font-inter), "Noto Sans", "Noto Sans Devanagari", "Noto Sans Tamil", "Noto Sans Telugu",
+    "Noto Sans Bengali", "Noto Sans Kannada", "Noto Sans Gujarati", "Noto Sans Gurmukhi", "Noto Sans Malayalam",
+    system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  --color-paper: #f7f6f1;
+  --color-surface: #ffffff;
+  --color-ink: #1b2a20;
+  --color-ink-soft: #4d5c52;
+  --color-ink-faint: #6f7d73;
+  --color-line: #e3e1d6;
+  --color-line-strong: #cfccbf;
+
+  --color-leaf-50: #eef5ec;
+  --color-leaf-100: #dcebd8;
+  --color-leaf-200: #b9d7b2;
+  --color-leaf-500: #3f7f4d;
+  --color-leaf-600: #2f6b3f;
+  --color-leaf-700: #245533;
+  --color-leaf-900: #16331f;
+
+  --color-soil-50: #f7efe5;
+  --color-soil-100: #efdfcb;
+  --color-soil-500: #9a6534;
+  --color-soil-700: #6e4522;
+
+  --color-sky-50: #e8f1f6;
+  --color-sky-100: #d2e4ee;
+  --color-sky-600: #2b6a8a;
+  --color-sky-700: #22566f;
+
+  --color-watch-50: #fcf3e1;
+  --color-watch-200: #f1d9a4;
+  --color-watch-700: #8a5a0c;
+  --color-warn-50: #fdeceb;
+  --color-warn-200: #f4c1bd;
+  --color-warn-700: #a3261b;
+
+  --radius-card: 1rem;
+  --shadow-card: 0 1px 2px rgb(27 42 32 / 0.05), 0 1px 1px rgb(27 42 32 / 0.03);
 }
 
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
+:root {
+  color-scheme: light;
 }
 
-::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 4px;
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  line-height: 1.55;
+  font-feature-settings: "cv11", "ss01";
 }
 
-/* Animations */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
+/* Indic scripts need extra line height for matras and conjuncts. */
+html:not([lang="en"]) body {
+  line-height: 1.7;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-sky-600);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.5s ease-out forwards;
+.animate-rise {
+  animation: rise 0.35s ease-out both;
 }
 
-.animate-fade-in-delayed {
-  animation: fadeIn 0.5s ease-out 0.2s forwards;
-  opacity: 0;
+.scroll-mt-header {
+  scroll-margin-top: 7rem;
 }
 
-/* Smooth scroll */
-html {
-  scroll-behavior: smooth;
-}
-
-/* Custom scrollbar for constrained height containers */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(156, 163, 175, 0.3); /* gray-400 with opacity */
-  border-radius: 10px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(156, 163, 175, 0.5);
-}
+/* Leaflet styles are imported by the lazily-loaded map component only. */
