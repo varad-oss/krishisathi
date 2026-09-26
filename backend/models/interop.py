@@ -8,7 +8,7 @@ GET aggregated views. This is the core "Digital Public Good" data contract.
 
 from pydantic import BaseModel, ConfigDict, Field
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 
@@ -50,7 +50,7 @@ class RegionalAgriSignal(BaseModel):
     report_count: Optional[int] = Field(None, ge=0, description="Number of aggregated farmer reports")
     ndvi_trend: Optional[float] = Field(None, ge=-1, le=1, description="NDVI change over last 2 weeks (-1.0 to 1.0)")
     soil_health_index: Optional[float] = Field(None, ge=0, le=100, description="Composite soil health score (0-100)")
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     metadata: Optional[dict] = Field(None, description="Additional key-value metadata")
 
     model_config = ConfigDict(json_schema_extra={
@@ -92,7 +92,7 @@ class AggregatedStateReport(BaseModel):
     pest_signals: int
     weather_signals: int
     signals: List[RegionalAgriSignal]
-    generated_at: datetime = Field(default_factory=datetime.utcnow)
+    generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     note: str = "All data is aggregated and anonymized. Raw farmer records remain within each state's deployment."
 
 

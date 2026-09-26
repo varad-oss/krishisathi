@@ -6,7 +6,7 @@ from models.schema import DiagnosisRecord, AdvisoryRecord, OutbreakRecord, Feder
 from models.interop import RegionalAgriSignal
 import math
 from datetime import timedelta
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -225,7 +225,7 @@ class PersistenceService:
                     "severity": normalize_level(r.aggregated_severity) or "moderate",
                     "report_count": r.report_count,
                     "crop_targets": r.crop_targets or [],
-                    "timestamp": r.timestamp.isoformat(),
+                    "timestamp": r.timestamp.replace(tzinfo=timezone.utc).isoformat(),  # stored as naive UTC
                     "status": r.status
                 } for r in records
             ]
@@ -235,7 +235,7 @@ class PersistenceService:
             async with AsyncSessionLocal() as session:
                 record = FederationSignalRecord(
                     id=signal.signal_id,
-                    timestamp=signal.timestamp,
+                    timestamp=signal.timestamp.astimezone(timezone.utc).replace(tzinfo=None) if signal.timestamp.tzinfo else signal.timestamp,
                     from_state=signal.from_state,
                     to_state=signal.to_state,
                     signal_type=signal.signal_type,
@@ -263,7 +263,7 @@ class PersistenceService:
             for r in records:
                 signals.append(RegionalAgriSignal(
                     signal_id=r.id,
-                    timestamp=r.timestamp,
+                    timestamp=r.timestamp.replace(tzinfo=timezone.utc) if r.timestamp.tzinfo is None else r.timestamp,
                     from_state=r.from_state,
                     to_state=r.to_state,
                     signal_type=r.signal_type,
@@ -329,7 +329,7 @@ class PersistenceService:
             "disease_distribution": {r[0]: r[1] for r in disease_rows},
             "crop_distribution_30d": {r[0]: r[1] for r in crop_rows},
             "status_distribution_30d": {r[0]: r[1] for r in status_rows},
-            "daily_diagnoses_30d": [{"date": str(r[0]), "count": r[1]} for r in daily_rows],
+            "daily_diagnoses_30d": [{"date": str(r[0])[:10], "count": r[1]} for r in daily_rows],
             "coverage": {"grid_cells_30d": len(cells), "grid_size_deg": 0.5},
             "provenance": {
                 "source": "KrishiSathi diagnosis and advisory records",
