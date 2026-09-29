@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { Bell, Camera, CheckCircle2, CloudRain, CloudSun, Droplets, MessageCircle, Thermometer, Wind } from 'lucide-react';
+import { ArrowRight, Bell, Camera, CheckCircle2, CloudRain, CloudSun, Droplets, MapPin, MessageCircle, Sprout, TrendingDown, TrendingUp, Wind } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import type { Resource } from '@/lib/use-resource';
-import type { FarmConditions, ForecastDay, PersonalizedAlerts } from '@/lib/types';
+import type { CropHealth, FarmConditions, ForecastDay, PersonalizedAlerts } from '@/lib/types';
 import type { MessageKey } from '@/locales/en';
-import { buttonClass, Card, CardTitle, ErrorState, LoadingBlock, ProvenanceLine, SeverityBadge, Skeleton } from '../ui';
+import { cn } from '@/lib/utils';
+import { buttonClass, Card, CardTitle, ErrorState, KindTag, LoadingBlock, ProvenanceLine, SeverityBadge, severityDot, Skeleton } from '../ui';
 import { insightView, outbreakView, SEVERITY_RANK, type AlertView } from './insight-text';
 
 export function useAlertViews(conditions: Resource<FarmConditions>, alerts: Resource<PersonalizedAlerts>, crop: string | null): AlertView[] {
@@ -16,13 +17,49 @@ export function useAlertViews(conditions: Resource<FarmConditions>, alerts: Reso
   return [...weather, ...outbreaks].sort((a, b) => SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity]);
 }
 
+const accent: Record<string, string> = { info: 'bg-sky-600', watch: 'bg-watch-500', warning: 'bg-warn-500' };
+
+/** Crop condition in one line: satellite NDVI trend when available, otherwise an honest "no reading". */
+function CropCondition({ health, cropLabel }: { health: Resource<CropHealth>; cropLabel: string | null }) {
+  const { t, fmt } = useI18n();
+  const h = health.data;
+  let body: React.ReactNode;
+  if (!h && health.status === 'loading') body = <Skeleton className="h-5 w-40" />;
+  else if (h?.status === 'available' && h.ndvi != null) {
+    const falling = h.change != null && h.change < 0;
+    body = (
+      <span className="flex flex-wrap items-center gap-x-2">
+        <span className="font-semibold tabular-nums">{t('farm.crop.ndvi')} {fmt.num(h.ndvi, 2)}</span>
+        {h.change != null && (
+          <span className={cn('inline-flex items-center gap-1 tabular-nums', falling ? 'text-warn-700' : 'text-leaf-700')}>
+            {falling ? <TrendingDown className="h-4 w-4" aria-hidden /> : <TrendingUp className="h-4 w-4" aria-hidden />}
+            {h.change > 0 ? '+' : ''}
+            {fmt.num(h.change, 2)}
+          </span>
+        )}
+      </span>
+    );
+  } else body = <span className="text-ink-faint">{t('farm.today.noSatellite')}</span>;
+  return (
+    <div className="flex items-start gap-3">
+      <Sprout className="mt-0.5 h-5 w-5 shrink-0 text-leaf-600" aria-hidden />
+      <div className="min-w-0 text-sm">
+        <p className="text-ink-soft">{cropLabel ? t('farm.today.cropCondition', { crop: cropLabel }) : t('farm.crop.title')}</p>
+        <div className="mt-0.5">{body}</div>
+      </div>
+    </div>
+  );
+}
+
 export function TodayCard({
   conditions,
+  health,
   views,
   locationLabel,
   cropLabel,
 }: {
   conditions: Resource<FarmConditions>;
+  health: Resource<CropHealth>;
   views: AlertView[];
   locationLabel: string;
   cropLabel: string | null;
@@ -30,71 +67,111 @@ export function TodayCard({
   const { t, fmt } = useI18n();
   const top = views[0];
   const cur = conditions.data?.current;
+  const today = conditions.data?.daily[0];
+  const more = views.length - 1;
 
   return (
-    <Card aria-labelledby="today-title" className="scroll-mt-header border-leaf-200 bg-gradient-to-b from-leaf-50 to-surface" id="today">
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-leaf-700">
-            {locationLabel}
-            {cropLabel && <span className="text-ink-soft"> · {cropLabel}</span>}
+    <section id="today" aria-labelledby="today-title" className="scroll-mt-header overflow-hidden rounded-[var(--radius-card)] bg-surface shadow-[var(--shadow-raised)] ring-1 ring-line/80">
+      <div className="grid lg:grid-cols-[1.55fr_1fr]">
+        <div className="relative p-5 sm:p-8">
+          {top && <span aria-hidden className={cn('absolute inset-y-0 left-0 w-1', accent[top.severity])} />}
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-soft">
+            <MapPin className="h-4 w-4 text-leaf-600" aria-hidden />
+            <span className="font-medium text-ink">{locationLabel}</span>
+            {cropLabel && <span>· {cropLabel}</span>}
+            <span>· {fmt.date(new Date(), { weekday: 'long', day: 'numeric', month: 'long' })}</span>
           </p>
-          <h2 id="today-title" className="mt-1 text-2xl font-semibold tracking-tight">
+          <h2 id="today-title" className="mt-4 text-sm font-semibold text-leaf-700">
             {t('farm.today.title')}
           </h2>
+
+          <div className="mt-2" aria-live="polite">
+            {conditions.status === 'error' && !conditions.data ? (
+              <ErrorState error={conditions.error} onRetry={conditions.reload} title={t('farm.today.weatherUnavailable')} />
+            ) : conditions.status === 'loading' && !conditions.data ? (
+              <div className="space-y-3">
+                <Skeleton className="h-9 w-4/5" />
+                <Skeleton className="h-5 w-3/5" />
+              </div>
+            ) : top ? (
+              <>
+                <p className="font-display text-[1.75rem] font-medium leading-tight text-ink sm:text-[2.1rem]">{top.title}</p>
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+                  <SeverityBadge severity={top.severity} />
+                  <span className="text-ink-faint">{top.when}</span>
+                </div>
+                <div className="mt-5 rounded-[var(--radius-inner)] bg-leaf-50 p-4">
+                  <p className="text-xs font-semibold text-leaf-700">{t('farm.today.topAction')}</p>
+                  <p className="mt-1 text-[1.05rem] font-medium leading-snug text-ink">{top.action}</p>
+                  <p className="mt-2 text-sm text-ink-soft">{top.why}</p>
+                </div>
+                {more > 0 && (
+                  <a href="#alerts" className="mt-3 inline-flex min-h-10 items-center gap-1 text-sm font-semibold text-leaf-700 hover:underline">
+                    {t('farm.today.moreAlerts', { count: fmt.num(more, 0) })} <ArrowRight className="h-4 w-4" aria-hidden />
+                  </a>
+                )}
+              </>
+            ) : (
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="mt-1.5 h-6 w-6 shrink-0 text-leaf-600" aria-hidden />
+                <div>
+                  <p className="font-display text-[1.6rem] font-medium leading-tight">{t('farm.today.noRisk')}</p>
+                  <p className="mt-2 text-ink-soft">{t('farm.today.noRiskBody')}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link href="/diagnose" className={buttonClass.primary}>
+              <Camera className="h-4 w-4" aria-hidden /> {t('farm.today.diagnoseCta')}
+            </Link>
+            <Link href="/advisor" className={buttonClass.secondary}>
+              <MessageCircle className="h-4 w-4" aria-hidden /> {t('farm.today.askCta')}
+            </Link>
+          </div>
         </div>
-        <div className="flex items-center gap-3 sm:text-right">
+
+        <aside aria-label={t('farm.weather.now')} className="border-t border-line bg-paper/60 p-5 sm:p-8 lg:border-l lg:border-t-0">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-ink-soft">{t('farm.weather.now')}</p>
+            <span className="text-xs"><KindTag kind="model" /></span>
+          </div>
           {conditions.status === 'loading' && !cur ? (
-            <Skeleton className="h-12 w-36" />
+            <Skeleton className="mt-4 h-16 w-40" />
           ) : cur ? (
             <>
-              <CloudSun className="h-10 w-10 text-sky-600" aria-hidden />
-              <div>
-                <p className="text-3xl font-semibold tabular-nums">{fmt.num(cur.temperature_c)}°C</p>
-                <p className="text-sm text-ink-soft">{t(`wx.${cur.condition}` as MessageKey)}</p>
+              <div className="mt-3 flex items-center gap-3">
+                <CloudSun className="h-11 w-11 shrink-0 text-sky-600" aria-hidden />
+                <div>
+                  <p className="font-display text-[2.6rem] font-medium leading-none tabular-nums">{fmt.num(cur.temperature_c)}°</p>
+                  <p className="mt-1 text-sm text-ink-soft">{t(`wx.${cur.condition}` as MessageKey)}</p>
+                </div>
               </div>
+              <dl className="mt-5 grid grid-cols-3 gap-2 text-sm">
+                <div>
+                  <dt className="flex items-center gap-1 text-xs text-ink-faint"><Droplets className="h-3.5 w-3.5" aria-hidden />{t('farm.weather.humidity')}</dt>
+                  <dd className="mt-0.5 font-semibold tabular-nums">{fmt.num(cur.humidity_pct, 0)}%</dd>
+                </div>
+                <div>
+                  <dt className="flex items-center gap-1 text-xs text-ink-faint"><Wind className="h-3.5 w-3.5" aria-hidden />{t('farm.weather.wind')}</dt>
+                  <dd className="mt-0.5 font-semibold tabular-nums">{fmt.num(cur.wind_kmh, 0)} {t('unit.kmh')}</dd>
+                </div>
+                <div>
+                  <dt className="flex items-center gap-1 text-xs text-ink-faint"><CloudRain className="h-3.5 w-3.5" aria-hidden />{t('farm.weather.rainToday')}</dt>
+                  <dd className="mt-0.5 font-semibold tabular-nums">{today ? `${fmt.num(today.precipitation_mm)} ${t('unit.mm')}` : '—'}</dd>
+                </div>
+              </dl>
             </>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="mt-5">
-        {conditions.status === 'error' && !conditions.data ? (
-          <ErrorState error={conditions.error} onRetry={conditions.reload} title={t('farm.today.weatherUnavailable')} />
-        ) : conditions.status === 'loading' && !conditions.data ? (
-          <LoadingBlock lines={2} />
-        ) : top ? (
-          <div className="rounded-xl border border-line bg-surface p-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t('farm.today.risk')}</span>
-              <SeverityBadge severity={top.severity} />
-            </div>
-            <p className="mt-2 text-lg font-semibold">{top.title}</p>
-            <p className="mt-1 text-sm text-ink-soft">
-              <span className="font-semibold text-ink">{t('farm.today.topAction')}: </span>
-              {top.action}
-            </p>
+          ) : (
+            <p className="mt-4 text-sm text-ink-faint">{t('state.unavailable')}</p>
+          )}
+          <div className="mt-6 border-t border-line pt-4">
+            <CropCondition health={health} cropLabel={cropLabel} />
           </div>
-        ) : (
-          <div className="flex items-start gap-3 rounded-xl border border-leaf-200 bg-surface p-4">
-            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-leaf-600" aria-hidden />
-            <div>
-              <p className="font-semibold">{t('farm.today.noRisk')}</p>
-              <p className="text-sm text-ink-soft">{t('farm.today.noRiskBody')}</p>
-            </div>
-          </div>
-        )}
+        </aside>
       </div>
-
-      <div className="mt-5 flex flex-wrap gap-3">
-        <Link href="/diagnose" className={buttonClass.primary}>
-          <Camera className="h-4 w-4" aria-hidden /> {t('farm.today.diagnoseCta')}
-        </Link>
-        <Link href="/advisor" className={buttonClass.secondary}>
-          <MessageCircle className="h-4 w-4" aria-hidden /> {t('farm.today.askCta')}
-        </Link>
-      </div>
-    </Card>
+    </section>
   );
 }
 
@@ -103,7 +180,7 @@ export function AlertsCard({ views, conditions, alerts }: { views: AlertView[]; 
   const loading = (conditions.status === 'loading' && !conditions.data) || (alerts.status === 'loading' && !alerts.data);
   return (
     <Card id="alerts" aria-labelledby="alerts-title" className="scroll-mt-header">
-      <CardTitle icon={Bell} id="alerts-title">
+      <CardTitle icon={Bell} id="alerts-title" description={t('farm.alerts.subtitle')}>
         {t('farm.alerts.title')}
       </CardTitle>
       {loading ? (
@@ -111,27 +188,31 @@ export function AlertsCard({ views, conditions, alerts }: { views: AlertView[]; 
       ) : (
         <div className="space-y-3">
           {views.length === 0 && conditions.status === 'success' && (
-            <div className="rounded-xl bg-paper p-4 text-sm">
-              <p className="font-semibold">{t('farm.alerts.none')}</p>
-              <p className="mt-1 text-ink-soft">{t('farm.alerts.noneBody')}</p>
+            <div className="flex items-start gap-3 rounded-[var(--radius-inner)] bg-leaf-50/70 p-4 text-sm">
+              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-leaf-600" aria-hidden />
+              <div>
+                <p className="font-semibold">{t('farm.alerts.none')}</p>
+                <p className="mt-1 text-ink-soft">{t('farm.alerts.noneBody')}</p>
+              </div>
             </div>
           )}
-          <ul className="space-y-3">
+          <ul className="divide-y divide-line overflow-hidden rounded-[var(--radius-inner)] ring-1 ring-line">
             {views.map((v) => (
               <li key={v.key}>
-                <details className="group rounded-xl border border-line bg-surface open:shadow-sm">
-                  <summary className="flex min-h-11 cursor-pointer list-none items-start justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden">
+                <details className="group relative bg-surface open:bg-paper/50">
+                  <span aria-hidden className={cn('absolute inset-y-0 left-0 w-1', accent[v.severity])} />
+                  <summary className="flex min-h-11 cursor-pointer list-none items-start justify-between gap-3 py-4 pl-5 pr-4">
                     <div className="min-w-0">
                       <div className="mb-1 flex flex-wrap items-center gap-2">
                         <SeverityBadge severity={v.severity} />
                         <span className="text-xs text-ink-faint">{v.when}</span>
                       </div>
-                      <p className="font-semibold">{v.title}</p>
+                      <p className="font-semibold leading-snug">{v.title}</p>
                       <p className="mt-0.5 text-sm text-ink-soft">{v.action}</p>
                     </div>
                     <span aria-hidden className="mt-1 text-ink-faint transition-transform group-open:rotate-180">▾</span>
                   </summary>
-                  <dl className="grid gap-3 border-t border-line px-4 pb-4 pt-3 text-sm sm:grid-cols-2">
+                  <dl className="grid gap-3 px-5 pb-4 text-sm sm:grid-cols-2">
                     <div>
                       <dt className="font-semibold">{t('farm.alerts.why')}</dt>
                       <dd className="text-ink-soft">{v.why}</dd>
@@ -143,8 +224,12 @@ export function AlertsCard({ views, conditions, alerts }: { views: AlertView[]; 
                     <div className="sm:col-span-2">
                       <dt className="font-semibold">{t('provenance.source')}</dt>
                       <dd className="text-ink-soft">
-                        {v.kind === 'ai_classified_user_reports' ? t('kind.ai_classified_user_reports') : `Open-Meteo · ${t(v.kind === 'forecast' ? 'kind.forecast' : 'kind.model')}`}
-                        {' · '}
+                        {v.kind === 'ai_classified_user_reports' ? null : (
+                          <>
+                            <span lang="en">Open-Meteo</span> · {t(v.kind === 'forecast' ? 'kind.forecast' : 'kind.model')}
+                            {' · '}
+                          </>
+                        )}
                         {v.basisUrl ? (
                           <a href={v.basisUrl} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
                             {v.basis}
@@ -169,12 +254,12 @@ export function AlertsCard({ views, conditions, alerts }: { views: AlertView[]; 
   );
 }
 
-function RainBar({ day }: { day: ForecastDay }) {
+function RainBar({ day, className }: { day: ForecastDay; className?: string }) {
   const mm = day.precipitation_mm ?? 0;
-  const height = Math.min(100, (mm / 30) * 100);
+  const width = Math.min(100, (mm / 30) * 100);
   return (
-    <div className="flex h-10 items-end justify-center" aria-hidden>
-      <div className="w-2.5 rounded-t bg-sky-600/70" style={{ height: `${Math.max(mm > 0 ? 6 : 0, height)}%` }} />
+    <div className={cn('h-1.5 overflow-hidden rounded-full bg-sky-100', className)} aria-hidden>
+      <div className="h-full rounded-full bg-sky-600" style={{ width: `${Math.max(mm > 0 ? 6 : 0, width)}%` }} />
     </div>
   );
 }
@@ -185,15 +270,12 @@ export function WeatherCard({ conditions }: { conditions: Resource<FarmCondition
 
   return (
     <Card id="weather" aria-labelledby="weather-title" className="scroll-mt-header">
-      <CardTitle icon={CloudRain} id="weather-title">
+      <CardTitle icon={CloudRain} id="weather-title" description={t('farm.weather.subtitle')}>
         {t('farm.weather.title')}
       </CardTitle>
       {!c && conditions.status === 'loading' ? (
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-20" />)}
-          </div>
-          <Skeleton className="h-36" />
+        <div className="grid gap-2 sm:grid-cols-7">
+          {Array.from({ length: 7 }, (_, i) => <Skeleton key={i} className="h-14 sm:h-36" />)}
         </div>
       ) : !c && conditions.status === 'error' ? (
         <ErrorState error={conditions.error} onRetry={conditions.reload} title={t('farm.weather.unavailable')} />
@@ -202,90 +284,57 @@ export function WeatherCard({ conditions }: { conditions: Resource<FarmCondition
           {conditions.status === 'error' && (
             <ErrorState compact error={conditions.error} onRetry={conditions.reload} updatedAt={conditions.updatedAt} />
           )}
-          <h3 className="mb-2 text-sm font-semibold text-ink-soft">
-            {t('farm.weather.now')} <span className="font-normal text-ink-faint">· {t('kind.model')}</span>
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink-soft">
+            {t('farm.weather.forecast')} <KindTag kind="forecast" className="text-xs font-normal" />
           </h3>
-          <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {[
-              { icon: Thermometer, label: t('farm.weather.temperature'), value: `${fmt.num(c.current.temperature_c)}°C` },
-              { icon: Droplets, label: t('farm.weather.humidity'), value: `${fmt.num(c.current.humidity_pct, 0)}%` },
-              { icon: Wind, label: t('farm.weather.wind'), value: `${fmt.num(c.current.wind_kmh, 0)} km/h` },
-              { icon: CloudRain, label: t('farm.weather.soilMoisture'), value: c.current.soil_moisture_3_9cm == null ? t('state.unavailable') : `${fmt.num(c.current.soil_moisture_3_9cm, 2)} m³/m³` },
-            ].map((m) => (
-              <div key={m.label} className="rounded-xl bg-paper p-3">
-                <dt className="flex items-center gap-1.5 text-xs text-ink-soft">
-                  <m.icon className="h-3.5 w-3.5" aria-hidden /> {m.label}
-                </dt>
-                <dd className="mt-1 text-lg font-semibold tabular-nums">{m.value}</dd>
-              </div>
+          <ol aria-label={t('farm.weather.chartLabel')} className="grid gap-1.5 sm:grid-cols-7 sm:gap-2">
+            {c.daily.map((d, i) => (
+              <li
+                key={d.date}
+                className={cn(
+                  'grid grid-cols-[5.5rem_1fr_auto] items-center gap-3 rounded-[var(--radius-inner)] px-3 py-2.5 sm:flex sm:flex-col sm:items-stretch sm:gap-2 sm:px-2.5 sm:py-3 sm:text-center',
+                  i === 0 ? 'bg-leaf-50 ring-1 ring-leaf-100' : 'bg-paper/70',
+                )}
+              >
+                <p className="text-sm font-semibold leading-tight">
+                  {i === 0 ? t('farm.weather.today') : fmt.weekday(d.date)}
+                  <span className="block text-xs font-normal text-ink-faint">{fmt.date(d.date)}</span>
+                </p>
+                <div className="min-w-0 sm:order-last">
+                  <RainBar day={d} />
+                  <p className="mt-1 text-xs tabular-nums text-sky-700">
+                    <span className="font-semibold">{fmt.num(d.precipitation_mm)}</span> {t('unit.mm')}
+                    {d.precipitation_probability_pct != null && (
+                      <span className="text-ink-faint"> · {fmt.num(d.precipitation_probability_pct, 0)}%<span className="sr-only"> {t('farm.weather.rainChance')}</span></span>
+                    )}
+                  </p>
+                </div>
+                <div className="text-right sm:text-center">
+                  <p className="text-xs text-ink-soft">{t(`wx.${d.condition}` as MessageKey)}</p>
+                  <p className="tabular-nums">
+                    <span className="font-semibold">{fmt.num(d.temp_max_c, 0)}°</span>
+                    <span className="text-ink-faint"> / {fmt.num(d.temp_min_c, 0)}°</span>
+                  </p>
+                </div>
+              </li>
             ))}
-          </dl>
-          <p className="mt-2 text-xs text-ink-faint">{t('farm.weather.soilMoistureNote')}</p>
+          </ol>
 
-          <h3 className="mb-2 mt-6 text-sm font-semibold text-ink-soft">
-            {t('farm.weather.forecast')} <span className="font-normal text-ink-faint">· {t('kind.forecast')}</span>
-          </h3>
-          <div className="relative -mx-1 overflow-x-auto pb-1">
-            <table className="w-full min-w-[560px] border-separate border-spacing-x-1 text-center text-sm">
-              <caption className="sr-only">{t('farm.weather.chartLabel')}</caption>
-              <thead>
-                <tr>
-                  {c.daily.map((d, i) => (
-                    <th key={d.date} scope="col" className="rounded-t-lg bg-paper px-1 pt-2 text-xs font-semibold">
-                      {i === 0 ? t('farm.weather.today') : fmt.weekday(d.date)}
-                      <span className="block font-normal text-ink-faint">{fmt.date(d.date)}</span>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  {c.daily.map((d) => (
-                    <td key={d.date} className="bg-paper px-1 py-1 text-xs text-ink-soft">
-                      {t(`wx.${d.condition}` as MessageKey)}
-                    </td>
-                  ))}
-                </tr>
-                <tr>
-                  {c.daily.map((d) => (
-                    <td key={d.date} className="bg-paper px-1 py-1 tabular-nums">
-                      <span className="font-semibold">{fmt.num(d.temp_max_c, 0)}°</span>
-                      <span className="text-ink-faint"> / {fmt.num(d.temp_min_c, 0)}°</span>
-                    </td>
-                  ))}
-                </tr>
-                <tr>
-                  {c.daily.map((d) => (
-                    <td key={d.date} className="bg-paper px-1 pt-1">
-                      <RainBar day={d} />
-                    </td>
-                  ))}
-                </tr>
-                <tr>
-                  {c.daily.map((d) => (
-                    <td key={d.date} className="rounded-b-lg bg-paper px-1 pb-2 text-xs tabular-nums">
-                      <span className="block font-semibold text-sky-700">
-                        {fmt.num(d.precipitation_mm)} <span className="sr-only">mm</span>
-                        <span aria-hidden>mm</span>
-                      </span>
-                      {d.precipitation_probability_pct != null && (
-                        <span className="text-ink-faint">
-                          {fmt.num(d.precipitation_probability_pct, 0)}%<span className="sr-only"> {t('farm.weather.rainChance')}</span>
-                        </span>
-                      )}
-                    </td>
-                  ))}
-                </tr>
-              </tbody>
-            </table>
+          <div className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+            <div>
+              <h3 className="mb-2 text-sm font-semibold text-ink-soft">{t('farm.weather.meaning')}</h3>
+              {c.insights.length === 0 ? <p className="text-sm text-ink-soft">{t('farm.weather.noMeaning')}</p> : <WeatherMeaning conditions={c} />}
+            </div>
+            <div className="rounded-[var(--radius-inner)] bg-paper/70 p-4 text-sm">
+              <p className="flex items-center gap-1.5 text-ink-soft">
+                <Droplets className="h-4 w-4 text-sky-600" aria-hidden /> {t('farm.weather.soilMoisture')}
+              </p>
+              <p className="mt-1 text-lg font-semibold tabular-nums">
+                {c.current.soil_moisture_3_9cm == null ? t('state.unavailable') : `${fmt.num(c.current.soil_moisture_3_9cm, 2)} m³/m³`}
+              </p>
+              <p className="mt-1 text-xs text-ink-faint">{t('farm.weather.soilMoistureNote')}</p>
+            </div>
           </div>
-
-          <h3 className="mb-2 mt-6 text-sm font-semibold text-ink-soft">{t('farm.weather.meaning')}</h3>
-          {c.insights.length === 0 ? (
-            <p className="text-sm text-ink-soft">{t('farm.weather.noMeaning')}</p>
-          ) : (
-            <WeatherMeaning conditions={c} />
-          )}
           <ProvenanceLine source={c.provenance.source} url={c.provenance.source_url} kind="model" time={c.provenance.retrieved_at} note={t('farm.weather.observedNote')} />
         </>
       ) : null}
@@ -296,14 +345,15 @@ export function WeatherCard({ conditions }: { conditions: Resource<FarmCondition
 function WeatherMeaning({ conditions }: { conditions: FarmConditions }) {
   const { t, fmt } = useI18n();
   return (
-    <ul className="space-y-2">
+    <ul className="space-y-2.5">
       {conditions.insights.map((i) => {
         const v = insightView(t, fmt, i);
         return (
-          <li key={v.key} className="flex items-start gap-2 text-sm">
-            <SeverityBadge severity={v.severity} className="mt-0.5 shrink-0" />
+          <li key={v.key} className="flex items-start gap-2.5 text-sm">
+            <span aria-hidden className={cn('mt-2 h-2 w-2 shrink-0 rounded-full', severityDot[v.severity])} />
             <span>
               <span className="font-semibold">{v.title}.</span> <span className="text-ink-soft">{v.action}</span>
+              <span className="sr-only"> ({t(`severity.${v.severity}` as MessageKey)})</span>
             </span>
           </li>
         );

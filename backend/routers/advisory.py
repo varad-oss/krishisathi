@@ -22,7 +22,7 @@ from services.crops import normalize_crop
 from services.gemini_service import gemini_service, one_line
 from services.images import sniff_image
 from services.persistence_service import persistence_service
-from services.tts_service import LOCALES, synthesize
+from services.tts_service import LOCALES, synthesize, voice_plan
 
 logger = logging.getLogger(__name__)
 
@@ -136,6 +136,12 @@ async def get_voice_advisory(request: VoiceAdvisoryRequest):
         advisory=advisory,
         audio_response_base64=base64.b64encode(audio).decode("utf-8"),
     )
+
+
+@router.get("/tts/voices")
+async def tts_voices():
+    """Which server voice each language gets, so clients can prefer a better on-device voice over gtts."""
+    return {"languages": voice_plan()}
 
 
 @router.post("/tts", dependencies=[Depends(tts_rate_limit)])

@@ -69,9 +69,21 @@ export interface FarmConditions {
   provenance: Provenance;
 }
 
+export type SoilReason =
+  | 'rate_limited'
+  | 'timeout'
+  | 'upstream_error'
+  | 'network_error'
+  | 'unknown_error'
+  | 'bad_response'
+  | 'request_rejected'
+  | 'no_coverage';
+
 export interface SoilData {
   status: 'available' | 'unavailable' | 'no_data';
-  reason?: string;
+  /** Why data is missing: rate_limited, timeout, upstream_error, network_error, unknown_error, bad_response, request_rejected, no_coverage. */
+  reason?: SoilReason;
+  retryable?: boolean;
   properties?: {
     ph: number | null;
     organic_carbon_pct: number | null;
@@ -138,9 +150,12 @@ export interface Kvk {
   name: string;
   state: string;
   district: string;
-  lat: number;
-  lng: number;
-  distance_km: number;
+  /** "district": matched by nearest district headquarters (no verified address or distance). "site": verified KVK location. */
+  match: 'district' | 'site';
+  /** Only set for verified sites; a distance to a district reference point is not a distance to the KVK. */
+  distance_km: number | null;
+  lat: number | null;
+  lng: number | null;
   provenance: Provenance;
 }
 

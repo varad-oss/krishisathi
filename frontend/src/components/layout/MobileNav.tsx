@@ -11,7 +11,7 @@ export default function MobileNav() {
   const pathname = usePathname();
   const { t } = useI18n();
   return (
-    <nav aria-label={t('nav.menu')} className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 backdrop-blur md:hidden">
+    <nav aria-label={t('nav.menu')} className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
       <ul className="mx-auto grid max-w-md grid-cols-4">
         {NAV_ITEMS.filter((i) => i.mobile).map((item) => {
           const active = isActive(pathname, item.href);
@@ -21,11 +21,13 @@ export default function MobileNav() {
                 href={item.href}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'flex min-h-16 flex-col items-center justify-center gap-1 px-1 text-[11px] font-medium leading-tight',
-                  active ? 'text-leaf-700' : 'text-ink-faint',
+                  'flex min-h-16 flex-col items-center justify-center gap-1 px-1 text-xs font-medium leading-tight transition-colors',
+                  active ? 'text-leaf-700' : 'text-ink-faint hover:text-ink',
                 )}
               >
-                <item.icon className={cn('h-5 w-5', active && 'stroke-[2.4]')} aria-hidden />
+                <span className={cn('flex h-7 w-12 items-center justify-center rounded-full transition-colors', active && 'bg-leaf-100')}>
+                  <item.icon className={cn('h-5 w-5', active && 'stroke-[2.4]')} aria-hidden />
+                </span>
                 <span className="line-clamp-2 text-center">{t(item.label)}</span>
               </Link>
             </li>

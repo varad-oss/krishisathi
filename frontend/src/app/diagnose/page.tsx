@@ -6,7 +6,7 @@ import { Camera, ImagePlus, Loader2, MapPin, MessageCircle, ScanSearch, X } from
 import Conversation, { type ChatMessage } from '@/components/Conversation';
 import DiagnosisResult from '@/components/diagnose/DiagnosisResult';
 import { useLocationLabel } from '@/components/FarmProfileForm';
-import { buttonClass, Card, ErrorState, inputClass, Note } from '@/components/ui';
+import { buttonClass, Card, ErrorState, inputClass, Note, PageHeader } from '@/components/ui';
 import { ApiError, diagnoseCrop, getFollowUpAdvisory } from '@/lib/api';
 import { CROPS, type Crop } from '@/lib/catalog';
 import { useFarmProfile } from '@/lib/farm-profile';
@@ -114,7 +114,7 @@ export default function DiagnosePage() {
         disease_name: result.disease_name ?? result.status,
         severity: result.severity,
       });
-      setMessages((m) => [...m, { id: newId(), role: 'assistant', text: res.advisory_text, sources: res.data_sources, generatedAt: res.generated_at }]);
+      setMessages((m) => [...m, { id: newId(), role: 'assistant', text: res.advisory_text, language: res.language, sources: res.data_sources, generatedAt: res.generated_at }]);
     } catch (e) {
       const err = e instanceof ApiError ? e : new ApiError('error', 'INTERNAL_ERROR', null, true);
       setMessages((m) => [...m, { id: newId(), role: 'error', error: err, retryText: question }]);
@@ -131,16 +131,15 @@ export default function DiagnosePage() {
   const stepIndex = phase === 'result' ? 2 : file ? 1 : 0;
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 pb-10 pt-6 sm:px-6">
-      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t('diagnose.title')}</h1>
-      <p className="mt-1 text-ink-soft">{t('diagnose.subtitle')}</p>
+    <div className="mx-auto w-full max-w-3xl px-4 pb-12 pt-6 sm:px-6 sm:pt-10">
+      <PageHeader title={t('diagnose.title')} subtitle={t('diagnose.subtitle')} />
 
-      <ol className="my-5 flex items-center gap-2 text-xs font-medium" aria-label={t('diagnose.title')}>
+      <ol className="mb-6 flex flex-wrap items-center gap-2 text-sm font-medium" aria-label={t('diagnose.title')}>
         {steps.map((s, i) => (
           <li key={s.key} className="flex items-center gap-2" aria-current={i === stepIndex ? 'step' : undefined}>
             <span
               className={cn(
-                'flex h-6 w-6 items-center justify-center rounded-full tabular-nums',
+                'flex h-7 w-7 items-center justify-center rounded-full text-xs tabular-nums',
                 i < stepIndex ? 'bg-leaf-600 text-white' : i === stepIndex ? 'bg-leaf-100 text-leaf-700 ring-2 ring-leaf-500' : 'bg-line text-ink-faint',
               )}
             >
@@ -157,7 +156,7 @@ export default function DiagnosePage() {
           <DiagnosisResult result={result} previewUrl={previewUrl} onReset={reset} />
           {result.status !== 'not_a_plant' && (
             <Card aria-labelledby="followup-title">
-              <h2 id="followup-title" className="mb-4 flex items-center gap-2 text-lg font-semibold">
+              <h2 id="followup-title" className="mb-5 flex items-center gap-2 font-display text-[1.3rem] font-medium">
                 <MessageCircle className="h-5 w-5 text-leaf-600" aria-hidden /> {t('diagnose.followup.title')}
               </h2>
               {profile.location ? (
@@ -194,12 +193,14 @@ export default function DiagnosePage() {
                 pick(e.dataTransfer.files?.[0]);
               }}
               className={cn(
-                'flex flex-col items-center justify-center rounded-2xl border-2 border-dashed px-4 py-10 text-center transition-colors',
-                dragging ? 'border-leaf-500 bg-leaf-50' : 'border-line-strong bg-paper',
+                'flex flex-col items-center justify-center rounded-[var(--radius-inner)] border-2 border-dashed px-4 py-12 text-center transition-colors',
+                dragging ? 'border-leaf-500 bg-leaf-50' : 'border-line-strong bg-paper/70',
               )}
             >
-              <ImagePlus className="h-10 w-10 text-leaf-600" aria-hidden />
-              <p className="mt-3 font-semibold">{t('diagnose.upload.title')}</p>
+              <span aria-hidden className="flex h-14 w-14 items-center justify-center rounded-2xl bg-leaf-50 text-leaf-700">
+                <ImagePlus className="h-7 w-7" />
+              </span>
+              <p className="mt-4 font-display text-xl font-medium">{t('diagnose.upload.title')}</p>
               <div className="mt-4 flex w-full max-w-sm flex-col gap-3 sm:flex-row sm:justify-center">
                 <button type="button" onClick={() => cameraInput.current?.click()} className={cn(buttonClass.primary, 'w-full sm:w-auto')}>
                   <Camera className="h-4 w-4" aria-hidden /> {t('diagnose.upload.camera')}
@@ -222,7 +223,7 @@ export default function DiagnosePage() {
               />
             </div>
           ) : (
-            <div className="relative overflow-hidden rounded-2xl bg-ink/5">
+            <div className="relative overflow-hidden rounded-[var(--radius-inner)] bg-ink/5">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={previewUrl ?? ''} alt={t('diagnose.upload.preview')} className="mx-auto max-h-80 w-full object-contain" />
               {phase !== 'analyzing' && (
@@ -236,7 +237,7 @@ export default function DiagnosePage() {
                 </button>
               )}
               {phase === 'analyzing' && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-leaf-900/60 text-white" role="status" aria-live="polite">
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-leaf-900/70 text-white backdrop-blur-[2px]" role="status" aria-live="polite">
                   <Loader2 className="h-8 w-8 animate-spin" aria-hidden />
                   <p className="font-semibold">{t('diagnose.analyzing')}</p>
                   <p className="text-sm text-leaf-100">{t('diagnose.analyzingHint')}</p>

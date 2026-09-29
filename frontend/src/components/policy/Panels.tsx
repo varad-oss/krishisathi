@@ -12,39 +12,33 @@ import type { DashboardReport, DashboardStats, FederationReport, Outbreak, State
 import type { MessageKey } from '@/locales/en';
 import { cn } from '@/lib/utils';
 import { insightView } from '../farm/insight-text';
-import { buttonClass, Card, CardTitle, ErrorState, inputClass, LevelBadge, LoadingBlock, ProvenanceLine, SeverityBadge, Skeleton, UnavailableNote } from '../ui';
+import { buttonClass, Card, CardTitle, ErrorState, inputClass, LevelBadge, LoadingBlock, ProvenanceLine, severityDot, Skeleton, UnavailableNote } from '../ui';
 
 const OutbreakMap = dynamic(() => import('./OutbreakMap'), { ssr: false, loading: () => <Skeleton className="h-80 sm:h-96" /> });
 const TrendChart = dynamic(() => import('./TrendChart'), { ssr: false, loading: () => <Skeleton className="h-56" /> });
 
 function Kpi({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-[var(--radius-card)] border border-line bg-surface p-4 shadow-[var(--shadow-card)]">
-      <p className="text-sm text-ink-soft">{label}</p>
-      <p className="mt-1 text-3xl font-semibold tabular-nums">{value}</p>
-      {sub && <p className="mt-1 text-xs text-ink-faint">{sub}</p>}
+    <div className="p-4 sm:p-6">
+      <dt className="text-sm text-ink-soft">{label}</dt>
+      <dd className="mt-1 font-display text-[2.4rem] font-medium leading-none tabular-nums">{value}</dd>
+      {sub && <dd className="mt-2 text-xs text-ink-faint">{sub}</dd>}
     </div>
   );
 }
 
 export function KpiRow({ stats }: { stats: Resource<DashboardStats> }) {
   const { t, fmt } = useI18n();
-  if (!stats.data && stats.status === 'loading') {
-    return (
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-28" />)}
-      </div>
-    );
-  }
-  if (!stats.data) return stats.status === 'error' ? <ErrorState error={stats.error} onRetry={stats.reload} /> : null;
+  if (!stats.data && stats.status === 'loading') return <Skeleton className="h-32 rounded-[var(--radius-card)]" />;
+  if (!stats.data) return stats.status === 'error' ? <ErrorState error={stats.error} onRetry={stats.reload} title={t('policy.kpi.unavailable')} /> : null;
   const s = stats.data;
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <dl className="grid grid-cols-2 divide-line overflow-hidden rounded-[var(--radius-card)] bg-surface shadow-[var(--shadow-card)] ring-1 ring-line/80 lg:grid-cols-4 lg:divide-x [&>div:nth-child(-n+2)]:border-b [&>div:nth-child(-n+2)]:border-line lg:[&>div:nth-child(-n+2)]:border-b-0 [&>div:nth-child(odd)]:border-r [&>div:nth-child(odd)]:border-line lg:[&>div:nth-child(odd)]:border-r-0">
       <Kpi label={t('policy.kpi.diagnoses')} value={fmt.num(s.total_diagnoses, 0)} />
       <Kpi label={t('policy.kpi.last7')} value={fmt.num(s.diagnoses_last_7_days, 0)} sub={t('policy.kpi.prev7', { count: fmt.num(s.diagnoses_previous_7_days, 0) })} />
       <Kpi label={t('policy.kpi.outbreaks')} value={fmt.num(s.active_outbreaks, 0)} />
       <Kpi label={t('policy.kpi.coverage')} value={fmt.num(s.coverage.grid_cells_30d, 0)} sub={t('policy.kpi.coverageNote')} />
-    </div>
+    </dl>
   );
 }
 
@@ -59,8 +53,8 @@ function Bars({ entries, label }: { entries: [string, number][]; label: (k: stri
             <span className="truncate">{label(k)}</span>
             <span className="font-semibold tabular-nums">{fmt.num(v, 0)}</span>
           </div>
-          <div className="mt-1 h-2 rounded-full bg-paper" aria-hidden>
-            <div className="h-2 rounded-full bg-leaf-500" style={{ width: `${(v / max) * 100}%` }} />
+          <div className="mt-1 h-1.5 rounded-full bg-paper-deep/70" aria-hidden>
+            <div className="h-1.5 rounded-full bg-soil-500" style={{ width: `${(v / max) * 100}%` }} />
           </div>
         </li>
       ))}
@@ -80,7 +74,7 @@ export function TrendAndDistribution({ stats }: { stats: Resource<DashboardStats
     return v === key ? k : v;
   };
   return (
-    <div className="grid gap-5 lg:grid-cols-[3fr_2fr]">
+    <div className="grid gap-6 lg:grid-cols-[3fr_2fr] [&>*]:min-w-0">
       <Card aria-labelledby="trend-title">
         <CardTitle icon={Activity} id="trend-title">
           {t('policy.trend.title')}
@@ -105,13 +99,13 @@ export function TrendAndDistribution({ stats }: { stats: Resource<DashboardStats
             </div>
           </>
         )}
-        <ProvenanceLine source={s.provenance.source} kind={s.provenance.kind} time={s.generated_at} note={s.provenance.notes} />
+        <ProvenanceLine source={s.provenance.source} kind={s.provenance.kind} time={s.generated_at} note={t('policy.limits.1')} />
       </Card>
       <Card aria-labelledby="dist-title">
         <CardTitle icon={Sprout} id="dist-title">
           {t('policy.diseases.title')}
         </CardTitle>
-        {diseases.length ? <Bars entries={diseases} label={(k) => k} /> : <p className="text-sm text-ink-soft">{t('policy.diseases.empty')}</p>}
+        {diseases.length ? <Bars entries={diseases} label={(k) => k} /> : <UnavailableNote>{t('policy.diseases.empty')}</UnavailableNote>}
         {crops.length > 0 && (
           <>
             <h3 className="mb-3 mt-6 text-sm font-semibold text-ink-soft">{t('policy.crops.title')}</h3>
@@ -128,7 +122,7 @@ export function OutbreaksPanel({ outbreaks }: { outbreaks: Resource<Outbreak[]> 
   const list = outbreaks.data;
   return (
     <Card aria-labelledby="clusters-title" id="map">
-      <CardTitle icon={MapIcon} id="clusters-title">
+      <CardTitle icon={MapIcon} id="clusters-title" description={t('policy.outbreaks.subtitle')}>
         {t('policy.outbreaks.title')}
       </CardTitle>
       {!list && outbreaks.status === 'loading' ? (
@@ -142,7 +136,7 @@ export function OutbreaksPanel({ outbreaks }: { outbreaks: Resource<Outbreak[]> 
           <OutbreakMap outbreaks={list} label={t('policy.map.label')} />
           <div className="relative mt-4 overflow-x-auto">
             <table className="w-full min-w-[520px] text-left text-sm">
-              <thead className="border-b border-line text-xs uppercase tracking-wide text-ink-faint">
+              <thead className="border-b border-line text-xs text-ink-faint">
                 <tr>
                   <th scope="col" className="py-2 pr-3">{t('policy.outbreaks.disease')}</th>
                   <th scope="col" className="py-2 pr-3">{t('policy.outbreaks.area')}</th>
@@ -154,7 +148,7 @@ export function OutbreaksPanel({ outbreaks }: { outbreaks: Resource<Outbreak[]> 
               <tbody className="divide-y divide-line">
                 {list.map((o) => (
                   <tr key={o.id}>
-                    <td className="py-2.5 pr-3 font-medium">{o.disease}</td>
+                    <td className="py-2.5 pr-3 font-medium" lang="en">{o.disease}</td>
                     <td className="py-2.5 pr-3 tabular-nums text-ink-soft">
                       {fmt.num(o.lat, 1)}°, {fmt.num(o.lng, 1)}°
                     </td>
@@ -178,39 +172,50 @@ export function WeatherRiskPanel({ risk, states, stateFilter }: { risk: Resource
   const regions = risk.data?.regions.filter((r) => stateFilter === 'ALL' || r.state === stateFilter) ?? [];
   return (
     <Card aria-labelledby="wx-title">
-      <CardTitle icon={CloudSun} id="wx-title">
+      <CardTitle icon={CloudSun} id="wx-title" description={t('policy.weather.note')}>
         {t('policy.weather.title')}
       </CardTitle>
-      <p className="-mt-2 mb-4 text-xs text-ink-faint">{t('policy.weather.note')}</p>
       {!risk.data && risk.status === 'loading' ? (
         <LoadingBlock lines={4} />
       ) : !risk.data && risk.status === 'error' ? (
         <ErrorState error={risk.error} onRetry={risk.reload} />
       ) : (
-        <ul className="divide-y divide-line">
+        <>
+        <p className="mb-4 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-soft" aria-hidden>
+          {(['warning', 'watch', 'info'] as const).map((sev) => (
+            <span key={sev} className="inline-flex items-center gap-1.5">
+              <span className={cn('h-2 w-2 rounded-full', severityDot[sev])} /> {t(`severity.${sev}`)}
+            </span>
+          ))}
+        </p>
+        <ul className="grid gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
           {regions.map((r) => (
-            <li key={r.state} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-start sm:justify-between">
-              <span className="font-medium">{states.some((s) => s.code === r.state) ? t(`state.${r.state}` as MessageKey) : r.state}</span>
-              <span className="flex flex-wrap gap-2 sm:justify-end">
-                {r.status === 'unavailable' ? (
-                  <span className="text-sm text-ink-faint">{t('policy.weather.unavailable')}</span>
-                ) : r.insights.length === 0 ? (
-                  <span className="text-sm text-ink-soft">{t('policy.weather.none')}</span>
-                ) : (
-                  r.insights.map((i) => {
+            <li key={r.state} className="border-t border-line pt-3">
+              <p className="font-semibold">{states.some((s) => s.code === r.state) ? t(`state.${r.state}` as MessageKey) : r.state}</p>
+              {r.status === 'unavailable' ? (
+                <p className="mt-1 text-sm text-ink-faint">{t('policy.weather.unavailable')}</p>
+              ) : r.insights.length === 0 ? (
+                <p className="mt-1 text-sm text-ink-soft">{t('policy.weather.none')}</p>
+              ) : (
+                <ul className="mt-1.5 space-y-1.5">
+                  {r.insights.map((i) => {
                     const v = insightView(t, fmt, i);
                     return (
-                      <span key={v.key} className="inline-flex items-center gap-1.5 text-sm">
-                        <SeverityBadge severity={v.severity} />
-                        <span>{v.title}</span>
-                      </span>
+                      <li key={v.key} className="flex items-start gap-2 text-sm leading-snug">
+                        <span aria-hidden className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', severityDot[v.severity])} />
+                        <span>
+                          {v.title}
+                          <span className="sr-only"> ({t(`severity.${v.severity}` as MessageKey)})</span>
+                        </span>
+                      </li>
                     );
-                  })
-                )}
-              </span>
+                  })}
+                </ul>
+              )}
             </li>
           ))}
         </ul>
+        </>
       )}
       {risk.data && <ProvenanceLine source={risk.data.provenance.source} url={risk.data.provenance.source_url} kind="forecast" time={risk.data.provenance.retrieved_at} />}
     </Card>
@@ -304,7 +309,7 @@ export function SignalsPanel({ signals, states, stateFilter }: { signals: Resour
       ) : (
         <ul className="max-h-96 space-y-3 overflow-y-auto">
           {list.map((s) => (
-            <li key={s.signal_id} className="rounded-xl border border-line p-3 text-sm">
+            <li key={s.signal_id} className="rounded-[var(--radius-inner)] bg-paper/60 p-3 text-sm ring-1 ring-line">
               <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
                 <span className="font-semibold">
                   {t(`state.${s.from_state}` as MessageKey)} → {s.to_state ? t(`state.${s.to_state}` as MessageKey) : t('policy.signals.broadcast')}
@@ -319,7 +324,7 @@ export function SignalsPanel({ signals, states, stateFilter }: { signals: Resour
           ))}
         </ul>
       )}
-      {signals.data && <p className="mt-3 text-xs text-ink-faint">{signals.data.note}</p>}
+      {signals.data && <p className="mt-3 text-xs text-ink-faint">{t('policy.signals.note')}</p>}
       <div className="mt-4 border-t border-line pt-4">
         {open ? (
           <PublishForm states={states} onDone={() => { setOpen(false); signals.reload(); }} onCancel={() => setOpen(false)} />
@@ -414,8 +419,8 @@ function PublishForm({ states, onDone, onCancel }: { states: StateConfig[]; onDo
 export function LimitationsPanel() {
   const { t } = useI18n();
   return (
-    <Card aria-labelledby="limits-title" className="bg-soil-50/60">
-      <h2 id="limits-title" className="mb-3 text-lg font-semibold">{t('policy.limits.title')}</h2>
+    <Card aria-labelledby="limits-title" className="bg-soil-50/60 shadow-none">
+      <h2 id="limits-title" className="mb-3 font-display text-[1.3rem] font-medium">{t('policy.limits.title')}</h2>
       <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-soft">
         {(['policy.limits.1', 'policy.limits.2', 'policy.limits.3', 'policy.limits.4'] as const).map((k) => (
           <li key={k}>{t(k)}</li>

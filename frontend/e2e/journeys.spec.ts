@@ -92,7 +92,7 @@ test.describe('Landing → Diagnose → Result', () => {
     await page.getByRole('button', { name: 'Check photo' }).click();
 
     await expect(page.getByRole('heading', { name: 'Possible Late blight' })).toBeVisible();
-    await expect(page.getByText('Certainty: Moderate')).toBeVisible();
+    await expect(page.getByRole('img', { name: 'Certainty: Moderate' })).toBeVisible();
     await expect(page.getByText('What the AI saw')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Verified reference', exact: true })).toBeVisible();
     await expect(page.getByText(/ICAR/).first()).toBeVisible();

@@ -7,7 +7,7 @@ import Logo from './Logo';
 export default function Footer() {
   const { t } = useI18n();
   return (
-    <footer className="border-t border-line bg-surface">
+    <footer className="border-t border-line bg-paper-deep/40">
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
           <div className="max-w-md">

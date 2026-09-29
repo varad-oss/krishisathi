@@ -167,3 +167,11 @@ def test_gemini_speak_without_audio_is_unavailable(monkeypatch):
     import asyncio
     with pytest.raises(ServiceUnavailableException):
         asyncio.run(gemini_service.speak("x", "hi", "hi-IN"))
+
+
+def test_voice_plan_endpoint(monkeypatch):
+    monkeypatch.setattr(settings, "GEMINI_TTS_LANGUAGES", "en,hi")
+    plan = client.get("/api/advisory/tts/voices").json()["languages"]
+    assert plan["hi"] == "gemini" and plan["pa"] == "gtts" and len(plan) == 10
+    monkeypatch.setattr(gemini_service, "client", None)
+    assert set(client.get("/api/advisory/tts/voices").json()["languages"].values()) == {"gtts"}

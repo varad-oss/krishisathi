@@ -879,15 +879,16 @@
  },
  "kvk": {
   "name": "KVK Pune",
-  "state": "MH",
   "district": "Pune",
-  "lat": 18.52,
-  "lng": 73.856,
-  "distance_km": 0.0,
+  "state": "MH",
+  "match": "district",
+  "distance_km": null,
+  "lat": null,
+  "lng": null,
   "provenance": {
    "source": "KrishiSathi KVK list (subset)",
    "kind": "static_reference",
-   "notes": "Covers a limited set of districts; coordinates are approximate district locations. Verify address and contact on the official KVK portal.",
+   "notes": "Covers a limited set of districts. Matched by the nearest district headquarters; the KVK address is not verified. Check the official KVK portal.",
    "verify_url": "https://kvk.icar.gov.in/"
   }
  },

@@ -2,7 +2,7 @@
 
 import { useId, useState } from 'react';
 import { CropHealthPanel, KpiRow, LimitationsPanel, OutbreaksPanel, ReportPanel, SignalsPanel, TrendAndDistribution, WeatherRiskPanel } from '@/components/policy/Panels';
-import { inputClass } from '@/components/ui';
+import { inputClass, PageHeader } from '@/components/ui';
 import { getDashboardStats, getExchangeSignals, getOutbreaks, getStates, getWeatherRisk } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
 import { useResource } from '@/lib/use-resource';
@@ -22,13 +22,17 @@ export default function PolicyDashboardPage() {
   const stateList = states.data ?? [];
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 pb-10 pt-6 sm:px-6">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t('policy.title')}</h1>
-          <p className="mt-1 max-w-2xl text-ink-soft">{t('policy.subtitle')}</p>
-          {stats.data && <p className="mt-2 text-xs text-ink-faint">{t('policy.freshness', { time: fmt.dateTime(stats.data.generated_at) })}</p>}
-        </div>
+    <div className="mx-auto w-full max-w-6xl px-4 pb-12 pt-6 sm:px-6 sm:pt-10">
+      <PageHeader
+        eyebrow={t('policy.eyebrow')}
+        title={t('policy.title')}
+        subtitle={
+          <>
+            {t('policy.subtitle')}
+            {stats.data && <span className="mt-1 block text-xs text-ink-faint">{t('policy.freshness', { time: fmt.dateTime(stats.data.generated_at) })}</span>}
+          </>
+        }
+      >
         <div className="sm:w-60">
           <label htmlFor={filterId} className="mb-1 block text-sm font-semibold">
             {t('policy.filter.state')}
@@ -42,22 +46,20 @@ export default function PolicyDashboardPage() {
             ))}
           </select>
         </div>
-      </div>
+      </PageHeader>
 
-      <div className="space-y-5">
+      <div className="space-y-6">
         <KpiRow stats={stats} />
-        <TrendAndDistribution stats={stats} />
         <OutbreaksPanel outbreaks={outbreaks} />
-        <div className="grid gap-5 lg:grid-cols-2">
-          <WeatherRiskPanel risk={risk} states={stateList} stateFilter={stateFilter} />
+        <TrendAndDistribution stats={stats} />
+        <WeatherRiskPanel risk={risk} states={stateList} stateFilter={stateFilter} />
+        <div className="grid items-start gap-6 lg:grid-cols-2 [&>*]:min-w-0">
           <ReportPanel />
-        </div>
-        <div className="grid gap-5 lg:grid-cols-2">
           <SignalsPanel signals={signals} states={stateList} stateFilter={stateFilter} />
-          <div className="space-y-5">
-            <CropHealthPanel />
-            <LimitationsPanel />
-          </div>
+        </div>
+        <div className="grid items-start gap-6 lg:grid-cols-2 [&>*]:min-w-0">
+          <CropHealthPanel />
+          <LimitationsPanel />
         </div>
       </div>
     </div>

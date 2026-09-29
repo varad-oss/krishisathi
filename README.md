@@ -46,7 +46,7 @@ graph TD
     API -.optional.-> EE[Earth Engine Sentinel-2 NDVI]
     API --> DB[(SQLite / Postgres)]
     API -.optional.-> Redis[(Redis: rate limit, idempotency, cache)]
-    API --> TTS[gTTS voice]
+    API --> TTS[Read aloud: Gemini voice, gTTS fallback, same language]
 ```
 
 **Backend** (`backend/`): FastAPI, async SQLAlchemy + Alembic, pydantic v2.
@@ -91,20 +91,23 @@ See `backend/.env.example` for the backend environment variables:
 * `CORS_ALLOWED_ORIGINS` / `CORS_ALLOWED_ORIGIN_REGEX`
 * `EE_SERVICE_ACCOUNT_KEY_JSON`
 * `AI_TIMEOUT_SECONDS`, `EXTERNAL_API_TIMEOUT_SECONDS`
+* `GEMINI_TTS_MODEL`, `GEMINI_TTS_VOICE`, `GEMINI_TTS_LANGUAGES` (read-aloud voice)
+
+The frontend needs `NEXT_PUBLIC_API_URL` **at build time**. If a deployed build still points at `http://localhost:8000`, every request fails; the UI now detects this and says "service configuration needs attention" rather than blaming the user's internet connection.
 
 In `ENVIRONMENT=production` the backend requires a real database and Redis.
 
 ## Validation
 
 ```bash
-# Backend: 116 tests (the Postgres concurrency test runs in CI with a Postgres service)
+# Backend: 156 tests (the Postgres concurrency test runs in CI with a Postgres service)
 cd backend && python -m pytest -q
 
 # Frontend
 cd frontend
 npm run lint
 npm run typecheck
-npm test                      # locale integrity: keys, placeholders, no English leftovers, native numerals
+npm test                      # locale integrity, read-aloud state machine and voice choice, error classification
 npm run build
 npx playwright install chromium   # once
 npm run test:e2e              # user journeys on desktop and Pixel 7, against recorded API fixtures
@@ -127,13 +130,27 @@ After changing a locale, run `node scripts/localize-digits.mjs` to convert ASCII
 | Google Earth Engine (optional) | Sentinel-2 NDVI around the farm | Unavailable unless a service account is configured |
 | Google Gemini | Photo diagnosis, advisory, transcription, policy briefing | Always labelled AI-generated |
 | `backend/data/disease_reference.json` | Curated disease symptoms and management (ICAR institutes) | Small and growing |
-| `backend/data/kvk_locations.json` | Nearest Krishi Vigyan Kendra | Approximate; verify on the KVK portal |
+| `backend/data/kvk_locations.json` | Krishi Vigyan Kendra for the nearest listed district (23 districts) | Coordinates are district headquarters, not KVK campuses, so no distance is shown; outside 60 km no KVK is claimed |
+
+## Read aloud
+
+One app-wide speech session (`frontend/src/lib/speech-core.ts`, wired in `lib/speech.ts`) drives every Read aloud button: *Read aloud → Preparing audio… → Stop*. Starting another answer stops the previous one; leaving the page stops it; late callbacks from a stopped session are ignored. Text is read in the language it was **written in**, not the current UI language.
+
+Voice order: the Gemini speech model (natural, locale-pinned) for `GEMINI_TTS_LANGUAGES`; a high-quality on-device voice for the exact Indian locale if the server would only offer gTTS; then gTTS in the same language (Indian-accent English). An English voice is never used for Indic text. If no native voice is available the button says so.
+
+## Error messages
+
+`lib/api.ts` separates *offline*, *nothing reachable*, *server reachable but the request failed* (a no-cors probe of `/health/live`; this is what a CORS-blocked 500 or a platform timeout looks like), *timeout*, *rate limited* and *misconfigured API URL*. The backend adds CORS headers to its last-resort 500 envelope so real server errors are reported as such.
 
 ## Limitations
 
 * Translations are careful but should be reviewed by native-speaking agronomists.
 * Disease clusters reflect where the app is used and are AI-classified, not lab-confirmed.
 * The policy dashboard uses one forecast point per state for weather risk, so it is indicative only.
+* KVK data covers 23 districts with district-HQ coordinates. A verified national KVK dataset with campus coordinates is needed before distances can be shown.
+* SoilGrids is a fair-use service (about 5 queries per minute per client). Answers are cached for 7 days (Redis) and rate-limit answers are backed off, but a cold, busy deployment can still see "service busy".
+* District and disease names from the data sources are proper nouns and stay in their source spelling.
+* Gemini speech language coverage should be confirmed against the current model documentation before adding languages to `GEMINI_TTS_LANGUAGES`.
 
 ## License
 

@@ -20,9 +20,28 @@ import type {
 
 export const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '');
 
+/**
+ * True when the build points at an API the browser can never reach from this page: a localhost API
+ * on a deployed site (NEXT_PUBLIC_API_URL not set at build time) or an http API on an https page.
+ */
+export function apiMisconfigured(base: string = API_BASE, page: { protocol: string; hostname: string } | null = typeof location === 'undefined' ? null : location): boolean {
+  if (!page) return false;
+  let api: URL;
+  try {
+    api = new URL(base);
+  } catch {
+    return true;
+  }
+  const local = (h: string) => h === 'localhost' || h === '127.0.0.1' || h === '[::1]';
+  if (local(api.hostname) && !local(page.hostname)) return true;
+  return page.protocol === 'https:' && api.protocol === 'http:' && !local(api.hostname);
+}
+
 /** Error codes the UI knows how to explain; anything else maps to a generic message. */
 export type ApiErrorCode =
   | 'NETWORK_ERROR'
+  | 'OFFLINE'
+  | 'CONFIG_ERROR'
   | 'TIMEOUT'
   | 'SERVICE_UNAVAILABLE'
   | 'RATE_LIMITED'
@@ -41,16 +60,55 @@ export type ApiErrorCode =
   | string;
 
 export class ApiError extends Error {
-  constructor(
-    message: string,
-    public code: ApiErrorCode,
-    public status: number | null,
-    public retryable: boolean,
-    public requestId: string | null = null,
-  ) {
+  code: ApiErrorCode;
+  status: number | null;
+  retryable: boolean;
+  requestId: string | null;
+  constructor(message: string, code: ApiErrorCode, status: number | null, retryable: boolean, requestId: string | null = null) {
     super(message);
     this.name = 'ApiError';
+    this.code = code;
+    this.status = status;
+    this.retryable = retryable;
+    this.requestId = requestId;
   }
+}
+
+/** Code for an error response that has no JSON envelope (proxy/platform error pages). */
+export function codeForStatus(status: number): ApiErrorCode {
+  if (status === 404) return 'NOT_FOUND';
+  if (status === 408 || status === 504) return 'TIMEOUT';
+  if (status === 413) return 'PAYLOAD_TOO_LARGE';
+  if (status === 429) return 'RATE_LIMITED';
+  if (status === 400 || status === 422) return 'INVALID_INPUT';
+  if (status >= 500) return 'SERVICE_UNAVAILABLE';
+  return 'INTERNAL_ERROR';
+}
+
+let probe: { at: number; result: Promise<boolean> } | null = null;
+/** Test hook: forget the shared reachability probe. */
+export const resetReachabilityProbe = () => void (probe = null);
+
+/**
+ * fetch() rejects the same way for "no internet", DNS failure, a CORS block and a server that dropped the
+ * connection. Probing the liveness endpoint in no-cors mode separates "the server is reachable, the request
+ * failed there" from "nothing is reachable". One probe is shared by panels that fail together.
+ */
+function apiReachable(): Promise<boolean> {
+  if (probe && Date.now() - probe.at < 5_000) return probe.result;
+  const result = fetch(`${API_BASE}/health/live`, { mode: 'no-cors', cache: 'no-store', signal: AbortSignal.timeout(5_000) })
+    .then(() => true)
+    .catch(() => false);
+  probe = { at: Date.now(), result };
+  return result;
+}
+
+export async function classifyNetworkFailure(): Promise<ApiError> {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return new ApiError('Offline.', 'OFFLINE', null, true);
+  if (apiMisconfigured()) return new ApiError('API address is not reachable from this site.', 'CONFIG_ERROR', null, false);
+  return (await apiReachable())
+    ? new ApiError('The service could not complete the request.', 'SERVICE_UNAVAILABLE', null, true)
+    : new ApiError('Network error.', 'NETWORK_ERROR', null, true);
 }
 
 interface RequestOptions {
@@ -60,6 +118,7 @@ interface RequestOptions {
   headers?: Record<string, string>;
   timeoutMs?: number;
   signal?: AbortSignal;
+  parse?: (response: Response) => Promise<unknown>;
 }
 
 const DEFAULT_TIMEOUT_MS = 20_000;
@@ -89,8 +148,8 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
     });
   } catch (err) {
     if (opts.signal?.aborted) throw err;
-    const timedOut = controller.signal.aborted;
-    throw new ApiError(timedOut ? 'Request timed out.' : 'Network error.', timedOut ? 'TIMEOUT' : 'NETWORK_ERROR', null, true);
+    if (controller.signal.aborted) throw new ApiError('Request timed out.', 'TIMEOUT', null, true);
+    throw await classifyNetworkFailure();
   } finally {
     clearTimeout(timer);
     opts.signal?.removeEventListener('abort', onAbort);
@@ -107,13 +166,13 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
     const e = payload.error ?? {};
     throw new ApiError(
       e.message || response.statusText || 'Request failed.',
-      e.code || (response.status >= 500 ? 'SERVICE_UNAVAILABLE' : 'INTERNAL_ERROR'),
+      e.code || codeForStatus(response.status),
       response.status,
-      e.retryable ?? response.status >= 500,
+      e.retryable ?? (response.status >= 500 || response.status === 429 || response.status === 408),
       requestId,
     );
   }
-  return (await response.json()) as T;
+  return (await (opts.parse ? opts.parse(response) : response.json())) as T;
 }
 
 const q = (params: Record<string, string | number | null | undefined>) =>
@@ -182,7 +241,24 @@ export const getFollowUpAdvisory = (input: AdvisoryInput, signal?: AbortSignal) 
 export const transcribeAudio = (audioBase64: string, language: LanguageCode) =>
   request<{ text: string }>('/api/advisory/transcribe', { json: { audio_base64: audioBase64, language }, timeoutMs: AI_TIMEOUT_MS });
 
-export const ttsUrl = (text: string, lang: LanguageCode) => `${API_BASE}/api/advisory/tts?${q({ text: text.slice(0, 1500), lang })}`;
+export interface SpeechAudio {
+  audio: Blob;
+  provider: string | null;
+}
+
+/** One chunk of read-aloud audio in the language's own voice (POST: Indic text makes very long URLs). */
+export const synthesizeSpeech = (text: string, language: LanguageCode, signal?: AbortSignal) =>
+  request<SpeechAudio>('/api/advisory/tts', {
+    json: { text: text.slice(0, 1500), language },
+    headers: { Accept: 'audio/*' },
+    timeoutMs: AI_TIMEOUT_MS,
+    signal,
+    parse: async (r) => ({ audio: await r.blob(), provider: r.headers.get('x-tts-provider') }),
+  });
+
+/** Which server voice each language gets ("gemini" natural voice or "gtts"). */
+export const getSpeechVoices = (signal?: AbortSignal) =>
+  request<{ languages: Partial<Record<LanguageCode, 'gemini' | 'gtts'>> }>('/api/advisory/tts/voices', { signal });
 
 // --- Policymaker ----------------------------------------------------------------
 

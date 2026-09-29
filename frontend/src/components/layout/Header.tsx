@@ -11,42 +11,39 @@ import { NAV_ITEMS, isActive } from './nav';
 export default function Header() {
   const pathname = usePathname();
   const { t } = useI18n();
+  const items = [...NAV_ITEMS.map((i) => ({ href: i.href, label: i.label })), { href: '/about', label: 'nav.about' as const }];
 
   return (
-    <header className="sticky top-0 z-40 bg-leaf-900 text-white">
-      <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-2 focus:z-50 focus:rounded-lg focus:bg-white focus:px-3 focus:py-2 focus:text-ink">
+    <header className="sticky top-0 z-40 border-b border-line bg-paper/90 backdrop-blur-md supports-[backdrop-filter]:bg-paper/80">
+      <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-2 focus:z-50 focus:rounded-lg focus:bg-surface focus:px-3 focus:py-2 focus:text-ink">
         {t('nav.skip')}
       </a>
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <Link href="/" className="flex items-center gap-2.5 rounded-lg" aria-label={t('app.name')}>
           <Logo />
-          <span className="text-lg font-semibold tracking-tight">{t('app.name')}</span>
+          <span className="font-display text-xl font-medium text-ink">{t('app.name')}</span>
         </Link>
 
-        <nav aria-label={t('nav.menu')} className="hidden items-center gap-1 md:flex">
-          {NAV_ITEMS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={isActive(pathname, item.href) ? 'page' : undefined}
-              className={cn(
-                'rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                isActive(pathname, item.href) ? 'bg-leaf-700 text-white' : 'text-leaf-100 hover:bg-leaf-700/60 hover:text-white',
-              )}
-            >
-              {t(item.label)}
-            </Link>
-          ))}
-          <Link
-            href="/about"
-            aria-current={isActive(pathname, '/about') ? 'page' : undefined}
-            className={cn('rounded-lg px-3 py-2 text-sm font-medium text-leaf-100 hover:bg-leaf-700/60 hover:text-white', isActive(pathname, '/about') && 'bg-leaf-700 text-white')}
-          >
-            {t('nav.about')}
-          </Link>
+        <nav aria-label={t('nav.menu')} className="hidden h-full items-stretch gap-1 md:flex">
+          {items.map((item) => {
+            const active = isActive(pathname, item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? 'page' : undefined}
+                className={cn(
+                  'relative flex items-center px-3 text-sm font-medium transition-colors',
+                  active ? 'text-ink after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-leaf-600' : 'text-ink-soft hover:text-ink',
+                )}
+              >
+                {t(item.label)}
+              </Link>
+            );
+          })}
         </nav>
 
-        <LanguageSelect />
+        <LanguageSelect tone="light" />
       </div>
     </header>
   );

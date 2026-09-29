@@ -1,22 +1,21 @@
 'use client';
 
-import { AlertTriangle, BookOpenCheck, CheckCircle2, CircleHelp, Eye, FlaskConical, ImageOff, Leaf, ShieldCheck, Share2, Timer, Volume2, VolumeX } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { AlertTriangle, BookOpenCheck, CheckCircle2, CircleHelp, Eye, FlaskConical, ImageOff, Leaf, ShieldCheck, Share2, Timer } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
-import { onSpeechStateChange, speakText, stopSpeaking } from '@/lib/speech';
 import type { DiagnosisResponse } from '@/lib/types';
 import type { MessageKey } from '@/locales/en';
 import { cn } from '@/lib/utils';
-import { buttonClass, Card, LevelBadge, Note } from '../ui';
+import ReadAloud from '../ReadAloud';
+import { buttonClass, Card, KindTag, LevelBadge, Note } from '../ui';
 
-function StepList({ icon: Icon, title, items, tone }: { icon: React.ElementType; title: string; items: string[]; tone: string }) {
+function StepList({ icon: Icon, title, items, tone, lang }: { icon: React.ElementType; title: string; items: string[]; tone: string; lang?: string }) {
   if (!items.length) return null;
   return (
-    <div className={cn('rounded-xl border p-4', tone)}>
+    <div className={cn('rounded-[var(--radius-inner)] p-4', tone)}>
       <h4 className="mb-2 flex items-center gap-2 font-semibold">
         <Icon className="h-4 w-4" aria-hidden /> {title}
       </h4>
-      <ul className="list-disc space-y-1 pl-5 text-sm text-ink">
+      <ul className="list-disc space-y-1 pl-5 text-sm text-ink" lang={lang}>
         {items.map((s, i) => (
           <li key={i}>{s}</li>
         ))}
@@ -27,8 +26,6 @@ function StepList({ icon: Icon, title, items, tone }: { icon: React.ElementType;
 
 export default function DiagnosisResult({ result, previewUrl, onReset }: { result: DiagnosisResponse; previewUrl: string | null; onReset: () => void }) {
   const { t, language } = useI18n();
-  const [speaking, setSpeaking] = useState(false);
-  useEffect(() => onSpeechStateChange((s) => !s && setSpeaking(false)), []);
   const r = result;
   const detected = r.status === 'disease_detected';
   const lowCertainty = r.certainty === 'low' || r.status === 'uncertain';
@@ -43,136 +40,159 @@ export default function DiagnosisResult({ result, previewUrl, onReset }: { resul
           : t('diagnose.result.uncertain');
   const HeadingIcon = r.status === 'healthy' ? CheckCircle2 : r.status === 'not_a_plant' ? ImageOff : r.status === 'uncertain' ? CircleHelp : AlertTriangle;
 
-  const readAloud = () => {
-    if (speaking) return stopSpeaking();
-    setSpeaking(true);
-    speakText([heading, r.summary, ...r.treatment.immediate].join('. '), language);
-  };
+  // Read in the language the result was generated in; the heading is UI copy, so include it only when it matches.
+  const spoken = [language === r.language ? heading : r.disease_name, r.summary, ...r.treatment.immediate].filter(Boolean).join('. ');
 
   const share = () => {
     const text = t('diagnose.result.shareText', { result: heading, certainty: t(`level.${r.certainty}` as MessageKey) });
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer');
   };
 
+  const levels = ['low', 'moderate', 'high'] as const;
+  const filled = levels.indexOf(r.certainty) + 1;
+  const firstStep = r.treatment.immediate[0];
+
   return (
-    <div className="space-y-5 animate-rise">
-      <Card aria-labelledby="result-title">
-        <div className="flex flex-col gap-4 sm:flex-row">
+    <div className="space-y-6 animate-rise">
+      <section aria-labelledby="result-title" className="overflow-hidden rounded-[var(--radius-card)] bg-surface shadow-[var(--shadow-raised)] ring-1 ring-line/80">
+        <div className="grid sm:grid-cols-[13rem_1fr]">
           {previewUrl && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={previewUrl} alt={t('diagnose.upload.preview')} className="h-32 w-full rounded-xl object-cover sm:h-28 sm:w-28" />
+            <img src={previewUrl} alt={t('diagnose.upload.preview')} className="h-52 w-full object-cover sm:h-full sm:min-h-64" />
           )}
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{t('diagnose.result.title')} · {t('kind.ai_model')}</p>
-            <h2 id="result-title" className="mt-1 flex items-start gap-2 text-2xl font-semibold tracking-tight">
-              <HeadingIcon className={cn('mt-1 h-6 w-6 shrink-0', r.status === 'healthy' ? 'text-leaf-600' : detected ? 'text-warn-700' : 'text-ink-faint')} aria-hidden />
+          <div className={cn('min-w-0 p-5 sm:p-7', !previewUrl && 'sm:col-span-2')}>
+            <p className="flex flex-wrap items-center gap-2 text-sm text-ink-soft">
+              {t('diagnose.result.title')} <KindTag kind="ai_model" className="text-xs" />
+            </p>
+            <h2 id="result-title" className="mt-2 flex items-start gap-2.5 font-display text-[1.9rem] font-medium leading-tight">
+              <HeadingIcon className={cn('mt-1.5 h-6 w-6 shrink-0', r.status === 'healthy' ? 'text-leaf-600' : detected ? 'text-warn-700' : 'text-ink-faint')} aria-hidden />
               <span>{heading}</span>
             </h2>
-            {r.scientific_name && <p className="mt-0.5 text-sm italic text-ink-soft">{r.scientific_name}</p>}
-            <div className="mt-3 flex flex-wrap gap-2">
-              <LevelBadge level={r.certainty} label={t('diagnose.result.certainty')} />
-              {r.severity && <LevelBadge level={r.severity} label={t('diagnose.result.severity')} />}
-              {r.spread_risk && <LevelBadge level={r.spread_risk} label={t('diagnose.result.spread')} />}
-            </div>
+            {r.scientific_name && <p className="mt-1 text-sm italic text-ink-soft" lang="la">{r.scientific_name}</p>}
+
+            {r.status !== 'not_a_plant' && (
+              <div className="mt-5">
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="font-semibold">{t('diagnose.result.certainty')}</span>
+                  <span className="font-semibold">{t(`level.${r.certainty}` as MessageKey)}</span>
+                </div>
+                <div className="mt-1.5 grid grid-cols-3 gap-1" role="img" aria-label={`${t('diagnose.result.certainty')}: ${t(`level.${r.certainty}` as MessageKey)}`}>
+                  {levels.map((l, i) => (
+                    <span
+                      key={l}
+                      className={cn('h-1.5 rounded-full', i < filled ? (r.certainty === 'high' ? 'bg-leaf-600' : r.certainty === 'moderate' ? 'bg-watch-500' : 'bg-warn-500') : 'bg-paper-deep')}
+                    />
+                  ))}
+                </div>
+                {r.certainty_reason && (
+                  <p className="mt-2 text-sm text-ink-soft">
+                    <span className="font-semibold text-ink">{t('diagnose.result.certaintyWhy')}: </span>
+                    <span lang={r.language}>{r.certainty_reason}</span>
+                  </p>
+                )}
+              </div>
+            )}
+
+            {r.status === 'healthy' && <p className="mt-4 text-ink-soft">{t('diagnose.result.healthyBody')}</p>}
+            {r.status === 'uncertain' && <p className="mt-4 text-ink-soft">{t('diagnose.result.uncertainBody')}</p>}
+            {r.status === 'not_a_plant' && <p className="mt-4 text-ink-soft">{t('diagnose.result.notPlantBody')}</p>}
+
+            {detected && (
+              <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-line pt-4 text-sm">
+                <div>
+                  <dt className="flex items-center gap-1.5 text-ink-soft"><Timer className="h-4 w-4" aria-hidden /> {t('diagnose.result.urgency')}</dt>
+                  <dd className={cn('mt-0.5 font-semibold', r.urgency === 'immediate' && 'text-warn-700')}>{t(`urgency.${r.urgency}` as MessageKey)}</dd>
+                </div>
+                {r.affected_part && (
+                  <div>
+                    <dt className="flex items-center gap-1.5 text-ink-soft"><Leaf className="h-4 w-4" aria-hidden /> {t('diagnose.result.affected')}</dt>
+                    <dd className="mt-0.5 font-semibold" lang={r.language}>{r.affected_part}</dd>
+                  </div>
+                )}
+                {r.severity && (
+                  <div>
+                    <dt className="text-ink-soft">{t('diagnose.result.severity')}</dt>
+                    <dd className="mt-1"><LevelBadge level={r.severity} /></dd>
+                  </div>
+                )}
+                {r.spread_risk && (
+                  <div>
+                    <dt className="text-ink-soft">{t('diagnose.result.spread')}</dt>
+                    <dd className="mt-1"><LevelBadge level={r.spread_risk} /></dd>
+                  </div>
+                )}
+              </dl>
+            )}
           </div>
         </div>
 
-        {r.status === 'healthy' && <p className="mt-4 text-ink-soft">{t('diagnose.result.healthyBody')}</p>}
-        {r.status === 'uncertain' && <p className="mt-4 text-ink-soft">{t('diagnose.result.uncertainBody')}</p>}
-        {r.status === 'not_a_plant' && <p className="mt-4 text-ink-soft">{t('diagnose.result.notPlantBody')}</p>}
-
-        {lowCertainty && r.status !== 'not_a_plant' && (
-          <Note tone="warning" className="mt-4 font-medium">
-            {t('diagnose.result.lowWarning')}
-          </Note>
-        )}
-        {r.image_quality === 'poor' && (
-          <Note tone="watch" className="mt-3">
-            {t('diagnose.result.poorImage')}
-          </Note>
-        )}
-
-        <details className="mt-4 rounded-xl bg-paper p-3 text-sm">
-          <summary className="cursor-pointer font-semibold">{t('diagnose.result.certaintyWhy')}</summary>
-          <p className="mt-2 text-ink-soft">{r.certainty_reason}</p>
-        </details>
-
-        {r.summary && (
-          <div className="mt-4">
-            <h3 className="text-sm font-semibold">{t('diagnose.result.summary')}</h3>
-            <p className="mt-1 text-ink-soft">{r.summary}</p>
-          </div>
-        )}
-
-        {detected && (
-          <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-            <div className="flex items-start gap-2">
-              <Timer className="mt-0.5 h-4 w-4 text-ink-faint" aria-hidden />
-              <div>
-                <dt className="font-semibold">{t('diagnose.result.urgency')}</dt>
-                <dd className="text-ink-soft">{t(`urgency.${r.urgency}` as MessageKey)}</dd>
-              </div>
+        <div className="space-y-3 border-t border-line bg-paper/50 p-5 sm:p-7">
+          {firstStep && r.status !== 'not_a_plant' && (
+            <div className="rounded-[var(--radius-inner)] bg-surface p-4 ring-1 ring-line">
+              <p className="text-xs font-semibold text-leaf-700">{t('diagnose.result.doNow')}</p>
+              <p className="mt-1 text-[1.05rem] font-medium leading-snug" lang={r.language}>{firstStep}</p>
             </div>
-            {r.affected_part && (
-              <div className="flex items-start gap-2">
-                <Leaf className="mt-0.5 h-4 w-4 text-ink-faint" aria-hidden />
-                <div>
-                  <dt className="font-semibold">{t('diagnose.result.affected')}</dt>
-                  <dd className="text-ink-soft">{r.affected_part}</dd>
-                </div>
-              </div>
-            )}
-          </dl>
-        )}
+          )}
+          {lowCertainty && r.status !== 'not_a_plant' && (
+            <Note tone="warning" className="font-medium">
+              {t('diagnose.result.lowWarning')}
+            </Note>
+          )}
+          {r.image_quality === 'poor' && <Note tone="watch">{t('diagnose.result.poorImage')}</Note>}
+          {language !== r.language && <Note>{t('diagnose.result.languageMismatch')}</Note>}
+          {r.summary && (
+            <p className="text-ink-soft" lang={r.language}>
+              {r.summary}
+            </p>
+          )}
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            <ReadAloud text={spoken} language={r.language} />
+            <button type="button" onClick={share} className={cn(buttonClass.secondary, 'min-h-10 rounded-full px-4')}>
+              <Share2 className="h-4 w-4" aria-hidden /> {t('diagnose.result.share')}
+            </button>
+            <button type="button" onClick={onReset} className={buttonClass.ghost}>
+              {t('diagnose.result.another')}
+            </button>
+          </div>
+        </div>
+      </section>
 
-        {(r.observed_symptoms.length > 0 || r.alternative_causes.length > 0) && (
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+      {(r.observed_symptoms.length > 0 || r.alternative_causes.length > 0) && (
+        <Card aria-label={t('diagnose.result.symptoms')}>
+          <div className="grid gap-6 sm:grid-cols-2">
             {r.observed_symptoms.length > 0 && (
               <div>
-                <h3 className="flex items-center gap-2 text-sm font-semibold">
+                <h3 className="flex items-center gap-2 font-semibold">
                   <Eye className="h-4 w-4 text-leaf-600" aria-hidden /> {t('diagnose.result.symptoms')}
                 </h3>
-                <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-ink-soft">
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-ink-soft" lang={r.language}>
                   {r.observed_symptoms.map((s, i) => <li key={i}>{s}</li>)}
                 </ul>
               </div>
             )}
             {r.alternative_causes.length > 0 && (
               <div>
-                <h3 className="flex items-center gap-2 text-sm font-semibold">
+                <h3 className="flex items-center gap-2 font-semibold">
                   <CircleHelp className="h-4 w-4 text-ink-faint" aria-hidden /> {t('diagnose.result.alternatives')}
                 </h3>
-                <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-ink-soft">
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-ink-soft" lang={r.language}>
                   {r.alternative_causes.map((s, i) => <li key={i}>{s}</li>)}
                 </ul>
               </div>
             )}
           </div>
-        )}
-
-        <div className="mt-6 flex flex-wrap gap-2">
-          <button type="button" onClick={readAloud} className={buttonClass.secondary}>
-            {speaking ? <VolumeX className="h-4 w-4" aria-hidden /> : <Volume2 className="h-4 w-4" aria-hidden />}
-            {speaking ? t('action.stopReading') : t('action.readAloud')}
-          </button>
-          <button type="button" onClick={share} className={buttonClass.secondary}>
-            <Share2 className="h-4 w-4" aria-hidden /> {t('diagnose.result.share')}
-          </button>
-          <button type="button" onClick={onReset} className={buttonClass.ghost}>
-            {t('diagnose.result.another')}
-          </button>
-        </div>
-      </Card>
+        </Card>
+      )}
 
       {r.status !== 'not_a_plant' && (
         <Card aria-labelledby="steps-title">
-          <h2 id="steps-title" className="mb-4 text-lg font-semibold">{t('diagnose.result.steps')}</h2>
+          <h2 id="steps-title" className="mb-5 font-display text-[1.3rem] font-medium">{t('diagnose.result.steps')}</h2>
           <div className="grid gap-3 md:grid-cols-2">
-            <StepList icon={AlertTriangle} title={t('diagnose.result.immediate')} items={r.treatment.immediate} tone="border-warn-200 bg-warn-50/50" />
-            <StepList icon={Leaf} title={t('diagnose.result.organic')} items={r.treatment.organic} tone="border-leaf-100 bg-leaf-50/60" />
-            <StepList icon={ShieldCheck} title={t('diagnose.result.prevention')} items={r.treatment.prevention} tone="border-line bg-paper" />
+            <StepList icon={AlertTriangle} title={t('diagnose.result.immediate')} items={r.treatment.immediate} lang={r.language} tone="bg-warn-50/60" />
+            <StepList icon={Leaf} title={t('diagnose.result.organic')} items={r.treatment.organic} lang={r.language} tone="bg-leaf-50/70" />
+            <StepList icon={ShieldCheck} title={t('diagnose.result.prevention')} items={r.treatment.prevention} lang={r.language} tone="bg-paper/80" />
             {detected && (
-              <div className="rounded-xl border border-sky-100 bg-sky-50/60 p-4">
+              <div className="rounded-[var(--radius-inner)] bg-sky-50/70 p-4">
                 <h4 className="mb-2 flex items-center gap-2 font-semibold">
                   <FlaskConical className="h-4 w-4" aria-hidden /> {t('diagnose.result.chemical')}
                 </h4>
@@ -194,7 +214,7 @@ export default function DiagnosisResult({ result, previewUrl, onReset }: { resul
 
       {r.reference && (
         <Card aria-labelledby="ref-title" className="border-leaf-200">
-          <h2 id="ref-title" className="flex items-center gap-2 text-lg font-semibold">
+          <h2 id="ref-title" className="flex items-center gap-2 font-display text-[1.3rem] font-medium">
             <BookOpenCheck className="h-5 w-5 text-leaf-600" aria-hidden /> {t('diagnose.result.reference')}
           </h2>
           <p className="mt-1 text-sm text-ink-soft">{t('diagnose.result.referenceBody')}</p>
@@ -227,11 +247,11 @@ export default function DiagnosisResult({ result, previewUrl, onReset }: { resul
         </Card>
       )}
 
-      <Card aria-labelledby="ctx-title" className="bg-paper">
+      <Card aria-labelledby="ctx-title" className="bg-paper/60 shadow-none">
         <h2 id="ctx-title" className="text-sm font-semibold">{t('diagnose.result.context')}</h2>
         <ul className="mt-2 flex flex-wrap gap-2 text-xs">
           {(['crop', 'location', 'weather', 'reference'] as const).map((k) => (
-            <li key={k} className="rounded-full bg-surface px-2.5 py-1 ring-1 ring-line">
+            <li key={k} className="rounded-md bg-surface px-2.5 py-1 ring-1 ring-line">
               {t(`diagnose.result.ctx.${k}` as MessageKey)}: <strong>{t(`diagnose.result.ctx.${r.context_used[k]}` as MessageKey)}</strong>
             </li>
           ))}

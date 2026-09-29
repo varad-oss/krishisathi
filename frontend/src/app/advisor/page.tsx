@@ -1,16 +1,16 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { ImagePlus, MapPin, X } from 'lucide-react';
+import { ImagePlus, MapPin, Sprout, X } from 'lucide-react';
 import Conversation, { type ChatMessage } from '@/components/Conversation';
 import FarmProfileForm, { useLocationLabel } from '@/components/FarmProfileForm';
-import { buttonClass, Card, LoadingBlock, Note } from '@/components/ui';
+import { buttonClass, Card, LoadingBlock, Note, PageHeader } from '@/components/ui';
 import { ApiError, getAdvisory } from '@/lib/api';
 import { useFarmProfile } from '@/lib/farm-profile';
 import { useI18n } from '@/lib/i18n';
 import { blobToBase64, checkImageFile, prepareImage } from '@/lib/image';
 import type { MessageKey } from '@/locales/en';
-import { newId } from '@/lib/utils';
+import { cn, newId } from '@/lib/utils';
 
 export default function AdvisorPage() {
   const { t, language } = useI18n();
@@ -52,7 +52,7 @@ export default function AdvisorPage() {
         language,
         image_base64: sent ? await blobToBase64(sent.blob) : undefined,
       });
-      setMessages((m) => [...m, { id: newId(), role: 'assistant', text: res.advisory_text, sources: res.data_sources, generatedAt: res.generated_at }]);
+      setMessages((m) => [...m, { id: newId(), role: 'assistant', text: res.advisory_text, language: res.language, sources: res.data_sources, generatedAt: res.generated_at }]);
     } catch (e) {
       const err = e instanceof ApiError ? e : new ApiError('error', 'INTERNAL_ERROR', null, true);
       setMessages((m) => [...m, { id: newId(), role: 'error', error: err, retryText: text }]);
@@ -61,68 +61,69 @@ export default function AdvisorPage() {
     }
   };
 
-  if (!ready) return <div className="mx-auto w-full max-w-3xl px-4 py-8"><LoadingBlock /></div>;
+  if (!ready) return <div className="mx-auto w-full max-w-3xl px-4 py-10"><LoadingBlock /></div>;
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 pb-10 pt-6 sm:px-6">
-      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t('advisor.title')}</h1>
-      <p className="mt-1 text-ink-soft">{t('advisor.subtitle')}</p>
+    <div className="mx-auto w-full max-w-3xl px-4 pb-12 pt-6 sm:px-6 sm:pt-10">
+      <PageHeader
+        title={t('advisor.title')}
+        subtitle={t('advisor.subtitle')}
+        eyebrow={
+          profile.location && !editing ? (
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <MapPin className="h-4 w-4" aria-hidden /> {locationLabel(profile.location)}
+              {profile.crop && <span className="text-ink-soft">· {t(`crop.${profile.crop}` as MessageKey)}</span>}
+              <button type="button" onClick={() => setEditing(true)} className="min-h-10 font-semibold text-leaf-700 underline underline-offset-2">
+                {t('action.change')}
+              </button>
+            </span>
+          ) : undefined
+        }
+      />
 
       {!profile.location || editing ? (
-        <Card className="mt-5">
+        <Card>
           {!profile.location && <Note className="mb-5">{t('advisor.needProfile')}</Note>}
           <FarmProfileForm onDone={() => setEditing(false)} onCancel={profile.location ? () => setEditing(false) : undefined} />
         </Card>
       ) : (
-        <>
-          <div className="mb-4 mt-4 flex flex-wrap items-center gap-2 text-sm">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-leaf-50 px-3 py-1.5 font-medium text-leaf-700">
-              <MapPin className="h-4 w-4" aria-hidden /> {locationLabel(profile.location)}
-              {profile.crop && ` · ${t(`crop.${profile.crop}` as MessageKey)}`}
-            </span>
-            <button type="button" onClick={() => setEditing(true)} className={buttonClass.ghost}>
-              {t('action.change')}
-            </button>
-          </div>
-          <Card>
-            <Conversation
-              messages={messages}
-              onSend={send}
-              busy={busy}
-              placeholder={t('advisor.placeholder')}
-              suggestions={messages.length ? [] : [t('advisor.q1'), t('advisor.q2'), t('advisor.q3'), t('advisor.q4')]}
-              intro={
-                <div className="rounded-2xl bg-paper p-4 text-sm text-ink-soft">
-                  <p>{t('advisor.welcome')}</p>
-                </div>
-              }
-              attachment={
-                <div className="flex flex-wrap items-center gap-3">
-                  {image ? (
-                    <span className="relative inline-block">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={image.url} alt="" className="h-16 w-16 rounded-lg object-cover ring-1 ring-line" />
-                      <button
-                        type="button"
-                        onClick={() => setImage(null)}
-                        aria-label={t('advisor.removeAttachment')}
-                        className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-ink text-white"
-                      >
-                        <X className="h-4 w-4" aria-hidden />
-                      </button>
-                    </span>
-                  ) : (
-                    <button type="button" onClick={() => fileInput.current?.click()} className={buttonClass.ghost}>
-                      <ImagePlus className="h-4 w-4" aria-hidden /> {t('advisor.attach')}
-                    </button>
-                  )}
-                  <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" tabIndex={-1} aria-hidden onChange={(e) => attach(e.target.files?.[0])} />
-                  {imageProblem && <p role="alert" className="text-sm text-warn-700">{imageProblem}</p>}
-                </div>
-              }
-            />
-          </Card>
-        </>
+        <Conversation
+          messages={messages}
+          onSend={send}
+          busy={busy}
+          placeholder={t('advisor.placeholder')}
+          suggestions={messages.length ? [] : [t('advisor.q1'), t('advisor.q2'), t('advisor.q3'), t('advisor.q4')]}
+          intro={
+            <div className="flex items-start gap-3 rounded-[var(--radius-inner)] bg-leaf-50/70 p-4 text-sm text-ink-soft">
+              <Sprout className="mt-0.5 h-5 w-5 shrink-0 text-leaf-600" aria-hidden />
+              <p className="text-ink">{t('advisor.welcome')}</p>
+            </div>
+          }
+          attachment={
+            <div className="flex flex-wrap items-center gap-3">
+              {image ? (
+                <span className="relative inline-block">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={image.url} alt={t('advisor.attachedPhoto')} className="h-16 w-16 rounded-lg object-cover ring-1 ring-line" />
+                  <button
+                    type="button"
+                    onClick={() => setImage(null)}
+                    aria-label={t('advisor.removeAttachment')}
+                    className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-ink text-white"
+                  >
+                    <X className="h-4 w-4" aria-hidden />
+                  </button>
+                </span>
+              ) : (
+                <button type="button" onClick={() => fileInput.current?.click()} className={cn(buttonClass.ghost, 'min-h-10 px-2')}>
+                  <ImagePlus className="h-4 w-4" aria-hidden /> {t('advisor.attach')}
+                </button>
+              )}
+              <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" tabIndex={-1} aria-hidden onChange={(e) => attach(e.target.files?.[0])} />
+              {imageProblem && <p role="alert" className="text-sm text-warn-700">{imageProblem}</p>}
+            </div>
+          }
+        />
       )}
     </div>
   );

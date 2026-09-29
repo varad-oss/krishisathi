@@ -167,3 +167,18 @@ Next.js 16 (App Router, all pages "use client")          FastAPI (Vercel serverl
 * Build an issuing flow for publisher tokens. Tokens are currently minted out of band with `JWT_SECRET`.
 * Add offline support with a service worker for low-connectivity areas.
 * Verify the Open-Meteo and SoilGrids field names against the live APIs in staging. The development sandbox could not reach them; the parsers were written from the providers' published schemas and are covered by fixture tests.
+
+## 11. Follow-up pass (2026-09-29): speech, localisation, soil, KVK, connectivity, design
+
+Root causes found, each with a regression test:
+
+| Symptom | Root cause | Fix |
+|---|---|---|
+| Read aloud never turned into Stop | `speakText()` called `stopSpeaking()`, which broadcast "not speaking" to every listener in the same event that set `speaking = true`, so React batched it back to false. A cancelled utterance's `onerror` also fired after the next one started. | Session-token state machine (`lib/speech-core.ts`) with one owner, `useSpeech()` hook and `ReadAloud` button. 20 unit tests, 2 e2e tests. |
+| Robotic or wrong-accent voice | The browser path was used only if `getVoices()` was already populated (often empty in Chrome), otherwise gTTS with the US English accent. Voices were chosen by the **current UI language**, so an earlier English answer was read with a Hindi voice after switching. | Gemini speech for configured languages, high-quality native device voice, then gTTS in the same language (`tld=co.in` for English). Messages carry their own language. |
+| English fragments in translated pages | Hard-coded "Open-Meteo · ", "km/h", "mm", API `notes` strings; model answers sometimes followed the question's language. | 39 new and 6 revised keys in all 10 locales; API notes replaced by localized copy; answers outside the requested script are regenerated once. |
+| Soil "not available" | Every failure collapsed to `upstream_error`. SoilGrids allows about 5 queries/min, failures were never cached, two farm-page requests and every advisory hit it, and the in-process cache is lost on serverless cold starts. District presets are city centres, where SoilGrids masks built-up land (`no_data`). | Specific reasons, Redis cache, 60 s rate-limit backoff, single-flight, one retry for transient errors; UI explains each reason. |
+| KVK "about 0 km" | `kvk_locations.json` stores district HQ points, and the location presets use the same points. | Reported as "KVK for X district" with no distance; 404 outside 60 km; distance only for verified sites. The e2e fixture had `distance_km: 0.0` baked in and was regenerated from the new route. |
+| "Check your internet connection" on the dashboard | CORS middleware sat inside the request-ID middleware, so its 500 envelope had no `Access-Control-Allow-Origin` and browsers reported a network failure; the frontend mapped every `fetch` rejection to `NETWORK_ERROR`. | CORS outermost; frontend classification with a shared no-cors reachability probe. |
+
+Not verifiable from the development sandbox (egress blocked): the live deployment, SoilGrids, Open-Meteo and Gemini speech. They are covered by mocked tests only.

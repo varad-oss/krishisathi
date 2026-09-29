@@ -1,55 +1,129 @@
 'use client';
 
-import { ApiError, transcribeAudio, ttsUrl } from './api';
+import { useCallback, useEffect, useId, useSyncExternalStore } from 'react';
+import { ApiError, getSpeechVoices, synthesizeSpeech, transcribeAudio } from './api';
+import { BlockedError, createSpeechController, isHighQualityVoice, pickVoice, type Player, type SpeechState } from './speech-core';
 import type { LanguageCode } from './types';
 
-const BCP47: Record<LanguageCode, string> = {
-  en: 'en-IN', hi: 'hi-IN', mr: 'mr-IN', ta: 'ta-IN', te: 'te-IN', bn: 'bn-IN', kn: 'kn-IN', gu: 'gu-IN', pa: 'pa-IN', ml: 'ml-IN',
-};
+const IDLE: SpeechState = { status: 'idle', ownerId: null, engine: null, error: null };
 
-let currentAudio: HTMLAudioElement | null = null;
-let listeners: ((speaking: boolean) => void)[] = [];
-const notify = (s: boolean) => listeners.forEach((l) => l(s));
+let voicePlan: Promise<Partial<Record<LanguageCode, 'gemini' | 'gtts'>>> | null = null;
 
-export function onSpeechStateChange(listener: (speaking: boolean) => void) {
-  listeners.push(listener);
-  return () => {
-    listeners = listeners.filter((l) => l !== listener);
-  };
+function serverVoice(lang: LanguageCode) {
+  voicePlan ??= getSpeechVoices()
+    .then((r) => r.languages)
+    .catch((e) => {
+      voicePlan = null; // retry on the next play
+      throw e;
+    });
+  return voicePlan.then((plan) => plan[lang] ?? null);
 }
 
-/** Uses a native voice for the language when the device has one; otherwise server-side TTS. */
-export function speakText(text: string, lang: LanguageCode): void {
-  if (typeof window === 'undefined' || !text.trim()) return;
-  stopSpeaking();
-  notify(true);
-  const plain = text.replace(/[#*_`>|-]/g, ' ');
-
-  const tag = BCP47[lang].toLowerCase();
-  const voices = 'speechSynthesis' in window ? window.speechSynthesis.getVoices() : [];
-  if (voices.some((v) => v.lang.toLowerCase().startsWith(tag) || v.lang.toLowerCase().startsWith(lang))) {
-    const u = new SpeechSynthesisUtterance(plain);
-    u.lang = BCP47[lang];
-    u.rate = 0.9;
-    u.onend = u.onerror = () => notify(false);
-    window.speechSynthesis.speak(u);
-    return;
-  }
-
-  currentAudio = new Audio(ttsUrl(plain, lang));
-  currentAudio.onended = currentAudio.onerror = () => notify(false);
-  currentAudio.play().catch((e) => {
-    if (e?.name !== 'AbortError') notify(false);
+function loadVoices(): Promise<SpeechSynthesisVoice[]> {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return Promise.resolve([]);
+  const now = window.speechSynthesis.getVoices();
+  if (now.length) return Promise.resolve(now);
+  // Chrome loads voices asynchronously; the first getVoices() call is often empty.
+  return new Promise((resolve) => {
+    const done = () => resolve(window.speechSynthesis.getVoices());
+    window.speechSynthesis.addEventListener('voiceschanged', done, { once: true });
+    setTimeout(done, 1500);
   });
 }
 
-export function stopSpeaking(): void {
-  if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
-  if (currentAudio) {
-    currentAudio.pause();
-    currentAudio = null;
-  }
-  notify(false);
+function devicePlayer(voice: SpeechSynthesisVoice): Player {
+  let settle: (() => void) | null = null;
+  return {
+    play: (chunk, onStart) =>
+      new Promise<void>((resolve, reject) => {
+        const u = new SpeechSynthesisUtterance(chunk);
+        u.voice = voice;
+        u.lang = voice.lang;
+        u.rate = 0.95;
+        u.onstart = onStart;
+        u.onend = () => resolve();
+        u.onerror = (e) => {
+          if (e.error === 'interrupted' || e.error === 'canceled') resolve();
+          else reject(e.error === 'not-allowed' ? new BlockedError() : new Error(e.error));
+        };
+        settle = resolve;
+        window.speechSynthesis.speak(u);
+      }),
+    stop: () => {
+      window.speechSynthesis.cancel();
+      settle?.();
+      settle = null;
+    },
+    pause: () => window.speechSynthesis.pause(),
+    resume: () => window.speechSynthesis.resume(),
+  };
+}
+
+function audioPlayer() {
+  const audio = new Audio();
+  let url: string | null = null;
+  let settle: (() => void) | null = null;
+  const release = () => {
+    if (url) URL.revokeObjectURL(url);
+    url = null;
+  };
+  return {
+    play: () => Promise.reject(new Error('use playBlob')),
+    playBlob: (blob: Blob, onStart: () => void) =>
+      new Promise<void>((resolve, reject) => {
+        release();
+        url = URL.createObjectURL(blob);
+        settle = resolve;
+        audio.onended = () => resolve();
+        audio.onerror = () => reject(new Error('audio playback failed'));
+        audio.src = url;
+        audio.play().then(onStart, (e: DOMException) => {
+          if (e?.name === 'NotAllowedError') reject(new BlockedError());
+          else if (e?.name === 'AbortError') resolve();
+          else reject(e);
+        });
+      }),
+    stop: () => {
+      audio.pause();
+      audio.removeAttribute('src');
+      release();
+      settle?.();
+      settle = null;
+    },
+    pause: () => audio.pause(),
+    resume: () => void audio.play().catch(() => {}),
+  };
+}
+
+/** The single read-aloud session for the whole app. */
+export const speech = createSpeechController({
+  fetchAudio: (text, lang, signal) => synthesizeSpeech(text, lang, signal).then((r) => r.audio),
+  audioPlayer,
+  serverVoice,
+  deviceVoice: async (lang) => {
+    const voice = pickVoice(await loadVoices(), lang);
+    return voice ? { player: devicePlayer(voice), highQuality: isHighQualityVoice(voice, lang) } : null;
+  },
+});
+
+/**
+ * Read-aloud controls for one piece of content. Status is "idle" unless this owner holds the session,
+ * and the session is released when the owner unmounts.
+ */
+export function useSpeech() {
+  const ownerId = useId();
+  const state = useSyncExternalStore(speech.subscribe, speech.getState, () => IDLE);
+  useEffect(() => () => speech.release(ownerId), [ownerId]);
+  const mine = state.ownerId === ownerId;
+  return {
+    status: mine ? state.status : ('idle' as const),
+    error: mine ? state.error : null,
+    engine: mine ? state.engine : null,
+    play: useCallback((text: string, lang: LanguageCode) => speech.play(ownerId, text, lang), [ownerId]),
+    stop: speech.stop,
+    pause: speech.pause,
+    resume: speech.resume,
+  };
 }
 
 export const recordingSupported = () =>

@@ -56,6 +56,12 @@ def pcm_to_wav(pcm: bytes, rate: int = 24_000) -> bytes:
     return buf.getvalue()
 
 
+def voice_plan() -> dict[str, str]:
+    """Server voice per language: "gemini" (natural) or "gtts" (native but plainer)."""
+    gemini = bool(settings.GEMINI_TTS_MODEL and gemini_service.configured)
+    return {code: "gemini" if gemini and code in gemini_languages() else "gtts" for code in LOCALES}
+
+
 async def _gtts(text: str, lang: str) -> bytes:
     def render() -> bytes:
         fp = io.BytesIO()
