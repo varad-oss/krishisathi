@@ -13,7 +13,7 @@ from main import app
 from models.exceptions import ServiceUnavailableException
 from services import tts_service
 from services.gemini_service import gemini_service
-from services.languages import is_in_language, script_ratio
+from services.languages import is_in_language, language_rule, script_ratio
 
 client = TestClient(app)
 
@@ -123,6 +123,9 @@ def test_script_ratio():
     assert script_ratio("पानी दें", "hi") == 1.0
     assert script_ratio("Water the field", "hi") == 0.0
     assert script_ratio("anything", "en") == 1.0
+    assert script_ratio("12 °C, 81%", "en") == 1.0  # no letters
+    assert not is_in_language("नमस्कार किसान भाई, आज बारिश होगी।", "en")
+    assert is_in_language("Rain of 10.5 mm is likely today (KVK Pune).", "en")
     assert is_in_language("मिट्टी का pH 7 है", "hi")  # technical terms may stay in Latin
     assert not is_in_language("Irrigate tomorrow. पानी", "hi")
     assert is_in_language("ಮಣ್ಣು ಪರೀಕ್ಷೆ", "kn") and not is_in_language("ಮಣ್ಣು ಪರೀಕ್ಷೆ", "ta")
@@ -136,6 +139,34 @@ def test_advisory_answer_in_wrong_language_is_regenerated():
     assert text == "उद्या सकाळी हलके पाणी द्या."
     assert call.call_count == 2
     assert "Marathi" in call.call_args.kwargs["contents"][-1]
+
+
+def test_english_request_answered_in_hindi_is_regenerated_in_english():
+    # Regression: a Hindi answer was returned to a farmer whose UI language was English.
+    replies = [SimpleNamespace(text="नमस्कार किसान भाई, आज बारिश की संभावना है।"),
+               SimpleNamespace(text="Rain is likely today, so keep the drainage channels clear.")]
+    with patch.object(gemini_service, "_call", AsyncMock(side_effect=replies)) as call:
+        import asyncio
+        text = asyncio.run(gemini_service.generate_advisory("Hello", "[DATA]", "en", "Wheat"))
+    assert text.startswith("Rain is likely")
+    assert call.call_count == 2
+    assert "English only" in call.call_args.kwargs["contents"][-1]
+
+
+def test_language_rule_never_asks_english_for_a_native_script():
+    assert "native script" not in language_rule("en")
+    assert "English only" in language_rule("en") and "Hindi" in language_rule("en")
+    assert language_rule("xx") == language_rule("en")
+    for code, name in (("hi", "Hindi"), ("mr", "Marathi"), ("ml", "Malayalam")):
+        assert f"Write in {name} only" in language_rule(code) and "native script" in language_rule(code)
+
+
+def test_english_advisory_prompt_pins_english():
+    with patch.object(gemini_service, "_call", AsyncMock(return_value=SimpleNamespace(text="Irrigate lightly."))) as call:
+        import asyncio
+        asyncio.run(gemini_service.generate_advisory("Hello", "[DATA]", "en", None))
+    system = call.call_args.kwargs["system_instruction"]
+    assert "English only" in system and "native script" not in system
 
 
 def test_advisory_answer_in_right_language_is_not_regenerated():

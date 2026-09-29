@@ -17,7 +17,7 @@ from pydantic import ValidationError
 from config import settings
 from models.diagnosis import AIDiagnosis
 from models.exceptions import ServiceUnavailableException
-from services.languages import is_in_language, language_name
+from services.languages import is_in_language, language_name, language_rule
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +97,7 @@ Rules:
 5. Never invent pesticide doses, concentrations, brand names or regulatory claims. Only put an active ingredient
    in treatment.chemical if it appears in the matching reference entry, and add that the dose must be confirmed
    with the local agriculture officer or Krishi Vigyan Kendra.
-6. Write every human-readable text field in {lang} using its native script (no romanization). Keep enum fields
+6. Human-readable text fields: {language_rule(language)} Keep enum fields
    (diagnosis_status, image_quality, certainty, severity, spread_risk, urgency) exactly as listed in English.
    Also give disease_name_en: the common English name (or null).
 
@@ -137,15 +137,14 @@ Return only JSON with this structure:
     async def generate_advisory(self, query: str, context_block: str, language: str, crop: str | None,
                                 image_bytes: bytes | None = None, image_mime: str | None = None,
                                 diagnosis_context: str | None = None) -> str:
-        lang = language_name(language)
         system_instruction = f"""You are KrishiSathi, an agricultural advisor for small and marginal farmers in India.
 - Use ONLY the facts in the DATA blocks for any number, date, weather, soil or outbreak statement.
 - If a data source is marked UNAVAILABLE, say briefly that it was not available; do not guess it.
 - Never invent statistics, yields, prices, pesticide doses, brand names or schemes.
 - Prefer low-cost and regenerative practices. For chemical control, advise confirming products and doses with
   the local agriculture officer or Krishi Vigyan Kendra.
-- Always answer in {lang}, native script only (no romanization), in simple words, under 220 words, even when
-  the question is written in English, Hinglish or another language. Keep units and codes such as pH or NPK as is.
+- {language_rule(language)}
+  Use simple words and stay under 220 words. Keep units and codes such as pH or NPK as is.
 - Structure: what to do now, why (cite which data), what to watch for.
 {UNTRUSTED_NOTE}"""
         parts = [f"Crop: {crop or 'not stated'}"]
@@ -174,7 +173,7 @@ Return only JSON with this structure:
         logger.warning("Model answered outside %s; retrying with a stricter instruction", lang)
         response = await self._call(
             model=model,
-            contents=[*contents, f"Write the complete answer in {lang} using its native script only. Do not use English sentences."],
+            contents=[*contents, f"Rewrite the complete answer. {language_rule(language)}"],
             temperature=0.2,
             system_instruction=system_instruction,
             error_message=error_message,
@@ -231,7 +230,6 @@ Return only JSON with this structure:
         return part.data, int(rate.group(1)) if rate else 24_000
 
     async def generate_dashboard_report(self, data: dict, language: str = "en") -> str:
-        lang = language_name(language)
         prompt = f"""You are an agricultural data analyst writing a short briefing for state agriculture officials.
 
 DATA (aggregated from KrishiSathi diagnosis records; AI-classified, user-submitted photos; not official statistics):
@@ -241,7 +239,7 @@ Rules:
 - Use only the numbers in DATA. Do not add percentages, trends or regions that are not in DATA.
 - Say clearly when sample sizes are small; small samples cannot show regional trends.
 - Include: key observations, emerging risks, suggested follow-up (e.g. field verification by KVK staff), and data limitations.
-- Write in {lang}, native script, as concise Markdown under 250 words."""
+- {language_rule(language)} Use concise Markdown under 250 words."""
         response = await self._call(
             model=settings.GEMINI_AGENT_MODEL,
             contents=[prompt],
