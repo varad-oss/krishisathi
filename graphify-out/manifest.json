@@ -1,8 +1,8 @@
 {
   "backend/config.py": {
-    "mtime": 1790707005.6510146,
-    "seen": 1790708742.8877382,
-    "ast_hash": "0d544bf7357affd69007fc8dac4f85d1",
+    "mtime": 1790711536.6747813,
+    "seen": 1790711671.9985552,
+    "ast_hash": "c13b875b2933f10078352fa803514d0c",
     "semantic_hash": ""
   },
   "backend/data/kvk_locations.json": {
@@ -12,9 +12,9 @@
     "semantic_hash": ""
   },
   "backend/main.py": {
-    "mtime": 1790707005.6532805,
-    "seen": 1790708742.887758,
-    "ast_hash": "cfbb82a4bbceee763266558344fec513",
+    "mtime": 1790711536.6762965,
+    "seen": 1790711671.9985805,
+    "ast_hash": "1f0b6b7bed574ddfa90213b5d63f5814",
     "semantic_hash": ""
   },
   "backend/models/__init__.py": {
@@ -72,10 +72,10 @@
     "semantic_hash": ""
   },
   "backend/routers/debug.py": {
-    "mtime": 1790387217.5846589,
-    "seen": 1790708742.8877857,
-    "ast_hash": "d00727fd1498f817182edd9fb647ae93",
-    "semantic_hash": "d00727fd1498f817182edd9fb647ae93"
+    "mtime": 1790711536.6769054,
+    "seen": 1790711671.9986134,
+    "ast_hash": "3a965f8f9ae060d75f2c7c291ec2b3a1",
+    "semantic_hash": ""
   },
   "backend/routers/diagnose.py": {
     "mtime": 1790387142.038168,
@@ -126,10 +126,10 @@
     "semantic_hash": "47c6723f80f29c2cc5270dc6fdf4be7b"
   },
   "backend/services/earth_engine_service.py": {
-    "mtime": 1790386884.450501,
-    "seen": 1790708742.887803,
-    "ast_hash": "e026a2e3f645635cd6820f45fa2368e0",
-    "semantic_hash": "e026a2e3f645635cd6820f45fa2368e0"
+    "mtime": 1790711524.552477,
+    "seen": 1790711671.998636,
+    "ast_hash": "663f842df7492edb56a52e02191ce293",
+    "semantic_hash": ""
   },
   "backend/services/gemini_service.py": {
     "mtime": 1790711210.5438623,
@@ -372,10 +372,10 @@
     "semantic_hash": "6d73634a678cf1e1c71930adf80bd1f0"
   },
   ".github/workflows/ci.yml": {
-    "mtime": 1790406845.6591513,
-    "seen": 1790708742.887911,
-    "ast_hash": "a636ddcd254092d0fc5c098e175cc085",
-    "semantic_hash": "a636ddcd254092d0fc5c098e175cc085"
+    "mtime": 1790711646.9794357,
+    "seen": 1790711671.9987583,
+    "ast_hash": "3547c06b944a5413ac6497f3f18b0c02",
+    "semantic_hash": ""
   },
   "AGENTS.md": {
     "mtime": 1790386183.6843066,
@@ -576,10 +576,10 @@
     "semantic_hash": "56a7fcb9fc7e4ecbd452f92499005d95"
   },
   "backend/routers/meta.py": {
-    "mtime": 1790387217.58604,
-    "seen": 1790708742.8877907,
-    "ast_hash": "9d1b4204ff4792d3bfd1b56bcfbe8149",
-    "semantic_hash": "9d1b4204ff4792d3bfd1b56bcfbe8149"
+    "mtime": 1790711536.6755967,
+    "seen": 1790711671.9986193,
+    "ast_hash": "bfcf0b3de410fa41a210116e05dc51e7",
+    "semantic_hash": ""
   },
   "backend/services/advisory_context.py": {
     "mtime": 1790706956.2523346,
@@ -981,6 +981,24 @@
     "mtime": 1790708146.616874,
     "seen": 1790708742.8878973,
     "ast_hash": "98fbd9b007805a30f212f6ab8dd594df",
+    "semantic_hash": ""
+  },
+  "backend/scripts/check_earth_engine.py": {
+    "mtime": 1790711621.677489,
+    "seen": 1790711671.998624,
+    "ast_hash": "38025765c4daa9afa6be9038f37f43d1",
+    "semantic_hash": ""
+  },
+  "backend/tests/test_earth_engine.py": {
+    "mtime": 1790711585.2160523,
+    "seen": 1790711671.998655,
+    "ast_hash": "9309416bda54246216f1aefe25afb6a8",
+    "semantic_hash": ""
+  },
+  "docs/EARTH_ENGINE.md": {
+    "mtime": 1790711642.6906085,
+    "seen": 1790711671.9987636,
+    "ast_hash": "a70b8fe5f7bfa9e10ebe81210c9c7c83",
     "semantic_hash": ""
   }
 }

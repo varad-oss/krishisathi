@@ -64,6 +64,9 @@ jobs:
       - name: Install Dependencies
         run: pip install uv && uv pip install --system -r backend/requirements.txt
       - name: Run Pytest
+        env:
+          # Optional: when this secret exists, tests/test_earth_engine.py also queries real Sentinel-2 data.
+          EE_SERVICE_ACCOUNT_KEY_JSON: ${{ secrets.EE_SERVICE_ACCOUNT_KEY_JSON }}
         run: uv pip install --system pytest pytest-asyncio && cd backend && python -m alembic upgrade head && cd .. && DATABASE_URL="sqlite+aiosqlite:///${PWD}/backend/krishisathi.db" pytest backend/tests/
 
   test-backend-postgres:

@@ -13,6 +13,7 @@ from core.database import AsyncSessionLocal, engine
 from core.errors import install_error_handlers
 from core.middleware import RequestContextMiddleware
 from core.rate_limit import redis_client
+from services.earth_engine_service import earth_engine_service
 from routers import advisory, alerts, dashboard, debug, diagnose, farm, kvk, meta, states, weather
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -140,6 +141,10 @@ async def health_ready():
             ready = settings.ENVIRONMENT != "production" and ready
     else:
         dependencies["redis"] = "not_configured"
+
+    # Optional source: reported for operators, never blocks readiness.
+    ee_state = earth_engine_service.describe()
+    dependencies["earth_engine"] = ee_state["status"] if not ee_state["error"] else f'{ee_state["status"]}:{ee_state["error"]}'
 
     body = {"status": "ok" if ready else "degraded", "service": "krishisathi-api", "ready": ready, "dependencies": dependencies}
     return JSONResponse(body, status_code=200 if ready else 503)

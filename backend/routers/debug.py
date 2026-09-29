@@ -13,5 +13,5 @@ async def get_ee_status():
         "earth_engine_library_installed": EE_AVAILABLE,
         "earth_engine_authenticated": earth_engine_service.initialized,
         "pipeline_mode": "LIVE" if earth_engine_service.initialized else "UNAVAILABLE",
-        "note": "Requires Earth Engine service-account credentials to return LIVE mode.",
+        **earth_engine_service.describe(),
     }

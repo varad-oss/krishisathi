@@ -35,7 +35,8 @@ class Settings(BaseSettings):
     JWT_SECRET: Optional[str] = None
 
     # Earth Engine service account (JSON key contents). Optional.
-    EE_SERVICE_ACCOUNT_KEY_JSON: Optional[str] = None
+    EE_SERVICE_ACCOUNT_KEY_JSON: Optional[str] = None  # service-account JSON key, raw or base64
+    EE_PROJECT: Optional[str] = None  # Cloud project registered for Earth Engine; defaults to the key's project_id
 
     # Database and Redis (Vercel integrations inject these names)
     DATABASE_URL: Optional[str] = None
