@@ -53,6 +53,11 @@ class AdvisoryResponse(BaseModel):
     recorded: bool = True
 
 
+class TtsRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=1500)
+    language: Language = "en"
+
+
 class TranscribeRequest(BaseModel):
     audio_base64: str = Field(..., max_length=14_000_000)
     language: Language = "en"

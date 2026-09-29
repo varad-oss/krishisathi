@@ -22,3 +22,26 @@ def normalize_language(code: str | None) -> str:
 
 def language_name(code: str) -> str:
     return LANGUAGES.get(code, "English")
+
+
+# Unicode blocks of the native script for each Indic language (Marathi and Hindi share Devanagari).
+SCRIPT_BLOCKS = {
+    "hi": (0x0900, 0x097F), "mr": (0x0900, 0x097F), "bn": (0x0980, 0x09FF), "pa": (0x0A00, 0x0A7F),
+    "gu": (0x0A80, 0x0AFF), "ta": (0x0B80, 0x0BFF), "te": (0x0C00, 0x0C7F), "kn": (0x0C80, 0x0CFF),
+    "ml": (0x0D00, 0x0D7F),
+}
+
+
+def script_ratio(text: str, code: str) -> float:
+    """Share of letters written in the language's native script (1.0 for English or text without letters)."""
+    block = SCRIPT_BLOCKS.get(code)
+    # Combining vowel signs are not str.isalpha(), so count every code point in the block as a letter.
+    letters = [c for c in text if c.isalpha() or (block and block[0] <= ord(c) <= block[1])]
+    if not block or not letters:
+        return 1.0
+    return sum(block[0] <= ord(c) <= block[1] for c in letters) / len(letters)
+
+
+def is_in_language(text: str, code: str, minimum: float = 0.6) -> bool:
+    """True when the text is mostly in the native script. Technical terms (pH, NPK) may stay in Latin."""
+    return script_ratio(text, code) >= minimum

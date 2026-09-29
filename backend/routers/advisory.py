@@ -1,12 +1,9 @@
-import asyncio
 import base64
-import io
 import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
-from gtts import gTTS
 
 from core.errors import ApiError
 from core.rate_limit import ai_rate_limit, tts_rate_limit
@@ -15,6 +12,7 @@ from models.advisory import (
     AdvisoryResponse,
     FollowUpRequest,
     TranscribeRequest,
+    TtsRequest,
     VoiceAdvisoryRequest,
     VoiceAdvisoryResponse,
 )
@@ -24,6 +22,7 @@ from services.crops import normalize_crop
 from services.gemini_service import gemini_service, one_line
 from services.images import sniff_image
 from services.persistence_service import persistence_service
+from services.tts_service import LOCALES, synthesize
 
 logger = logging.getLogger(__name__)
 
@@ -107,15 +106,17 @@ async def transcribe_audio(request: TranscribeRequest):
 
 
 async def _speak(text: str, lang: str) -> bytes:
-    def render() -> bytes:
-        fp = io.BytesIO()
-        gTTS(text=text, lang=lang).write_to_fp(fp)
-        return fp.getvalue()
-    try:
-        return await asyncio.wait_for(asyncio.to_thread(render), timeout=30)
-    except Exception as e:
-        logger.error("Text-to-speech failed: %s", e)
-        raise ApiError(503, "SERVICE_UNAVAILABLE", "Text-to-speech is temporarily unavailable.")
+    audio, _mime, _provider = await synthesize(text, lang)
+    return audio
+
+
+def _audio_response(result: tuple[bytes, str, str], lang: str) -> Response:
+    audio, mime, provider = result
+    return Response(
+        content=audio,
+        media_type=mime,
+        headers={"Cache-Control": "private, max-age=3600", "X-TTS-Provider": provider, "X-TTS-Locale": LOCALES[lang]},
+    )
 
 
 @router.post("/voice", response_model=VoiceAdvisoryResponse, dependencies=ai_limited)
@@ -137,7 +138,13 @@ async def get_voice_advisory(request: VoiceAdvisoryRequest):
     )
 
 
-@router.get("/tts", dependencies=[Depends(tts_rate_limit)])
-async def text_to_speech(text: str = Query(..., min_length=1, max_length=TTS_MAX_CHARS), lang: Language = "en"):
-    audio = await _speak(text, lang)
-    return Response(content=audio, media_type="audio/mpeg", headers={"Cache-Control": "private, max-age=3600"})
+@router.post("/tts", dependencies=[Depends(tts_rate_limit)])
+async def text_to_speech(request: TtsRequest):
+    """Speech audio in the requested language. X-TTS-Provider says which voice was used (gemini or gtts)."""
+    return _audio_response(await synthesize(request.text, request.language), request.language)
+
+
+@router.get("/tts", dependencies=[Depends(tts_rate_limit)], include_in_schema=False)
+async def text_to_speech_get(text: str = Query(..., min_length=1, max_length=TTS_MAX_CHARS), lang: Language = "en"):
+    """Deprecated: long non-Latin text makes very long URLs. Use POST /api/advisory/tts."""
+    return _audio_response(await synthesize(text, lang), lang)

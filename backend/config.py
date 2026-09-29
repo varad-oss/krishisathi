@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     GEMINI_ADVISORY_MODEL: str = "gemini-2.5-flash"
     GEMINI_TRANSCRIPTION_MODEL: str = "gemini-2.5-flash"
     GEMINI_AGENT_MODEL: str = "gemini-2.5-flash"
+    # Natural read-aloud voice. Empty disables it (gTTS is then used for every language).
+    GEMINI_TTS_MODEL: str = "gemini-2.5-flash-preview-tts"
+    GEMINI_TTS_VOICE: str = "Kore"
+    # Languages to send to Gemini speech; others go straight to gTTS. Keep to languages the model documents.
+    GEMINI_TTS_LANGUAGES: str = "en,hi,mr,ta,te,bn"
     AI_TIMEOUT_SECONDS: float = 45.0
     EXTERNAL_API_TIMEOUT_SECONDS: float = 10.0
 

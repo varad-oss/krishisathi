@@ -8,6 +8,7 @@
 import asyncio
 import json
 import logging
+import re
 
 from google import genai
 from google.genai import types
@@ -16,7 +17,7 @@ from pydantic import ValidationError
 from config import settings
 from models.diagnosis import AIDiagnosis
 from models.exceptions import ServiceUnavailableException
-from services.languages import language_name
+from services.languages import is_in_language, language_name
 
 logger = logging.getLogger(__name__)
 
@@ -143,7 +144,8 @@ Return only JSON with this structure:
 - Never invent statistics, yields, prices, pesticide doses, brand names or schemes.
 - Prefer low-cost and regenerative practices. For chemical control, advise confirming products and doses with
   the local agriculture officer or Krishi Vigyan Kendra.
-- Answer in {lang}, native script only (no romanization), in simple words, under 220 words.
+- Always answer in {lang}, native script only (no romanization), in simple words, under 220 words, even when
+  the question is written in English, Hinglish or another language. Keep units and codes such as pH or NPK as is.
 - Structure: what to do now, why (cite which data), what to watch for.
 {UNTRUSTED_NOTE}"""
         parts = [f"Crop: {crop or 'not stated'}"]
@@ -160,7 +162,27 @@ Return only JSON with this structure:
             system_instruction=system_instruction,
             error_message="Advisory model is temporarily unavailable.",
         )
-        return self._text(response)
+        return await self._in_language(self._text(response), language, contents, settings.GEMINI_ADVISORY_MODEL,
+                                       system_instruction, "Advisory model is temporarily unavailable.")
+
+    async def _in_language(self, text: str, language: str, contents: list, model: str,
+                           system_instruction: str | None, error_message: str) -> str:
+        """Models sometimes answer in the question's language instead of the requested one: retry once."""
+        if is_in_language(text, language):
+            return text
+        lang = language_name(language)
+        logger.warning("Model answered outside %s; retrying with a stricter instruction", lang)
+        response = await self._call(
+            model=model,
+            contents=[*contents, f"Write the complete answer in {lang} using its native script only. Do not use English sentences."],
+            temperature=0.2,
+            system_instruction=system_instruction,
+            error_message=error_message,
+        )
+        retry = self._text(response)
+        if not is_in_language(retry, language):
+            logger.error("Model answered outside %s twice; returning the answer as generated", lang)
+        return retry
 
     async def transcribe(self, audio_bytes: bytes, mime_type: str, language: str) -> str:
         lang = language_name(language)
@@ -175,6 +197,38 @@ Return only JSON with this structure:
             error_message="Transcription service is temporarily unavailable.",
         )
         return (getattr(response, "text", None) or "").strip()
+
+    async def speak(self, text: str, language: str, locale: str) -> tuple[bytes, int]:
+        """Natural speech for `text`. Returns (16-bit mono PCM, sample rate)."""
+        if not self.client:
+            raise ServiceUnavailableException("AI service is not configured on this server.")
+        lang = language_name(language)
+        config = types.GenerateContentConfig(
+            response_modalities=["AUDIO"],
+            speech_config=types.SpeechConfig(
+                language_code=locale,
+                voice_config=types.VoiceConfig(prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=settings.GEMINI_TTS_VOICE)),
+            ),
+        )
+        prompt = (
+            f"Read aloud in {lang} with natural {locale} pronunciation, in a warm, calm, unhurried voice, "
+            f"like an agricultural extension worker talking to a farmer. Read the text exactly as written:\n\n{text}"
+        )
+        try:
+            response = await asyncio.wait_for(
+                self.client.aio.models.generate_content(model=settings.GEMINI_TTS_MODEL, contents=[prompt], config=config),
+                timeout=settings.AI_TIMEOUT_SECONDS,
+            )
+            part = response.candidates[0].content.parts[0].inline_data
+        except asyncio.TimeoutError as e:
+            raise ServiceUnavailableException("Speech generation timed out.") from e
+        except Exception as e:
+            logger.error("%s failed: %s", settings.GEMINI_TTS_MODEL, e)
+            raise ServiceUnavailableException("Speech generation is temporarily unavailable.") from e
+        if not part or not part.data:
+            raise ServiceUnavailableException("Speech generation returned no audio.")
+        rate = re.search(r"rate=(\d+)", part.mime_type or "")
+        return part.data, int(rate.group(1)) if rate else 24_000
 
     async def generate_dashboard_report(self, data: dict, language: str = "en") -> str:
         lang = language_name(language)
@@ -194,7 +248,8 @@ Rules:
             temperature=0.3,
             error_message="Reporting model is temporarily unavailable.",
         )
-        return self._text(response)
+        return await self._in_language(self._text(response), language, [prompt], settings.GEMINI_AGENT_MODEL,
+                                       None, "Reporting model is temporarily unavailable.")
 
 
 gemini_service = GeminiService()

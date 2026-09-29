@@ -5,24 +5,16 @@ or explicitly marked UNAVAILABLE, and the list of sources actually used is retur
 so the UI can show "Based on: ...".
 """
 import asyncio
-import math
 
 from models.exceptions import ServiceUnavailableException
 from services import agro_rules
 from services.disease_reference_service import disease_reference_service
-from services.kvk_service import kvk_service
+from services.kvk_service import haversine_km, kvk_service
 from services.persistence_service import persistence_service
 from services.soil_service import soil_service
 from services.weather_service import weather_service
 
 NEARBY_OUTBREAK_KM = 100
-
-
-def _haversine(lat1, lon1, lat2, lon2):
-    r = 6371.0
-    d_lat, d_lon = math.radians(lat2 - lat1), math.radians(lon2 - lon1)
-    a = math.sin(d_lat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(d_lon / 2) ** 2
-    return r * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
 async def _weather(lat, lng):
@@ -37,7 +29,7 @@ async def _outbreaks(lat, lng):
         found = await persistence_service.get_outbreaks()
     except Exception:
         return None
-    return [o for o in found if _haversine(lat, lng, o["lat"], o["lng"]) <= NEARBY_OUTBREAK_KM]
+    return [o for o in found if haversine_km(lat, lng, o["lat"], o["lng"]) <= NEARBY_OUTBREAK_KM]
 
 
 def _weather_text(c: dict) -> str:
@@ -104,7 +96,8 @@ async def build_context(lat: float, lng: float, crop: str | None) -> tuple[str, 
         sources.append({"id": "disease_reference", "status": "used"})
 
     if kvk:
-        blocks.append(f"[DATA: nearest Krishi Vigyan Kendra (approximate location)] {kvk['name']}, {kvk.get('district')}, about {round(kvk['distance_km'])} km")
+        where = f"about {kvk['distance_km']} km away" if kvk["distance_km"] is not None else "exact address and distance not verified"
+        blocks.append(f"[DATA: Krishi Vigyan Kendra for the nearest listed district] {kvk['name']}, {kvk.get('district')} district ({where})")
         sources.append({"id": "kvk", "status": "used"})
 
     blocks.append("[NOT INCLUDED: satellite crop health is not part of chat answers]")

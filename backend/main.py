@@ -83,6 +83,10 @@ async def lazy_db_init(request, call_next):
     return await call_next(request)
 
 
+app.add_middleware(RequestContextMiddleware)
+# CORS is added last so it is the outermost middleware: the last-resort 500 envelope written by
+# RequestContextMiddleware also carries Access-Control-Allow-Origin. Without it the browser hides a
+# server error behind a CORS failure, and the UI misreports it as "no internet connection".
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in settings.CORS_ALLOWED_ORIGINS.split(",") if o.strip()],
@@ -90,11 +94,9 @@ app.add_middleware(
     allow_credentials=False,  # the API uses bearer tokens, never cookies
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "Idempotency-Key", "X-Request-ID"],
-    expose_headers=["X-Request-ID", "Retry-After"],
+    expose_headers=["X-Request-ID", "Retry-After", "X-TTS-Provider", "X-TTS-Locale"],
     max_age=600,
 )
-# Added last so it is outermost: every response (including CORS and errors) gets a request ID.
-app.add_middleware(RequestContextMiddleware)
 
 for module in (diagnose, advisory, alerts, weather, farm, dashboard, states, kvk, meta, debug):
     app.include_router(module.router)
