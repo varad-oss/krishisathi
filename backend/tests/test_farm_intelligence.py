@@ -271,7 +271,9 @@ def test_ndvi_below_seasonal_baseline():
     base = {"status": "available", "position": "below_range", "min": 0.58, "max": 0.62, "years": [{"ndvi": 0.62}, {"ndvi": 0.58}, {"ndvi": None}]}
     both = Signal("available", {"status": "available", "ndvi": 0.41, "ndvi_previous": 0.58, "change": -0.17, "baseline": base})
     r = risks_by_category(ctx(sat=both))["crop_health"]
-    assert r.severity == "moderate" and r.drivers == ["ndvi_decline", "ndvi_below_baseline"] and r.confidence == "moderate"
+    # Change and baseline share the same current Sentinel-2 value: one source, and without a quality summary confidence stays low.
+    assert r.severity == "moderate" and r.drivers == ["ndvi_decline", "ndvi_below_baseline"] and r.confidence == "low"
+    assert r.independent_sources == 1 and "correlated_signals_counted_once" in r.confidence_basis
     only_baseline = Signal("available", {"status": "available", "ndvi": 0.41, "change": None, "baseline": base})
     r = risks_by_category(ctx(sat=only_baseline))["crop_health"]
     assert r.drivers == ["ndvi_below_baseline"] and r.confidence == "low"
