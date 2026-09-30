@@ -284,6 +284,8 @@ export interface SourceStatus {
   name: string;
   url: string | null;
   kind: string;
-  status: 'configured' | 'not_configured';
+  /** 'unavailable': set up but failing its live check (only the satellite source reports this); `detail` says why. */
+  status: 'configured' | 'not_configured' | 'unavailable';
+  detail?: string | null;
   used_for: string[];
 }

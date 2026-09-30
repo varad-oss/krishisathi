@@ -10,3 +10,8 @@ services:
         value: 3.11.0
       - key: GEMINI_API_KEY
         sync: false
+      # Optional Sentinel-2 via Google Earth Engine (docs/EARTH_ENGINE.md). Set as secrets, never in this file.
+      - key: EE_SERVICE_ACCOUNT_KEY_JSON
+        sync: false
+      - key: EE_PROJECT
+        sync: false

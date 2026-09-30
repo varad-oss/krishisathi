@@ -1,12 +1,14 @@
 """Sentinel-2 / Earth Engine: credential handling, honest status reporting and NDVI result shaping.
 
-The last test queries real Sentinel-2 data and runs only when EE_SERVICE_ACCOUNT_KEY_JSON is set.
+Earth Engine is mocked everywhere except the last test, which queries real Sentinel-2 data and runs
+only when EE_SERVICE_ACCOUNT_KEY_JSON is set.
 """
 import asyncio
 import base64
 import json
 import os
 import sys
+import threading
 from datetime import date
 from unittest.mock import MagicMock, patch
 
@@ -17,7 +19,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 import services.earth_engine_service as ees  # noqa: E402
 from main import app  # noqa: E402
-from services.earth_engine_service import CredentialError, EarthEngineService, parse_service_account_key  # noqa: E402
+from google.auth.exceptions import RefreshError  # noqa: E402
+from services.earth_engine_service import CredentialError, EarthEngineService, classify_error, parse_service_account_key  # noqa: E402
 
 KEY = {
     "type": "service_account",
@@ -61,24 +64,65 @@ def _service(key_json, ee_mock=None, project=None):
         return EarthEngineService(), ee_mock
 
 
+def _state(svc):
+    return svc.configured, svc.authenticated, svc.initialized, svc.status, svc.error
+
+
 def test_missing_key_is_not_configured():
     svc, ee_mock = _service(None)
-    assert (svc.initialized, svc.status, svc.error) == (False, "not_configured", None)
+    assert _state(svc) == (False, False, False, "not_configured", None)
     ee_mock.Initialize.assert_not_called()
 
 
-def test_bad_key_is_an_error_not_a_silent_not_set_up():
+def test_project_without_key_says_what_is_missing():
+    svc, _ = _service(None, project="registered-ee-project")
+    assert (svc.status, svc.error) == ("not_configured", "service_account_key_missing")
+
+
+def test_bad_key_is_unavailable_not_a_silent_not_set_up():
     svc, ee_mock = _service("{broken")
-    assert (svc.initialized, svc.status, svc.error) == (False, "error", "invalid_key_json")
+    assert _state(svc) == (True, False, False, "unavailable", "invalid_key_json")
     ee_mock.Initialize.assert_not_called()
 
 
-def test_valid_key_initializes_and_verifies_with_a_real_request():
+def test_valid_key_initializes_and_verifies_account_and_dataset_with_real_requests():
     svc, ee_mock = _service(json.dumps(KEY))
-    assert (svc.initialized, svc.status, svc.project) == (True, "configured", "krishisathi-ee")
+    assert _state(svc) == (True, True, True, "available", None)
+    assert svc.project == "krishisathi-ee" and svc.checked_at
     ee_mock.ServiceAccountCredentials.assert_called_once()
     assert ee_mock.Initialize.call_args.kwargs["project"] == "krishisathi-ee"
     ee_mock.Number.return_value.getInfo.assert_called_once()  # proves account + project, not just parsing
+    ee_mock.data.getAsset.assert_called_once_with("COPERNICUS/S2_SR_HARMONIZED")  # proves the dataset is readable
+    ee_mock.data.setDeadline.assert_called_once_with(ees.TIMEOUT_S * 1000)
+
+
+def test_dataset_not_readable_is_authenticated_but_unavailable():
+    ee_mock = MagicMock()
+    ee_mock.data.getAsset.side_effect = Exception("Asset 'COPERNICUS/S2_SR_HARMONIZED' not found.")
+    svc, _ = _service(json.dumps(KEY), ee_mock)
+    assert _state(svc) == (True, True, False, "unavailable", "dataset_query_failed")
+    assert svc.describe()["project"] == "krishisathi-ee"
+
+
+@pytest.mark.parametrize("exc, code", [
+    (RefreshError("invalid_grant: Invalid grant: account not found"), "auth_failed"),
+    (Exception("Not signed up for Earth Engine or project is not registered."), "project_configuration_error"),
+    (Exception("Earth Engine API has not been used in project 123 before or it is disabled."), "project_configuration_error"),
+    (Exception("Caller does not have required permission to use project x."), "project_configuration_error"),
+    (TimeoutError("The read operation timed out"), "timeout"),
+    (Exception("Computation timed out."), "timeout"),
+    (ConnectionError("Connection reset by peer"), "earth_engine_unavailable"),
+    (Exception("The service is currently unavailable."), "earth_engine_unavailable"),
+])
+def test_initialization_failures_are_classified(exc, code):
+    ee_mock = MagicMock()
+    ee_mock.Number.return_value.getInfo.side_effect = exc
+    svc, _ = _service(json.dumps(KEY), ee_mock)
+    assert _state(svc) == (True, False, False, "unavailable", code)
+
+
+def test_unknown_query_failure_is_a_dataset_query_failure():
+    assert classify_error(Exception("Image.select: band B8 not found"), "dataset_query_failed") == "dataset_query_failed"
 
 
 def test_ee_project_overrides_the_keys_project():
@@ -88,9 +132,9 @@ def test_ee_project_overrides_the_keys_project():
 
 def test_rejected_credentials_are_reported_and_retried_later():
     ee_mock = MagicMock()
-    ee_mock.Number.return_value.getInfo.side_effect = Exception("Caller does not have permission (secret-detail)")
+    ee_mock.Number.return_value.getInfo.side_effect = RefreshError("invalid_grant (secret-detail)")
     svc, _ = _service(json.dumps(KEY), ee_mock)
-    assert (svc.initialized, svc.status, svc.error) == (False, "error", "authentication_failed")
+    assert _state(svc) == (True, False, False, "unavailable", "auth_failed")
     assert "secret" not in json.dumps(svc.describe())
 
     ee_mock.Number.return_value.getInfo.side_effect = None
@@ -102,24 +146,54 @@ def test_rejected_credentials_are_reported_and_retried_later():
         ee_mock.Initialize.assert_not_called()
         svc._next_attempt = 0
         assert svc.ensure_initialized() is True
-    assert svc.status == "configured"
+    assert svc.status == "available"
+
+
+def test_unfixable_key_errors_are_not_retried():
+    svc, ee_mock = _service("{broken")
+    svc._next_attempt = 0
+    with patch.object(ees, "ee", ee_mock, create=True):
+        assert svc.ensure_initialized() is False
+    ee_mock.Initialize.assert_not_called()
 
 
 def test_crop_health_reason_distinguishes_missing_from_broken_configuration():
     svc, _ = _service("{broken")
     body = asyncio.run(svc.get_point_crop_health(18.5, 73.8))
-    assert body["status"] == "unavailable" and body["reason"] == "configuration_error" and "ndvi" not in body
+    assert body["status"] == "unavailable" and body["reason"] == "invalid_key_json" and "ndvi" not in body
+    svc, _ = _service(None)
+    assert asyncio.run(svc.get_point_crop_health(18.5, 73.8))["reason"] == "not_configured"
+
+
+def _sources_and_ready(status, error, initialized=False):
+    svc = ees.earth_engine_service
+    with patch.object(svc, "initialized", initialized), patch.object(svc, "status", status), patch.object(svc, "error", error):
+        return {s["id"]: s for s in client.get("/api/sources").json()["sources"]}["satellite"], client.get("/health/ready").json()
 
 
 def test_sources_and_readiness_expose_the_precise_state():
-    with patch.object(ees.earth_engine_service, "initialized", False), \
-            patch.object(ees.earth_engine_service, "status", "error"), \
-            patch.object(ees.earth_engine_service, "error", "authentication_failed"):
-        sources = {s["id"]: s for s in client.get("/api/sources").json()["sources"]}
-        ready = client.get("/health/ready").json()
-    assert sources["satellite"]["status"] == "not_configured"
-    assert sources["satellite"]["detail"] == "authentication_failed"
-    assert ready["dependencies"]["earth_engine"] == "error:authentication_failed"
+    sat, ready = _sources_and_ready("unavailable", "auth_failed")
+    assert (sat["status"], sat["detail"]) == ("unavailable", "auth_failed")
+    assert ready["dependencies"]["earth_engine"] == "unavailable:auth_failed"
+    assert ready["ready"] or ready["dependencies"]["database"] != "ok"  # optional: never blocks readiness
+
+    sat, ready = _sources_and_ready("not_configured", None)
+    assert (sat["status"], sat["detail"]) == ("not_configured", None)
+    assert ready["dependencies"]["earth_engine"] == "not_configured"
+
+    sat, ready = _sources_and_ready("available", None, initialized=True)
+    assert (sat["status"], sat["detail"]) == ("configured", None)  # shown as "Enabled"
+    assert ready["dependencies"]["earth_engine"] == "available"
+    assert (sat["dataset"], sat["provider"]) == ("COPERNICUS/S2_SR_HARMONIZED", "Copernicus / ESA")
+    assert "Level-2A" in sat["processing"]
+
+
+def test_invalid_coordinates_are_rejected():
+    for query in ("lat=91&lng=75", "lat=30&lng=181", "lat=abc&lng=75"):
+        res = client.get(f"/api/farm/crop-health?{query}")
+        assert res.status_code == 422 and res.json()["error"]["code"] == "INVALID_INPUT"
+    with pytest.raises(ValueError):
+        asyncio.run(EarthEngineService.__new__(EarthEngineService).get_point_crop_health(95, 75))
 
 
 # --- NDVI result shaping (Earth Engine responses mocked) ----------------------------------
@@ -132,35 +206,80 @@ def _point_result(info):
         return svc._point_ndvi(30.9, 75.85, date(2026, 3, 1)), ee_mock
 
 
-def test_ndvi_available_with_change_and_acquisition_date():
-    res, ee_mock = _point_result({"current": {"ndvi": 0.71234, "count": 5, "latest_ms": 1772150400000},
-                                  "previous": {"ndvi": 0.60111, "count": 4, "latest_ms": 1769558400000}})
+FULL = 1963  # clear 10 m pixels in a fully clear 250 m circle
+SCENE = {"latest_id": ["20260227T053901_20260227T054440_T43REQ"], "latest_cloud_pct": [12.345]}
+
+
+def test_ndvi_available_with_change_acquisition_date_and_observation_metadata():
+    res, ee_mock = _point_result({"current": {"ndvi": 0.71234, "clear_px": FULL, "count": 5, "latest_ms": 1772150400000, **SCENE},
+                                  "previous": {"ndvi": 0.60111, "clear_px": 1500, "count": 4, "latest_ms": 1769558400000}})
     assert res["status"] == "available"
     assert (res["ndvi"], res["ndvi_previous"], res["change"]) == (0.712, 0.601, 0.111)
     assert res["image_count"] == 5 and res["latest_image_date"] == "2026-02-27"
     assert res["window"] == {"start": "2026-01-30", "end": "2026-03-01"}
+    assert res["clear_pixel_fraction"] == 1.0
+    assert res["observation"] == {"image_id": "COPERNICUS/S2_SR_HARMONIZED/20260227T053901_20260227T054440_T43REQ",
+                                  "sensed_at": "2026-02-27T00:00:00+00:00", "scene_cloud_pct": 12.3}
+    assert res["roi"] == {"lat": 30.9, "lng": 75.85, "radius_m": 250}
     assert ee_mock.Dictionary.return_value.getInfo.call_count == 1  # both windows in one round trip
 
 
 def test_ndvi_without_previous_window_has_no_change():
-    res, _ = _point_result({"current": {"ndvi": 0.5, "count": 2, "latest_ms": 1772150400000},
-                            "previous": {"ndvi": None, "count": 0, "latest_ms": None}})
+    res, _ = _point_result({"current": {"ndvi": 0.5, "clear_px": FULL, "count": 2, "latest_ms": 1772150400000, **SCENE},
+                            "previous": {"ndvi": None, "clear_px": 0, "count": 0, "latest_ms": None}})
     assert res["status"] == "available" and res["ndvi_previous"] is None and res["change"] is None
 
 
-def test_cloudy_month_is_no_data_not_a_number():
-    res, _ = _point_result({"current": {"ndvi": None, "count": 3, "latest_ms": 1772150400000},
-                            "previous": {"ndvi": 0.4, "count": 2, "latest_ms": 1769558400000}})
-    assert res["status"] == "no_data" and res["reason"] == "no_clear_imagery" and "ndvi" not in res
+def test_cloudy_month_is_no_suitable_observation_not_a_number():
+    res, _ = _point_result({"current": {"ndvi": None, "clear_px": 0, "count": 3, "latest_ms": 1772150400000, **SCENE},
+                            "previous": {"ndvi": 0.4, "clear_px": FULL, "count": 2, "latest_ms": 1769558400000}})
+    assert res["status"] == "no_data" and res["reason"] == "no_suitable_observation" and "ndvi" not in res
+    assert res["observation"]["image_id"].endswith("T43REQ")  # the scene exists, but was cloudy over the field
 
 
-def test_upstream_failure_is_unavailable_with_provenance():
+def test_few_clear_pixels_are_not_reported_as_the_field():
+    res, _ = _point_result({"current": {"ndvi": 0.8, "clear_px": 50, "count": 3, "latest_ms": 1772150400000, **SCENE},
+                            "previous": {"ndvi": 0.4, "clear_px": 60, "count": 2, "latest_ms": 1769558400000}})
+    assert res["status"] == "no_data" and res["clear_pixel_fraction"] == 0.03 and "ndvi" not in res
+
+
+def test_no_imagery_at_all():
+    res, _ = _point_result({"current": {"ndvi": None, "clear_px": 0, "count": 0, "latest_ms": None, "latest_id": [], "latest_cloud_pct": []},
+                            "previous": {"ndvi": None, "clear_px": 0, "count": 0, "latest_ms": None}})
+    assert res["status"] == "no_data" and res["image_count"] == 0 and res["observation"] is None
+
+
+def _ready_service():
     svc = EarthEngineService.__new__(EarthEngineService)
-    svc.initialized, svc.status, svc.error = True, "configured", None
-    with patch.object(EarthEngineService, "_point_ndvi", side_effect=Exception("quota exceeded xyz")):
+    svc.initialized, svc.status, svc.error, svc._lock = True, "available", None, threading.Lock()
+    return svc
+
+
+@pytest.mark.parametrize("exc, reason, retryable", [
+    (Exception("Image.reduceRegion: quota exceeded xyz"), "dataset_query_failed", False),
+    (asyncio.TimeoutError(), "timeout", True),
+    (Exception("The service is currently unavailable. xyz"), "earth_engine_unavailable", True),
+])
+def test_query_failure_is_unavailable_with_a_code_and_provenance(exc, reason, retryable):
+    svc = _ready_service()
+    with patch.object(EarthEngineService, "_point_ndvi", side_effect=exc):
         body = asyncio.run(svc.get_point_crop_health(30.9, 75.85))
-    assert body["status"] == "unavailable" and body["reason"] == "upstream_error"
-    assert "xyz" not in json.dumps(body) and body["provenance"]["kind"] == "satellite_observation"
+    assert (body["status"], body["reason"], body["retryable"]) == ("unavailable", reason, retryable)
+    assert "xyz" not in json.dumps(body) and body["provenance"]["dataset"] == "COPERNICUS/S2_SR_HARMONIZED"
+    assert svc.status == "available"  # a transient or query failure does not flip the source status
+
+
+def test_key_revoked_after_startup_flips_the_source_to_unavailable():
+    svc = _ready_service()
+    with patch.object(EarthEngineService, "_point_ndvi", side_effect=RefreshError("invalid_grant")):
+        body = asyncio.run(svc.get_point_crop_health(30.9, 75.85))
+    assert body["reason"] == "auth_failed" and (svc.initialized, svc.status, svc.error) == (False, "unavailable", "auth_failed")
+
+
+def test_provenance_labels_ndvi_as_a_satellite_signal_not_ground_truth():
+    assert ees.PROVENANCE["signal"].startswith("Satellite-derived vegetation signal")
+    assert "not ground-truth" in ees.PROVENANCE["signal"]
+    assert ees.PROVENANCE["provider"] == "Copernicus / ESA"
 
 
 # --- live Sentinel-2 query --------------------------------------------------------------------
@@ -168,9 +287,10 @@ def test_upstream_failure_is_unavailable_with_provenance():
 @pytest.mark.skipif(not os.getenv("EE_SERVICE_ACCOUNT_KEY_JSON"), reason="set EE_SERVICE_ACCOUNT_KEY_JSON to query real Sentinel-2 data")
 def test_live_sentinel2_ndvi_for_a_ludhiana_wheat_field():
     svc = EarthEngineService()
-    assert svc.status == "configured", svc.describe()
+    assert svc.status == "available", svc.describe()
     body = asyncio.run(svc.get_point_crop_health(30.90, 75.85))
     assert body["status"] in ("available", "no_data"), body
     if body["status"] == "available":
         assert -1.0 <= body["ndvi"] <= 1.0
         assert body["image_count"] >= 1 and body["latest_image_date"] <= date.today().isoformat()
+        assert body["observation"]["image_id"].startswith("COPERNICUS/S2_SR_HARMONIZED/")

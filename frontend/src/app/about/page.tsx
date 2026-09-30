@@ -44,10 +44,10 @@ export default function AboutPage() {
                 <span
                   className={cn(
                     'self-start rounded-full px-2.5 py-0.5 text-xs font-semibold sm:self-center',
-                    s.status === 'configured' ? 'bg-leaf-50 text-leaf-700' : 'bg-paper text-ink-faint ring-1 ring-line',
+                    s.status === 'configured' ? 'bg-leaf-50 text-leaf-700' : s.status === 'unavailable' ? 'bg-warn-50 text-warn-700' : 'bg-paper text-ink-faint ring-1 ring-line',
                   )}
                 >
-                  {t(`about.sources.status.${s.status}` as MessageKey)}
+                  {t(s.status === 'unavailable' ? 'state.unavailable' : (`about.sources.status.${s.status}` as MessageKey))}
                 </span>
               </li>
             ))}

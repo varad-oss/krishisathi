@@ -89,7 +89,7 @@ See `backend/.env.example` for the backend environment variables:
 * `DATABASE_URL`, `REDIS_URL`
 * `JWT_SECRET`
 * `CORS_ALLOWED_ORIGINS` / `CORS_ALLOWED_ORIGIN_REGEX`
-* `EE_SERVICE_ACCOUNT_KEY_JSON`
+* `EE_SERVICE_ACCOUNT_KEY_JSON`, `EE_PROJECT` (Sentinel-2 via Earth Engine; setup in `docs/EARTH_ENGINE.md`)
 * `AI_TIMEOUT_SECONDS`, `EXTERNAL_API_TIMEOUT_SECONDS`
 * `GEMINI_TTS_MODEL`, `GEMINI_TTS_VOICE`, `GEMINI_TTS_LANGUAGES` (read-aloud voice)
 
