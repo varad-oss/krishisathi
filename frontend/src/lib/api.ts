@@ -19,6 +19,8 @@ import type {
   LanguageCode,
   Outbreak,
   RegenerativeResponse,
+  CropOptions,
+  PracticeStatus,
   SoilData,
   SourceStatus,
   StateConfig,
@@ -192,8 +194,11 @@ const q = (params: Record<string, string | number | null | undefined>) =>
 export const getFarmConditions = (lat: number, lng: number, signal?: AbortSignal) =>
   request<FarmConditions>(`/api/farm/conditions?${q({ lat, lng })}`, { signal });
 
-export const getRegenerative = (lat: number, lng: number, crop: string | null, signal?: AbortSignal) =>
-  request<RegenerativeResponse>(`/api/farm/regenerative?${q({ lat, lng, crop })}`, { signal, timeoutMs: 30_000 });
+export const getRegenerative = (lat: number, lng: number, crop: string | null, sowingDate: string | null, signal?: AbortSignal) =>
+  request<RegenerativeResponse>(`/api/farm/regenerative?${q({ lat, lng, crop, sowing_date: sowingDate })}`, { signal, timeoutMs: 30_000 });
+
+export const getCropOptions = (lat: number, lng: number, crop: string | null, signal?: AbortSignal) =>
+  request<CropOptions>(`/api/farm/crop-options?${q({ lat, lng, crop })}`, { signal });
 
 export const getSoil = (lat: number, lng: number, signal?: AbortSignal) =>
   request<SoilData>(`/api/farm/soil?${q({ lat, lng })}`, { signal, timeoutMs: 30_000 });
@@ -233,6 +238,10 @@ export const getFarmTwinIntelligence = (twin: FarmTwin, signal?: AbortSignal) =>
 
 export const getFarmHistory = (twin: FarmTwin, signal?: AbortSignal) =>
   request<FarmHistory>(`/api/farms/${twin.farmId}`, { headers: twinHeaders(twin), signal });
+
+/** Self-reported adoption of a regenerative practice; stored in the farm history. */
+export const recordPractice = (twin: FarmTwin, practice: string, status: PracticeStatus) =>
+  request<TwinAction>(`/api/farms/${twin.farmId}/practices`, { json: { practice, status }, headers: twinHeaders(twin) });
 
 export const sendFeedback = (twin: FarmTwin, actionId: string, feedback: { followed?: Followed; outcome?: Outcome }) =>
   request<TwinAction>(`/api/farms/${twin.farmId}/actions/${actionId}/feedback`, { json: feedback, headers: twinHeaders(twin) });

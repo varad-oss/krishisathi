@@ -143,3 +143,35 @@ differential, weather, nearby reports). The photo is never included: the farmer 
 `EscalationSink` is the plug-in point for a real KVK or state extension system; the current
 `NotConnectedSink` answers `not_submitted / no_kvk_integration`, and the UI says the farmer shares the case
 themselves. No expert response is simulated.
+
+## Regenerative plan and crop options
+
+**Practice plan** (`GET /api/farm/regenerative?lat=&lng=&crop=&sowing_date=`). The existing recommendations
+(`services/regenerative_service.py`, triggered by soil, crop and forecast signals) are placed on the crop cycle:
+
+| Field | Values |
+|---|---|
+| `timing` | `now`, `before_sowing`, `at_harvest`, `after_harvest`, `ongoing` (fixed per practice) |
+| `horizon` | `current` (this season), `next` (next season), `long_term` (a lasting habit) |
+| `confidence` | `moderate` when soil data informed the practice, otherwise `low` (general guidance) |
+| `stage_based` | true only when a sowing date gave an FAO-56 stage estimate |
+
+Harvest-time practices (residue retention) move into *this season* once the estimated stage is late season.
+Without a sowing date the plan uses general timing, and the farm page asks for the date.
+
+**Adoption** (`POST /api/farms/{id}/practices`, body `{practice, status}` with status `adopted | partial |
+skipped`) stores the farmer's answer as a `regenerative` action in the farm history (`followed` yes / partial /
+no), so outcomes can be asked about later and counted in the feedback metrics. It is self-reported.
+
+**Crop options** (`GET /api/farm/crop-options?lat=&lng=&crop=`, `services/crop_options.py`) lists the farm's
+crop and the crops typical for the nearest state (all supported crops when the point is more than 400 km from
+every state reference point), with:
+
+- seasonal water need (FAO Irrigation Water Management Training Manual No. 3, Table 13; rice excludes water
+  lost to flooding and percolation);
+- season length (FAO-56 Table 11);
+- the number of verified ICAR disease reference entries;
+- nearby AI-classified disease clusters (`null` when reports cannot be read: unknown, not zero).
+
+It never ranks crops (`ranking: null`). Market prices, input costs and profit have no verified connected source,
+so they are returned as `unavailable` and the UI says so and points to the mandi or eNAM.

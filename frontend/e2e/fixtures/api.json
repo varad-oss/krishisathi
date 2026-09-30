@@ -211,7 +211,8 @@
   "inputs": {
    "soil": "available",
    "weather": "available",
-   "crop": "provided"
+   "crop": "provided",
+   "crop_stage": "not_provided"
   },
   "recommendations": [
    {
@@ -291,6 +292,133 @@
     "priority": "low",
     "triggers": [],
     "params": {}
+   }
+  ],
+  "crop_stage": {
+   "method": "sowing_date_calendar",
+   "crop": "Tomato",
+   "stage": null,
+   "days_since_sowing": null,
+   "season_length_days": null,
+   "confidence": null,
+   "calendar": null,
+   "reference": {
+    "source": "FAO Irrigation and Drainage Paper 56, Table 11 (Allen et al., 1998)",
+    "url": "https://www.fao.org/4/x0490e/x0490e0b.htm",
+    "notes": "Typical stage lengths for one climate and planting period; your variety and season may differ."
+   },
+   "status": "not_provided"
+  },
+  "plan": [
+   {
+    "id": "integrated_nutrients",
+    "priority": "medium",
+    "triggers": [
+     {
+      "signal": "soil_organic_carbon",
+      "value": 0.46,
+      "rating": "low"
+     }
+    ],
+    "params": {},
+    "timing": "now",
+    "horizon": "current",
+    "confidence": "moderate",
+    "stage_based": false
+   },
+   {
+    "id": "organic_matter",
+    "priority": "high",
+    "triggers": [
+     {
+      "signal": "soil_organic_carbon",
+      "value": 0.46,
+      "rating": "low"
+     }
+    ],
+    "params": {},
+    "timing": "before_sowing",
+    "horizon": "next",
+    "confidence": "moderate",
+    "stage_based": false
+   },
+   {
+    "id": "cover_crop",
+    "priority": "high",
+    "triggers": [
+     {
+      "signal": "soil_organic_carbon",
+      "value": 0.46,
+      "rating": "low"
+     }
+    ],
+    "params": {},
+    "timing": "after_harvest",
+    "horizon": "next",
+    "confidence": "moderate",
+    "stage_based": false
+   },
+   {
+    "id": "soil_test",
+    "priority": "medium",
+    "triggers": [
+     {
+      "signal": "soil_organic_carbon",
+      "value": 0.46,
+      "rating": "low"
+     }
+    ],
+    "params": {},
+    "timing": "before_sowing",
+    "horizon": "next",
+    "confidence": "moderate",
+    "stage_based": false
+   },
+   {
+    "id": "crop_rotation",
+    "priority": "medium",
+    "triggers": [
+     {
+      "signal": "crop",
+      "value": "Tomato",
+      "rating": "vegetable"
+     }
+    ],
+    "params": {},
+    "timing": "after_harvest",
+    "horizon": "next",
+    "confidence": "moderate",
+    "stage_based": false
+   },
+   {
+    "id": "reduced_tillage",
+    "priority": "low",
+    "triggers": [],
+    "params": {},
+    "timing": "before_sowing",
+    "horizon": "next",
+    "confidence": "low",
+    "stage_based": false
+   },
+   {
+    "id": "water_conservation",
+    "priority": "medium",
+    "triggers": [],
+    "params": {},
+    "timing": "ongoing",
+    "horizon": "long_term",
+    "confidence": "low",
+    "stage_based": false
+   },
+   {
+    "id": "biodiversity",
+    "priority": "low",
+    "triggers": [],
+    "params": {},
+    "timing": "ongoing",
+    "horizon": "long_term",
+    "confidence": "low",
+    "stage_based": false
    }
   ]
  },
@@ -1710,7 +1838,7 @@
      {
       "id": "temp_max_forecast",
       "value": 41.2,
-      "unit": "\u00b0C",
+      "unit": "°C",
       "date": "2026-09-28",
       "basis": "forecast",
       "source": "weather",
@@ -1752,7 +1880,7 @@
      {
       "id": "soil_moisture",
       "value": 0.27,
-      "unit": "m\u00b3/m\u00b3",
+      "unit": "m³/m³",
       "date": "2026-09-26T10:15",
       "basis": "model_estimate",
       "source": "weather",
@@ -1816,7 +1944,7 @@
      {
       "id": "soil_moisture",
       "value": 0.27,
-      "unit": "m\u00b3/m\u00b3",
+      "unit": "m³/m³",
       "date": "2026-09-26T10:15",
       "basis": "model_estimate",
       "source": "weather",
@@ -2222,7 +2350,7 @@
      {
       "id": "temp_max_forecast",
       "value": 41.2,
-      "unit": "\u00b0C",
+      "unit": "°C",
       "date": "2026-09-28",
       "basis": "forecast",
       "source": "weather",
@@ -2264,7 +2392,7 @@
      {
       "id": "soil_moisture",
       "value": 0.27,
-      "unit": "m\u00b3/m\u00b3",
+      "unit": "m³/m³",
       "date": "2026-09-26T10:15",
       "basis": "model_estimate",
       "source": "weather",
@@ -2328,7 +2456,7 @@
      {
       "id": "soil_moisture",
       "value": 0.27,
-      "unit": "m\u00b3/m\u00b3",
+      "unit": "m³/m³",
       "date": "2026-09-26T10:15",
       "basis": "model_estimate",
       "source": "weather",
@@ -2676,5 +2804,134 @@
    "kind": "farm_record",
    "notes": "Snapshots are what KrishiSathi concluded at the time. Follow-through and outcomes are reported by the farmer and are not evidence that a recommendation caused the result."
   }
+ },
+ "crop_options": {
+  "basis": "farm_crop_and_state_list",
+  "state": "MH",
+  "crops": [
+   {
+    "crop": "Tomato",
+    "group": "vegetable",
+    "is_current": true,
+    "water_need_mm": {
+     "min": 400,
+     "max": 800
+    },
+    "season_length_days": 135,
+    "season_calendar": "Tomato, January planting, arid region",
+    "verified_disease_entries": 1,
+    "nearby_disease_clusters": 0
+   },
+   {
+    "crop": "Cotton",
+    "group": "fibre",
+    "is_current": false,
+    "water_need_mm": {
+     "min": 700,
+     "max": 1300
+    },
+    "season_length_days": 195,
+    "season_calendar": "Cotton, March-May planting, Egypt/Pakistan/California",
+    "verified_disease_entries": 0,
+    "nearby_disease_clusters": 0
+   },
+   {
+    "crop": "Sugarcane",
+    "group": "cash",
+    "is_current": false,
+    "water_need_mm": {
+     "min": 1500,
+     "max": 2500
+    },
+    "season_length_days": 405,
+    "season_calendar": "Sugarcane (virgin), low latitudes",
+    "verified_disease_entries": 0,
+    "nearby_disease_clusters": 0
+   },
+   {
+    "crop": "Soybean",
+    "group": "legume",
+    "is_current": false,
+    "water_need_mm": {
+     "min": 450,
+     "max": 700
+    },
+    "season_length_days": 85,
+    "season_calendar": "Soybeans, December planting, tropics",
+    "verified_disease_entries": 0,
+    "nearby_disease_clusters": 0
+   },
+   {
+    "crop": "Rice",
+    "group": "cereal",
+    "is_current": false,
+    "water_need_mm": {
+     "min": 450,
+     "max": 700
+    },
+    "season_length_days": 150,
+    "season_calendar": "Rice, December/May planting, tropics",
+    "verified_disease_entries": 2,
+    "nearby_disease_clusters": 0
+   },
+   {
+    "crop": "Onion",
+    "group": "vegetable",
+    "is_current": false,
+    "water_need_mm": {
+     "min": 350,
+     "max": 550
+    },
+    "season_length_days": 150,
+    "season_calendar": "Onion (dry), April planting, Mediterranean",
+    "verified_disease_entries": 0,
+    "nearby_disease_clusters": 0
+   }
+  ],
+  "market": {
+   "status": "unavailable",
+   "reason": "no_market_data_source"
+  },
+  "input_costs": {
+   "status": "unavailable",
+   "reason": "no_verified_cost_data"
+  },
+  "ranking": null,
+  "sources": {
+   "water_need": {
+    "source": "FAO Irrigation Water Management Training Manual No. 3, Table 13 (Brouwer & Heibloem, 1986)",
+    "url": "https://www.fao.org/4/s2022e/s2022e00.htm"
+   },
+   "season_length": {
+    "source": "FAO Irrigation and Drainage Paper 56, Table 11 (Allen et al., 1998)",
+    "url": "https://www.fao.org/4/x0490e/x0490e0b.htm"
+   },
+   "disease_entries": {
+    "source": "KrishiSathi curated reference (ICAR institutes)"
+   },
+   "nearby_clusters": {
+    "source": "KrishiSathi community reports",
+    "kind": "ai_classified_user_reports"
+   },
+   "state_list": {
+    "source": "KrishiSathi deployment configuration (typical crops per state)"
+   }
+  }
+ },
+ "practice": {
+  "action_id": "aec2078e-fe32-49ee-ad9a-b37a605fedc0",
+  "created_at": "2026-09-30T04:55:40.303054+00:00",
+  "source_type": "intelligence",
+  "source_ref": "3c76896f-03bd-4b9a-9353-0b7d4b3536bc",
+  "action": "cover_crop",
+  "category": "disease",
+  "severity": "high",
+  "confidence": "low",
+  "crop": "Tomato",
+  "followed": "yes",
+  "followed_at": "2026-09-30T04:55:40.318528+00:00",
+  "outcome": null,
+  "outcome_at": null,
+  "kind": "regenerative"
  }
 }

@@ -112,11 +112,51 @@ export interface RegenRecommendation {
   params: Record<string, string>;
 }
 
+export type RegenHorizon = 'current' | 'next' | 'long_term';
+
+export interface RegenPlanItem extends RegenRecommendation {
+  timing: 'now' | 'before_sowing' | 'at_harvest' | 'after_harvest' | 'ongoing';
+  horizon: RegenHorizon;
+  confidence: 'moderate' | 'low';
+  stage_based: boolean;
+}
+
 export interface RegenerativeResponse {
   crop: string | null;
   soil: SoilData;
-  inputs: { soil: string; weather: string; crop: string };
+  inputs: { soil: string; weather: string; crop: string; crop_stage: CropStageEstimate['status'] };
   recommendations: RegenRecommendation[];
+  plan: RegenPlanItem[];
+  crop_stage: CropStageEstimate;
+}
+
+export type PracticeStatus = 'adopted' | 'partial' | 'skipped';
+
+export interface CropOption {
+  crop: string;
+  group: string | null;
+  is_current: boolean;
+  water_need_mm: { min: number; max: number } | null;
+  season_length_days: number | null;
+  verified_disease_entries: number;
+  /** null when community reports could not be read (unknown, not zero). */
+  nearby_disease_clusters: number | null;
+}
+
+interface SourceRef {
+  source: string;
+  url?: string;
+  kind?: string;
+}
+
+export interface CropOptions {
+  basis: 'farm_crop_and_state_list' | 'all_supported_crops';
+  state: string | null;
+  crops: CropOption[];
+  market: { status: 'unavailable'; reason: string };
+  input_costs: { status: 'unavailable'; reason: string };
+  ranking: null;
+  sources: { water_need: SourceRef; season_length: SourceRef; disease_entries: SourceRef; nearby_clusters: SourceRef; state_list: SourceRef | null };
 }
 
 export interface SarSummary {

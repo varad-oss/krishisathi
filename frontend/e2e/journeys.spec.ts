@@ -114,6 +114,53 @@ test.describe('Farm digital twin', () => {
   });
 });
 
+test.describe('Regenerative plan and crop options', () => {
+  test('practices are placed on the crop cycle and adoption is saved to the farm history', async ({ page }) => {
+    await withFarmProfile(page);
+    await mockApi(page);
+    await page.goto('/farm');
+
+    const soil = page.locator('#soil');
+    await expect(soil.getByRole('heading', { name: 'This season' })).toBeVisible();
+    await expect(soil.getByRole('heading', { name: 'Next season' })).toBeVisible();
+    await expect(soil.getByRole('heading', { name: 'Long-term habits' })).toBeVisible();
+    await expect(soil.getByText(/Add your sowing date in the farm profile/)).toBeVisible();
+
+    const coverCrop = soil.locator('details', { hasText: 'Grow a cover crop' });
+    await coverCrop.locator('summary').click();
+    await expect(coverCrop.getByText('After harvest').first()).toBeVisible();
+    await expect(coverCrop.getByText('Based on your soil data')).toBeVisible();
+    const saved = page.waitForRequest((r) => /\/api\/farms\/[^/]+\/practices$/.test(r.url()) && r.method() === 'POST');
+    await coverCrop.getByRole('button', { name: 'Yes', exact: true }).click();
+    expect((await saved).postDataJSON()).toEqual({ practice: 'cover_crop', status: 'adopted' });
+    await expect(coverCrop.getByText('Saved in your farm history: Yes')).toBeVisible();
+  });
+
+  test('crop options compare verified facts, never rank, and say prices are unavailable', async ({ page }) => {
+    await withFarmProfile(page);
+    await mockApi(page);
+    await page.goto('/farm');
+
+    const options = page.locator('#options');
+    await expect(options.getByRole('heading', { name: 'Crop options near you' })).toBeVisible();
+    await expect(options.getByText(/This is not a ranking/)).toBeVisible();
+    const tomato = options.getByRole('row', { name: /Tomato/ });
+    await expect(tomato.getByText('Your crop')).toBeVisible();
+    await expect(tomato.getByText('400–800 mm')).toBeVisible();
+    await expect(tomato.getByText('about 135 days')).toBeVisible();
+    await expect(options.getByText(/no verified source for them yet/)).toBeVisible();
+    await expect(options.getByRole('link', { name: /FAO Irrigation Water Management/ })).toBeVisible();
+  });
+
+  test('crop options failure is explicit and does not hide the rest of the farm page', async ({ page }) => {
+    await withFarmProfile(page);
+    await mockApi(page, { cropOptions: unavailable() });
+    await page.goto('/farm');
+    await expect(page.locator('#options').getByText('Crop options could not be loaded.')).toBeVisible();
+    await expect(page.locator('#soil').getByRole('heading', { name: 'This season' })).toBeVisible();
+  });
+});
+
 test.describe('Landing → Diagnose → Result', () => {
   test('uploads a photo and shows diagnosis, certainty, verified reference and disclaimer', async ({ page }) => {
     await withFarmProfile(page);

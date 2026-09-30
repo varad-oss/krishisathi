@@ -5,9 +5,10 @@ import { Building2, ExternalLink, Layers, Leaf, Minus, Radio, RefreshCw, Satelli
 import { getCropHealthHistory } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
 import { useResource, type Resource } from '@/lib/use-resource';
-import type { CropHealth, CropHealthHistory, Kvk, RegenerativeResponse, RegenTrigger, SarSummary, SoilData, SoilReason } from '@/lib/types';
+import type { CropHealth, CropHealthHistory, FarmTwin, Kvk, RegenerativeResponse, RegenTrigger, SarSummary, SoilData, SoilReason } from '@/lib/types';
 import type { MessageKey } from '@/locales/en';
 import { cn } from '@/lib/utils';
+import { PracticePlan } from './Regenerative';
 import { buttonClass, Card, CardTitle, ErrorState, LevelBadge, LoadingBlock, Note, ProvenanceLine, UnavailableNote } from '../ui';
 
 const SOIL_REASON: Record<SoilReason, MessageKey> = {
@@ -116,7 +117,7 @@ function triggerText(t: (k: MessageKey, p?: Record<string, string | number>) => 
   }
 }
 
-export function SoilRegenCard({ regen }: { regen: Resource<RegenerativeResponse> }) {
+export function SoilRegenCard({ regen, twin, onSaved }: { regen: Resource<RegenerativeResponse>; twin: FarmTwin | null; onSaved?: () => void }) {
   const { t, fmt } = useI18n();
   const data = regen.data;
   return (
@@ -136,48 +137,7 @@ export function SoilRegenCard({ regen }: { regen: Resource<RegenerativeResponse>
             <Leaf className="h-5 w-5 text-leaf-600" aria-hidden /> {t('farm.regen.title')}
           </h3>
           <p className="mb-4 mt-1 text-sm text-ink-soft">{t('farm.regen.subtitle')}</p>
-          <ol className="divide-y divide-line overflow-hidden rounded-[var(--radius-inner)] ring-1 ring-line">
-            {data.recommendations.map((rec, index) => {
-              const base = `regen.${rec.id}`;
-              const basis = rec.triggers.map((tr) => triggerText(t, fmt, tr)).filter(Boolean) as string[];
-              return (
-                <li key={rec.id}>
-                  <details className="group bg-surface open:bg-paper/50">
-                    <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 p-4">
-                      <span className="flex min-w-0 items-start gap-3">
-                        <span aria-hidden className="mt-0.5 font-display text-lg leading-none text-soil-500 tabular-nums">{fmt.num(index + 1, 0)}</span>
-                        <span className="min-w-0">
-                          <span className="block font-semibold leading-snug">{t(`${base}.title` as MessageKey)}</span>
-                          <span
-                            className={cn(
-                              'mt-1 inline-flex items-center gap-1.5 text-xs font-medium',
-                              rec.priority === 'high' ? 'text-soil-700' : rec.priority === 'medium' ? 'text-leaf-700' : 'text-ink-faint',
-                            )}
-                          >
-                            <span aria-hidden className={cn('h-1.5 w-1.5 rounded-full', rec.priority === 'high' ? 'bg-soil-500' : rec.priority === 'medium' ? 'bg-leaf-500' : 'bg-line-strong')} />
-                            {t(`farm.regen.priority.${rec.priority}` as MessageKey)}
-                          </span>
-                        </span>
-                      </span>
-                      <span aria-hidden className="text-ink-faint transition-transform group-open:rotate-180">▾</span>
-                    </summary>
-                    <dl className="grid gap-3 px-4 pb-4 text-sm sm:grid-cols-2 sm:pl-11">
-                      {(['why', 'what', 'when', 'benefit'] as const).map((f) => (
-                        <div key={f}>
-                          <dt className="font-semibold">{t(`farm.regen.${f}` as MessageKey)}</dt>
-                          <dd className="text-ink-soft">{t(`${base}.${f}` as MessageKey)}</dd>
-                        </div>
-                      ))}
-                      <div className="sm:col-span-2">
-                        <dt className="font-semibold">{t('farm.regen.basis')}</dt>
-                        <dd className="text-ink-soft">{basis.length ? basis.join(' · ') : t('farm.regen.basisGeneral')}</dd>
-                      </div>
-                    </dl>
-                  </details>
-                </li>
-              );
-            })}
-          </ol>
+          <PracticePlan data={data} twin={twin} onSaved={onSaved} triggerText={(tr) => triggerText(t, fmt, tr)} />
           {regen.status === 'error' && <ErrorState compact error={regen.error} onRetry={regen.reload} updatedAt={regen.updatedAt} />}
         </>
       ) : null}

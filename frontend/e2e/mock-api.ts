@@ -31,6 +31,8 @@ export async function mockApi(page: Page, overrides: Overrides = {}) {
     cropHistory: { match: /\/api\/farm\/crop-health\/history/, body: { status: 'unavailable', reason: 'not_configured' } },
     cropHealth: { match: /\/api\/farm\/crop-health/, body: f.crop_health },
     intelligence: { match: /\/api\/farm\/intelligence/, body: f.intelligence },
+    cropOptions: { match: /\/api\/farm\/crop-options/, body: f.crop_options },
+    farmPractice: { match: /\/api\/farms\/[^/]+\/practices$/, body: f.practice },
     farmFeedback: { match: /\/api\/farms\/[^/]+\/actions\/[^/]+\/feedback$/, body: f.feedback },
     farmIntelligence: { match: /\/api\/farms\/[^/]+\/intelligence$/, body: f.farm_intelligence },
     farmHistory: { match: /\/api\/farms\/[^/]+$/, body: f.farm_history },

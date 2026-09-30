@@ -15,7 +15,7 @@ import { actionTitle, stageText } from './intelligence-text';
 const FOLLOWED: Followed[] = ['yes', 'partial', 'no', 'not_applicable'];
 const OUTCOMES: Outcome[] = ['improved', 'same', 'worse', 'not_sure'];
 
-function Choices<T extends string>({ question, options, labelPrefix, onPick, busy }: { question: string; options: T[]; labelPrefix: string; onPick: (v: T) => void; busy: boolean }) {
+export function Choices<T extends string>({ question, options, labelPrefix, onPick, busy }: { question: string; options: T[]; labelPrefix: string; onPick: (v: T) => void; busy: boolean }) {
   const { t } = useI18n();
   return (
     <fieldset disabled={busy}>
@@ -102,7 +102,7 @@ export function FarmHistoryCard({ history, twin }: { history: Resource<FarmHisto
                     <span className="text-xs text-ink-faint">{fmt.date(a.created_at)} · {t(`history.source.${a.source_type}` as MessageKey)}</span>
                     {a.severity && <SeverityChip severity={a.severity} />}
                   </div>
-                  <p className="font-medium">{actionTitle(t, a.action)}</p>
+                  <p className="font-medium">{a.source_type === 'regenerative' ? t(`regen.${a.action}.title` as MessageKey) : actionTitle(t, a.action)}</p>
                   {a.followed && <p className="text-ink-soft">{t('history.followed', { answer: t(`feedback.followed.${a.followed}` as MessageKey) })}</p>}
                   {a.outcome && <p className="text-ink-soft">{t('history.outcome', { answer: t(`feedback.outcome.${a.outcome}` as MessageKey) })}</p>}
                   {(!a.followed || ((a.followed === 'yes' || a.followed === 'partial') && !a.outcome)) && <ActionFeedback twin={twin} action={a} compact onSaved={history.reload} />}

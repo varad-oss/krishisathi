@@ -6,9 +6,10 @@ import FarmProfileForm, { useLocationLabel } from '@/components/FarmProfileForm'
 import { FarmHistoryCard } from '@/components/farm/History';
 import { RiskRadar } from '@/components/farm/Intelligence';
 import { TodayCard, WeatherCard } from '@/components/farm/TodayAlertsWeather';
+import { CropOptionsCard } from '@/components/farm/Regenerative';
 import { CropHealthCard, KvkCard, SoilRegenCard } from '@/components/farm/SoilCropKvk';
 import { buttonClass, Card, LoadingBlock } from '@/components/ui';
-import { getCropHealth, getFarmConditions, getFarmHistory, getFarmIntelligence, getFarmTwinIntelligence, getNearestKvk, getRegenerative } from '@/lib/api';
+import { getCropHealth, getFarmConditions, getFarmHistory, getFarmIntelligence, getFarmTwinIntelligence, getCropOptions, getNearestKvk, getRegenerative } from '@/lib/api';
 import type { FarmTwinIntelligence } from '@/lib/types';
 import { useFarmProfile } from '@/lib/farm-profile';
 import { useI18n } from '@/lib/i18n';
@@ -22,6 +23,7 @@ const SECTIONS: { id: string; label: MessageKey }[] = [
   { id: 'weather', label: 'farm.section.weather' },
   { id: 'crop', label: 'farm.section.cropHealth' },
   { id: 'soil', label: 'farm.section.soil' },
+  { id: 'options', label: 'farm.section.options' },
   { id: 'history', label: 'farm.section.history' },
 ];
 
@@ -51,7 +53,8 @@ export default function FarmPage() {
     [...key, sowing, twin?.farmId, twinRevision],
   );
   const history = useResource(twin ? (s) => getFarmHistory(twin, s) : null, [twin?.farmId, twinRevision, intel.updatedAt]);
-  const regen = useResource(loc ? (s) => getRegenerative(loc.lat, loc.lng, crop, s) : null, key);
+  const regen = useResource(loc ? (s) => getRegenerative(loc.lat, loc.lng, crop, sowing, s) : null, [...key, sowing]);
+  const options = useResource(loc ? (s) => getCropOptions(loc.lat, loc.lng, crop, s) : null, key);
   const health = useResource(loc ? (s) => getCropHealth(loc.lat, loc.lng, s) : null, key);
   const kvk = useResource(loc ? (s) => getNearestKvk(loc.lat, loc.lng, s) : null, key);
   const cropLabel = crop ? t(`crop.${crop}` as MessageKey) : null;
@@ -112,7 +115,8 @@ export default function FarmPage() {
           </div>
         </div>
         <WeatherCard conditions={conditions} />
-        <SoilRegenCard regen={regen} />
+        <SoilRegenCard regen={regen} twin={twin} onSaved={history.reload} />
+        <CropOptionsCard options={options} />
         <FarmHistoryCard history={history} twin={twin} />
       </div>
     </div>
