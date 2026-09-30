@@ -182,3 +182,38 @@ Root causes found, each with a regression test:
 | "Check your internet connection" on the dashboard | CORS middleware sat inside the request-ID middleware, so its 500 envelope had no `Access-Control-Allow-Origin` and browsers reported a network failure; the frontend mapped every `fetch` rejection to `NETWORK_ERROR`. | CORS outermost; frontend classification with a shared no-cors reachability probe. |
 
 Not verifiable from the development sandbox (egress blocked): the live deployment, SoilGrids, Open-Meteo and Gemini speech. They are covered by mocked tests only.
+
+## 12. Milestone 11 (2026-09-30): field geometry, evidence confidence, evaluation, Brazil adapter
+
+Audit of the `sahvi` baseline before changing it (code and data flow, not commit messages):
+
+| Area | Found | State |
+|---|---|---|
+| Satellite | Sentinel-2 NDVI + same-season baseline + Sentinel-1 VH over a fixed 250 m circle; cached, deduplicated, time-budgeted | live when Earth Engine is configured; point only |
+| Risk engine | 9 interpretable categories; confidence was hand-set per branch; disease "high" counted drivers (nearby clusters and the farm's own photo checks counted as two) | production-capable rules; confidence semantics under-specified |
+| Twin / feedback | snapshots, one action per day, self-reported follow-through and outcome, `feedback-metrics` | persisted; diagnosis records lacked image quality, guidance level, differential, model |
+| Interop | v1.0 schemas, India adapter, partner auth, pagination; a test double registered as "BR" | India real; Brazil did not exist |
+| Federation | FedAvg + ModelUpdate contract, `not_running` | contract only |
+| CORS | allowed only GET/POST | would have blocked plot edit/remove from the browser |
+
+Changes (details in `docs/INTELLIGENCE.md`, `docs/EARTH_ENGINE.md`, `docs/INTEROPERABILITY.md`):
+
+* Optional field outline per farm (`farm_plots`), strictly validated, token-protected, never published.
+* Earth Engine prefers the outline; explicit pixel, clear-pixel, valid-pixel and ESA WorldCover quality;
+  `insufficient_data` instead of a number for tiny or cloudy fields; `maxPixels` bounded; hashed cache keys.
+* Risk engine 1.1: graded evidence (group, reliability, role); confidence = weakest required condition or
+  strongest alternative; agreement reported, never inflated; correlated sources counted once;
+  `priority_reason` on the top action.
+* Evaluation layer from self-reported feedback, suppression under 5, admin-only pseudonymous data contract.
+* Brazil adapter over IBGE SIDRA PAM (table 5457); unsupported categories explicit; `/compare` view.
+* Privacy: polygon Earth Engine failures log only the error type; tests assert no outline, farm id or token
+  reaches public interop or dashboard responses.
+
+Not verifiable from the development sandbox (egress blocked): Earth Engine, IBGE SIDRA and Embrapa AgroAPI.
+The SIDRA query follows documented usage of table 5457 / classification C782 and the parser reads SIDRA's
+own header row; it is covered by tests with SIDRA-shaped test payloads, not by a live call.
+
+Running the **whole** backend suite against PostgreSQL (CI runs only `test_p05_postgres.py` there) fails in
+the baseline too (21 failures/errors on `sahvi`): pooled asyncpg connections are reused across the per-test
+event loops of TestClient and pytest-asyncio. The new queries were checked against PostgreSQL in a single event
+loop, the migrations were applied, downgraded and re-applied on PostgreSQL 16, and `test_p05_postgres.py` passes.

@@ -3,11 +3,13 @@
 `GET /api/farm/intelligence?lat=&lng=&crop=&sowing_date=` answers one question: *what matters most for this
 farm right now?* It fuses the sources KrishiSathi already uses into explainable risks and one prioritized
 action. It is rule-based; no AI model is called and no score exists that the rules below do not explain.
+For a farm with a drawn field outline (`GET /api/farms/{id}/intelligence`), satellite signals describe that
+field; otherwise the circle around the location (`farm.field.mode` says which).
 
 ```
 Open-Meteo weather ─┐
 SoilGrids soil ─────┤
-Sentinel-2 NDVI ────┤   FarmContext   ─►  risk engine  ─►  risks (severity, confidence,
+Sentinel-1/2 field ─┤   FarmContext   ─►  risk engine  ─►  risks (severity, confidence,
 Crop + sowing date ─┤  (each signal        (rules)          drivers, evidence, rules, action)
 Nearby reports ─────┤   has a status)                  ─►  top action ("What matters today")
 Farm history ───────┘                                  ─►  data quality per source
@@ -55,26 +57,80 @@ Weather thresholds come from `services/agro_rules.py` (IMD where IMD publishes o
 | Water stress | 7-day dry spell (rain < 2 mm, ET0 ≥ 25 mm) on *dry* topsoil | dry spell or dry topsoil, no rain expected | irrigate soon |
 | Heat stress | IMD heat ≥ 45 °C, or ≥ 40 °C in the mid-season stage¹ | IMD ≥ 40 °C | protect from heat |
 | Cold stress | IMD ≤ 2 °C | IMD ≤ 4 °C | protect from cold |
-| Disease | two independent signals² | one signal² | scout the field |
+| Disease | weather **and** AI-photo evidence agree² | one kind of signal² | scout the field |
 | Spray window | — | wind ≥ 15 km/h now, or rain today/tomorrow | postpone spraying |
 | Harvest weather | late season + heavy rain | late season + rain expected | protect harvest |
 | Crop health | — | NDVI fell by ≥ 0.1 between 30-day windows³ | inspect the field |
 | Pest | always `unavailable` (`no_pest_data_source`) | | |
 
 1. Heat during flowering and grain/fruit set is most damaging (Hatfield & Prueger 2015); FAO-56 "mid-season" covers it.
-2. Signals: humid-weather fungal rule, a nearby AI-classified disease cluster for the crop, the farm's own
-   disease detection in the last 14 days.
+2. Two independent kinds of signal: the humid-weather fungal rule, and AI-photo evidence (a nearby
+   AI-classified disease cluster for the crop within 50 km reported in the last 7 days, or the farm's own
+   moderate/high-certainty disease detection in the last 14 days). Clusters and the farm's own photos are the
+   same kind of source and count once. Farther or older clusters and low-certainty photo checks are shown as
+   background only and never raise the risk.
 3. A screening rule to prompt a field visit, not a validated crop-loss indicator.
 
-Severity is `low`, `moderate`, `high` or `unavailable` (always with a `reason`). Confidence is qualitative.
-Every moderate/high risk carries `drivers`, `evidence` (value, unit, date, basis, source) and `rules`
-(threshold source and link).
+Severity is `low`, `moderate`, `high` or `unavailable` (always with a `reason`). Every moderate/high risk
+carries `drivers`, `evidence` (value, unit, date, basis, source, group, reliability, role), `rules` (threshold
+source and link), `confidence` and `confidence_basis`.
+
+## Risk level vs evidence confidence (engine 1.1)
+
+Two separate answers, never merged into one score:
+
+* **Risk level** (`severity`): how concerning the condition would be *if the signals are right*.
+* **Evidence confidence** (`confidence`): how reliable those signals are. "High risk, low confidence" is a
+  legitimate answer and the UI explains it: *this would be serious; the data behind it is weak; check your field*.
+
+No probabilities are stated anywhere: none of these rules has been calibrated against field outcomes, so the
+levels are qualitative (`low`, `moderate`, `high`).
+
+**Reliability of each evidence item** (`services/risk_engine.py`, `_grade`):
+
+| Evidence | Reliability | Why |
+|---|---|---|
+| Forecast for today to the day after tomorrow (rain ≥ 50 % likely) | moderate | short-range single-point forecast |
+| Forecast further ahead, rain < 50 % likely, or a 7-day total | low | forecast skill drops with lead time |
+| Current wind (model nowcast) | moderate | model estimate, not a station |
+| Topsoil moisture / topsoil water status | low | two global models, not a field measurement |
+| Sentinel-2 NDVI change or baseline | moderate if satellite `quality.level` is `good` (drawn field, mostly clear, mostly cropland), else low | observation quality and field specificity |
+| Sentinel-1 VH change | low | screening signal: water, growth, harvest and tillage all move it |
+| Nearby AI-classified clusters, the farm's own AI photo diagnoses | low | not laboratory-confirmed |
+| Crop stage | the stage estimate's own confidence | FAO-56 calendar + farmer's sowing date |
+
+Nothing is `high` on its own, because no connected source is a ground observation of the farm.
+
+**Combining evidence.** Each item has a `role` for the risk's stated level:
+
+* `required`: a condition the level depends on ("rain **and** wet soil" for moderate waterlogging; "fungal
+  weather **and** AI-photo evidence" for high disease; "rain **and** harvest stage"). Confidence is the
+  **weakest** required item: a conclusion is no stronger than its weakest necessary condition.
+* `supporting`: an alternative or corroborating signal (wind *or* rain for the spray window). Confidence is
+  the **strongest** one.
+* `context`: shown for transparency but does not raise the risk (stale or distant clusters, low-certainty
+  photo checks, modelled soil water next to a heavy-rain forecast from the same model).
+
+**Independence.** Evidence that shares an upstream source is one `group` and counts once: the forecast, the
+topsoil moisture and the topsoil water status all come from the same weather model (`weather_model`); nearby
+clusters are built from the same AI photo checks as the farm's own history (`ai_photo_reports`); NDVI change
+and NDVI baseline share the same current Sentinel-2 value (`sentinel2`). Severity rules that need
+corroboration count groups, not items. When independent groups agree, `confidence_basis` says so
+(`independent_sources_agree`) but confidence is **not** raised: without outcome calibration there is no
+basis for a numeric boost. `independent_sources` gives the number of groups.
+
+`confidence_basis` lists ids the UI translates, e.g. `weakest_required_condition`, `forecast_within_2_days`,
+`modelled_soil_water`, `satellite_quality_limited`, `ai_classified_reports`, `correlated_signals_counted_once`.
 
 ## What matters today
 
-Risks are ordered by severity, then whether there is something to do, then how soon, then a fixed damage
-order (waterlogging, heat, cold, water stress, disease, harvest, crop health, spray, pest). The first
-moderate/high risk with an action becomes the top action. If none, a low risk with an action (e.g. "rain is
+The top action answers "what should I pay attention to first?". Risks are ordered by severity, then whether
+there is something to do, then how soon, then stronger evidence confidence, then a fixed damage order
+(waterlogging, heat, cold, water stress, disease, harvest, crop health, spray, pest: the less reversible
+first). The first moderate/high risk with an action becomes the top action. It carries category, action,
+severity, confidence, confidence basis, drivers, evidence, rules, date and `priority_reason`
+(`highest_severity`, `soonest`, `stronger_evidence`, `less_reversible` or `only_action`), which the farm
+page shows as "Shown first: …". If none, a low risk with an action (e.g. "rain is
 expected, consider delaying irrigation") is shown; otherwise routine monitoring. If weather is unavailable
 and nothing else is moderate or high, the top action is `unavailable` rather than a false all-clear.
 
@@ -86,6 +142,30 @@ The API returns ids and numbers only; the frontend renders them in the farmer's 
 - Topsoil water is derived from two global models at 3–9 cm; it is not a field measurement.
 - No pest surveillance data is connected, so pest risk is not assessed.
 - The NDVI decline threshold is a screening rule; see `docs/EARTH_ENGINE.md` for the satellite method.
+
+## Field outline (plots)
+
+A farm may optionally have **one field outline** (`farm_plots`, `migrations/versions/c4e8a2d6f0b3_farm_plots.py`):
+a GeoJSON Polygon with `area_ha`, crop and an optional sowing date (crop-cycle association). Farms without one
+keep working exactly as before on their location point.
+
+| Endpoint (farm token) | Purpose |
+|---|---|
+| `GET /api/farms/{id}/plot` | the outline, or `{"plot": null}` |
+| `PUT /api/farms/{id}/plot` | create or replace; body `{"geometry": <GeoJSON Polygon>, "crop"?, "sowing_date"?}` |
+| `DELETE /api/farms/{id}/plot` | remove; satellite values return to the location circle |
+| `GET /api/farms/{id}/crop-health`, `/crop-health/history` | satellite values for the outline (or the point) |
+
+Validation (`services/plots.py`, mirrored in `frontend/src/lib/geo.ts` for the live area): type `Polygon`,
+only `type` and `coordinates`, one exterior ring (no holes), `[lng, lat]` finite and in range, 3–200 distinct
+corners, closed and not self-intersecting, 0.01–200 ha (local equal-area projection), centroid within 5 km
+of the farm location. Coordinates are rounded to 6 decimals and the ring is stored counter-clockwise.
+Errors return 422 `INVALID_GEOMETRY` with a reason. If the farm location later moves more than 5 km away,
+the stale outline is ignored and the point is used.
+
+On the farm page, **My field** lets the farmer tap the corners of the field on aerial imagery (area shown
+live), save, edit or remove it, or skip it. The outline is only used to make satellite statistics specific
+to the field; it is never published (see Privacy in `docs/INTEROPERABILITY.md`) and is not cached in the browser.
 
 ## Farm digital twin and the action → outcome loop
 
@@ -113,6 +193,34 @@ Aggregates over 90 days: follow-through rate (yes + partly over applicable answe
 same by source (daily advice, photo check, soil practice), crop, 1° region cell and diagnosis certainty
 (does the model's stated certainty match "diagnosis was wrong" reports?), plus repeat disease detections per
 farm. Groups under 5 records are suppressed. Labelled `app_derived_feedback`: not official statistics.
+
+### Evaluation (`GET /api/dashboard/evaluation`, `GET /api/dashboard/evaluation/records`)
+
+Everything here is labelled **KrishiSathi self-reported feedback**. It is a candidate evaluation signal,
+not a success rate, not a yield effect, not a causal estimate and not a calibration curve. Farmers who
+answer are not a random sample, and a "diagnosis wrong" report is the farmer's judgement, not a lab result.
+
+Each photo diagnosis now stores what the model said: status, certainty, image quality, guidance level after
+the safety rules, the differential (names and likelihoods) and the model version
+(`migrations/versions/d6a1b3c5e7f9_diagnosis_evaluation_fields.py`).
+
+`/evaluation` (public, aggregated, 90 days, groups < 5 suppressed, no farm ids or coordinates):
+
+* **Diagnosis**: `diagnosis_feedback_count`, `diagnosis_wrong` and `diagnosis_wrong_rate`; the
+  distribution of diagnoses by status × certainty; **observed app feedback by model confidence**
+  (`high → wrong X of Y`, `moderate → …`, `low → …`, each tier listed even when suppressed); and the same
+  by crop, image quality and guidance level.
+* **Advice**: follow-through (`followed_rate`, `partial_rate`, `not_followed_rate` over applicable answers),
+  outcome distribution, by recommendation category, crop and 1° region cell.
+
+`/evaluation/records` (admin JWT only) is the **evaluation data contract v1.0**: one record per answered
+recommendation or diagnosis with `prediction` (engine action, level and evidence confidence; or diagnosis
+status, disease, certainty, differential, image quality, guidance level, model), `farmer_feedback`
+(followed, outcome, `diagnosis_wrong`, kind `farmer_reported`) and `later_observation` (the first app
+assessment of the same farm at least 3 days later: risk level for the same category, NDVI and satellite
+quality; `null` when none exists, never invented). Records are pseudonymous (a hash per record, no farm id,
+token, exact location, photo or free text; region is a 1° cell) and carry the use policy:
+*evaluation only; never used to retrain or tune production models automatically*.
 
 ## Contextual diagnosis, safety tiers and escalation
 
