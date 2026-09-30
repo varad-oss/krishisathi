@@ -45,3 +45,13 @@ def require_system_role(principal: Principal = Depends(get_current_user)) -> Pri
     if principal.role not in ("system", "admin"):
         raise ApiError(403, "FORBIDDEN", "Forbidden: insufficient privileges.")
     return principal
+
+
+PARTNER_ROLES = ("partner", "system", "admin")
+
+
+def require_partner_role(principal: Principal = Depends(get_current_user)) -> Principal:
+    """Interoperability partners (another country's or state's system) may read aggregated signals."""
+    if principal.role not in PARTNER_ROLES:
+        raise ApiError(403, "FORBIDDEN", "Forbidden: insufficient privileges.")
+    return principal
