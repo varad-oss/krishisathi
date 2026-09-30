@@ -19,7 +19,7 @@ class DiseaseReferenceService:
         except Exception as e:
             logger.error("Failed to load disease_reference.json: %s", e)
 
-    def _crop_matches(self, crop_type: str | None) -> list[dict]:
+    def entries_for(self, crop_type: str | None) -> list[dict]:
         if not crop_type:
             return []
         wanted = {crop_type.lower()}
@@ -32,13 +32,13 @@ class DiseaseReferenceService:
         """Returns a reference entry only if the id exists (and, when a crop is known, applies to it)."""
         if not reference_id:
             return None
-        candidates = self._crop_matches(crop_type) if crop_type else self.data
+        candidates = self.entries_for(crop_type) if crop_type else self.data
         return next((item for item in candidates if item.get("id") == reference_id), None)
 
     def get_grounding_context(self, crop_type: str | None, state_code: str | None) -> str:
         if not crop_type:
             return ""
-        crop_matches = self._crop_matches(crop_type)
+        crop_matches = self.entries_for(crop_type)
         if not crop_matches:
             return "No specific regional disease reference data found for this context."
 

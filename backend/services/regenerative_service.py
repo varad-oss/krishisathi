@@ -67,3 +67,32 @@ def recommend(crop: str | None, soil: dict, insights: list[dict]) -> list[dict]:
 
     recs.sort(key=lambda r: PRIORITY_ORDER[r["priority"]])
     return recs
+
+
+# When each practice is done in the crop cycle. The practice text (what/when/benefit) is rendered by the frontend.
+TIMING = {
+    "soil_test": "before_sowing", "organic_matter": "before_sowing", "ph_management": "before_sowing",
+    "residue_retention": "at_harvest", "cover_crop": "after_harvest", "legume_rotation": "after_harvest",
+    "cereal_legume_rotation": "after_harvest", "crop_rotation": "after_harvest", "water_conservation": "now",
+    "integrated_nutrients": "now", "reduced_tillage": "before_sowing", "biodiversity": "ongoing",
+}
+HORIZON_ORDER = {"current": 0, "next": 1, "long_term": 2}
+
+
+def plan(recs: list[dict], stage: dict, soil_available: bool) -> list[dict]:
+    """Places each recommendation on the crop cycle: this season, next season, or a long-term habit.
+
+    With a crop-stage estimate, harvest-time practices move into "current" once the crop is in its late season and
+    pre-sowing practices stay "next". Without one, timing is general. Confidence reflects whether soil data informed it."""
+    late = stage.get("stage") == "late_season" or stage.get("status") == "beyond_season"
+    out = []
+    for r in recs:
+        timing = TIMING.get(r["id"], "ongoing")
+        if r["id"] == "water_conservation" and not r["triggers"]:
+            timing = "ongoing"
+        horizon = ("current" if timing == "now" or (timing == "at_harvest" and late)
+                   else "long_term" if timing == "ongoing" else "next")
+        out.append({**r, "timing": timing, "horizon": horizon,
+                    "confidence": "moderate" if soil_available and r["triggers"] else "low",
+                    "stage_based": stage.get("status") == "estimated"})
+    return sorted(out, key=lambda r: (HORIZON_ORDER[r["horizon"]], PRIORITY_ORDER[r["priority"]]))

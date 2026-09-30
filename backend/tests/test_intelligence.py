@@ -8,7 +8,7 @@ from helpers import open_meteo_payload
 from main import app
 from models.exceptions import ServiceUnavailableException
 from services import agro_rules, soil_service as soil_module, weather_service as ws
-from services.regenerative_service import recommend
+from services.regenerative_service import plan, recommend
 from services.soil_service import parse_soilgrids, rate_organic_carbon, rate_ph
 
 client = TestClient(app)
@@ -176,4 +176,38 @@ def test_regenerative_endpoint_reports_inputs():
         res = client.get("/api/farm/regenerative?lat=18.5&lng=73.8&crop=paddy")
     body = res.json()
     assert body["crop"] == "Rice"
-    assert body["inputs"] == {"soil": "unavailable", "weather": "unavailable", "crop": "provided"}
+    assert body["inputs"] == {"soil": "unavailable", "weather": "unavailable", "crop": "provided", "crop_stage": "not_provided"}
+    # Every recommendation is placed on the crop cycle; without soil data none claims more than low confidence.
+    assert {r["id"] for r in body["plan"]} == {r["id"] for r in body["recommendations"]}
+    assert all(r["confidence"] == "low" and r["stage_based"] is False for r in body["plan"])
+
+
+def test_regenerative_plan_moves_harvest_practices_into_the_current_season_late_in_the_crop():
+    recs = [{"id": "residue_retention", "priority": "medium", "triggers": [{"signal": "crop"}]},
+            {"id": "soil_test", "priority": "high", "triggers": []},
+            {"id": "biodiversity", "priority": "low", "triggers": []}]
+    early = {r["id"]: r for r in plan(recs, {"status": "estimated", "stage": "mid_season"}, soil_available=True)}
+    late = {r["id"]: r for r in plan(recs, {"status": "estimated", "stage": "late_season"}, soil_available=True)}
+    assert early["residue_retention"]["horizon"] == "next" and late["residue_retention"]["horizon"] == "current"
+    assert late["soil_test"]["horizon"] == "next" and late["biodiversity"]["horizon"] == "long_term"
+    assert late["residue_retention"]["confidence"] == "moderate" and late["soil_test"]["confidence"] == "low"
+    assert [r["horizon"] for r in plan(recs, {"status": "estimated", "stage": "late_season"}, True)] == ["current", "next", "long_term"]
+
+
+def test_crop_options_never_ranks_or_invents_prices():
+    with patch("services.crop_options.persistence_service.get_outbreaks", AsyncMock(return_value=[])):
+        body = client.get("/api/farm/crop-options?lat=30.9&lng=75.85&crop=wheat").json()
+    assert body["ranking"] is None
+    assert body["market"]["status"] == "unavailable" and body["input_costs"]["status"] == "unavailable"
+    assert body["crops"][0]["crop"] == "Wheat" and body["crops"][0]["is_current"] is True
+    assert sum(r["is_current"] for r in body["crops"]) == 1
+    wheat = body["crops"][0]
+    assert wheat["water_need_mm"] == {"min": 450, "max": 650} and wheat["nearby_disease_clusters"] == 0
+    assert body["sources"]["water_need"]["url"].startswith("https://www.fao.org/")
+
+
+def test_crop_options_far_from_india_does_not_assume_a_state_crop_list():
+    with patch("services.crop_options.persistence_service.get_outbreaks", AsyncMock(side_effect=Exception("db down"))):
+        body = client.get("/api/farm/crop-options?lat=-33.9&lng=18.4").json()
+    assert body["basis"] == "all_supported_crops" and body["state"] is None
+    assert all(r["nearby_disease_clusters"] is None for r in body["crops"])  # unknown, not zero

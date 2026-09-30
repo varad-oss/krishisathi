@@ -12,6 +12,7 @@ from core.rate_limit import rate_limit
 from models.intelligence import FarmIntelligence
 from services import farm_twin
 from services.intelligence_service import farm_intelligence
+from services.regenerative_service import TIMING
 
 router = APIRouter(prefix="/api/farms", tags=["Farm digital twin"])
 
@@ -42,6 +43,14 @@ class FeedbackIn(BaseModel):
         if not self.followed and not self.outcome:
             raise ValueError("followed or outcome is required")
         return self
+
+
+ADOPTION = {"adopted": "yes", "partial": "partial", "skipped": "no"}
+
+
+class PracticeIn(BaseModel):
+    practice: Literal[tuple(TIMING)]  # type: ignore[valid-type]
+    status: Literal["adopted", "partial", "skipped"]
 
 
 class FarmTwinIntelligence(FarmIntelligence):
@@ -94,4 +103,13 @@ async def action_feedback(body: FeedbackIn, action_id: str = Path(..., min_lengt
     result = await farm_twin.submit_feedback(farm.id, action_id, body.followed, body.outcome)
     log_event("feedback_received", farm_id=farm.id, action=result["action"], source_type=result["source_type"],
               followed=body.followed, outcome=body.outcome)
+    return result
+
+
+@router.post("/{farm_id}/practices", status_code=201)
+async def record_practice(body: PracticeIn, farm=Depends(farm_access)):
+    """Self-reported adoption of a regenerative practice (adopted / partial / skipped), kept in the farm history."""
+    action = await farm_twin.record_action(farm, "regenerative", None, body.practice)
+    result = await farm_twin.submit_feedback(farm.id, action["action_id"], ADOPTION[body.status], None)
+    log_event("practice_reported", farm_id=farm.id, practice=body.practice, status=body.status)
     return result
