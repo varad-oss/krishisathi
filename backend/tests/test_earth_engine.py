@@ -232,7 +232,7 @@ def test_ndvi_available_with_change_acquisition_date_and_observation_metadata():
     assert res["clear_pixel_fraction"] == 1.0
     assert res["observation"] == {"image_id": "COPERNICUS/S2_SR_HARMONIZED/20260227T053901_20260227T054440_T43REQ",
                                   "sensed_at": "2026-02-27T00:00:00+00:00", "scene_cloud_pct": 12.3}
-    assert res["roi"] == {"lat": 30.9, "lng": 75.85, "radius_m": 250}
+    assert res["roi"] == {"lat": 30.9, "lng": 75.85, "radius_m": 250, "mode": "point"}
     assert ee_mock.Dictionary.return_value.getInfo.call_count == 1  # both windows in one round trip
 
 

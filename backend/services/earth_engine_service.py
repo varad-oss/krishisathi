@@ -18,6 +18,7 @@ import time
 from datetime import date, datetime, timedelta, timezone
 
 from config import settings
+from services.plots import MAX_AREA_HA as MAX_FIELD_AREA_HA, geometry_key
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ PROVENANCE = {
     "processing": "Level-2A surface reflectance (harmonized)",
     "signal": "Satellite-derived vegetation signal (NDVI), not ground-truth crop health",
     "kind": "satellite_observation",
-    "resolution": "10 m (averaged over a 250 m radius)",
+    "resolution": "10 m (averaged over the drawn field, or a 250 m radius around the farm point)",
     "notes": "Median NDVI of cloud-masked pixels. NDVI depends on crop type and growth stage; compare it with your own field over time, not with other crops.",
 }
 WINDOW_DAYS = 30
@@ -55,6 +56,24 @@ CLEAR_SCL_CLASSES = (4, 5, 6, 7)
 ROI_PIXELS = math.pi * BUFFER_M ** 2 / 100
 MIN_CLEAR_FRACTION = 0.1
 RETRY_AFTER_S = 300
+SCALE_M = 10
+# Enough for the largest allowed field (200 ha = 20 000 pixels) and the point circle, with headroom; a larger
+# request is a bug, and Earth Engine should refuse it rather than quietly compute over a huge area.
+MAX_PIXELS = 1_000_000
+# A drawn field is small: its NDVI is reported only with at least this many clear pixels and this clear share.
+FIELD_MIN_PIXELS = 10            # 0.1 ha; smaller outlines are too small for 10 m imagery
+FIELD_MIN_CLEAR_PIXELS = 10
+FIELD_MIN_CLEAR_FRACTION = 0.3
+GOOD_CLEAR_FRACTION = 0.6
+MIXED_CROPLAND_FRACTION = 0.5    # below this, most mapped land cover in the region is not cropland
+LIMITING_FLAGS = {"mixed_land_cover", "contains_water", "contains_built_up", "point_circle_not_field_boundary"}
+WORLDCOVER = "ESA/WorldCover/v200"
+WORLDCOVER_PROVENANCE = {
+    "source": "ESA WorldCover 10 m 2021 v200 via Google Earth Engine",
+    "source_url": "https://developers.google.com/earth-engine/datasets/catalog/ESA_WorldCover_v200",
+    "kind": "satellite_derived_map",
+    "notes": "A 2021 land-cover map; the field may have changed since. Used only to flag mixed land inside the region.",
+}
 REQUIRED_KEY_FIELDS = ("client_email", "private_key", "project_id")
 POINT_CACHE_TTL_S = 6 * 3600
 BASELINE_YEARS = 3        # the same 30-day window in each of the previous 3 years
@@ -77,7 +96,7 @@ S1_PROVENANCE = {
     "processing": "Ground Range Detected, IW mode, calibrated and terrain-corrected backscatter (dB)",
     "signal": "Radar backscatter (VV, VH), not a measurement of soil moisture or crop health",
     "kind": "satellite_observation",
-    "resolution": "10 m (averaged over a 250 m radius)",
+    "resolution": "10 m (averaged over the drawn field, or a 250 m radius around the farm point)",
     "notes": "Radar works through clouds. A strong drop in VH backscatter can indicate standing water; VH also changes with "
              "canopy growth, harvest and tillage, so changes are shown, not interpreted as crop condition.",
     "references": [{"source": "UN-SPIDER Recommended Practice: flood mapping and damage assessment using Sentinel-1 SAR data in GEE",
@@ -249,8 +268,9 @@ class EarthEngineService:
         }
 
     @staticmethod
-    def _window_stats(geometry, start: str, end: str):
-        """Server-side dictionary for one window: median NDVI of clear pixels, scene count, latest acquisition."""
+    def _window_stats(geometry, start: str, end: str, detail: bool = False):
+        """Server-side dictionary for one window: median NDVI of clear pixels, scene count, latest acquisition.
+        With `detail`, also the number of pixels that had any valid observation (clouds included)."""
         collection = (ee.ImageCollection(DATASET)
                       .filterBounds(geometry)
                       .filterDate(start, end)
@@ -265,22 +285,45 @@ class EarthEngineService:
         empty = ee.Image.constant(0).toFloat().rename("NDVI").updateMask(0)
         composite = collection.map(clear_ndvi).merge(ee.ImageCollection([empty])).median()
         stats = composite.reduceRegion(reducer=ee.Reducer.mean().combine(ee.Reducer.count(), sharedInputs=True),
-                                       geometry=geometry, scale=10, maxPixels=1e9)
+                                       geometry=geometry, scale=SCALE_M, maxPixels=MAX_PIXELS)
         # Lists of zero or one element, so an empty window is not an error.
         latest = collection.limit(1, "system:time_start", False)
-        return ee.Dictionary({"ndvi": stats.get("NDVI_mean"), "clear_px": stats.get("NDVI_count"), "count": collection.size(),
-                              "latest_ms": collection.aggregate_max("system:time_start"),
-                              "latest_id": latest.aggregate_array("system:index"),
-                              "latest_cloud_pct": latest.aggregate_array("CLOUDY_PIXEL_PERCENTAGE")})
+        out = {"ndvi": stats.get("NDVI_mean"), "clear_px": stats.get("NDVI_count"), "count": collection.size(),
+               "latest_ms": collection.aggregate_max("system:time_start"),
+               "latest_id": latest.aggregate_array("system:index"),
+               "latest_cloud_pct": latest.aggregate_array("CLOUDY_PIXEL_PERCENTAGE")}
+        if detail:
+            empty_valid = ee.Image.constant(0).toFloat().rename("VALID").updateMask(0)
+            valid = (collection.map(lambda img: img.select("SCL").neq(0).selfMask().toFloat().rename("VALID"))
+                     .merge(ee.ImageCollection([empty_valid])).max())
+            out["valid_px"] = valid.reduceRegion(reducer=ee.Reducer.count(), geometry=geometry, scale=SCALE_M,
+                                                 maxPixels=MAX_PIXELS).get("VALID")
+        return ee.Dictionary(out)
 
     @staticmethod
-    def _clear_fraction(stats: dict) -> float:
-        return min(1.0, (stats.get("clear_px") or 0) / ROI_PIXELS)
+    def _field_extras(geometry, polygon: bool):
+        """Pixel count of the region (polygon only; the point circle is a constant) and its ESA WorldCover composition."""
+        extras = {"landcover": ee.ImageCollection(WORLDCOVER).first().select("Map").reduceRegion(
+            reducer=ee.Reducer.frequencyHistogram(), geometry=geometry, scale=SCALE_M, maxPixels=MAX_PIXELS).get("Map")}
+        if polygon:
+            extras["roi_px"] = ee.Image.constant(1).rename("PX").reduceRegion(
+                reducer=ee.Reducer.count(), geometry=geometry, scale=SCALE_M, maxPixels=MAX_PIXELS).get("PX")
+        return extras
+
+    @staticmethod
+    def _clear_fraction(stats: dict, roi_px: float = ROI_PIXELS) -> float:
+        return min(1.0, (stats.get("clear_px") or 0) / roi_px) if roi_px else 0.0
 
     @classmethod
-    def _usable_ndvi(cls, stats: dict) -> float | None:
-        """NDVI of a window only when enough of the circle had clear pixels; None otherwise."""
-        return stats.get("ndvi") if stats.get("ndvi") is not None and cls._clear_fraction(stats) >= MIN_CLEAR_FRACTION else None
+    def _usable_ndvi(cls, stats: dict, roi_px: float = ROI_PIXELS, polygon: bool = False) -> float | None:
+        """NDVI of a window only when enough of the region had clear pixels; None otherwise.
+        A drawn field is small, so it needs a larger clear share and a minimum number of clear pixels."""
+        if stats.get("ndvi") is None:
+            return None
+        fraction = cls._clear_fraction(stats, roi_px)
+        if polygon:
+            return stats["ndvi"] if fraction >= FIELD_MIN_CLEAR_FRACTION and (stats.get("clear_px") or 0) >= FIELD_MIN_CLEAR_PIXELS else None
+        return stats["ndvi"] if fraction >= MIN_CLEAR_FRACTION else None
 
     @staticmethod
     def _observation(stats: dict) -> dict | None:
@@ -328,7 +371,7 @@ class EarthEngineService:
         def per_pass(orbit_pass):
             c = collection.filter(ee.Filter.eq("orbitProperties_pass", orbit_pass))
             mean = c.select(["VV", "VH"]).map(lambda i: i.toFloat()).merge(ee.ImageCollection([empty])).mean()
-            stats = mean.reduceRegion(reducer=ee.Reducer.mean(), geometry=geometry, scale=10, maxPixels=1e9)
+            stats = mean.reduceRegion(reducer=ee.Reducer.mean(), geometry=geometry, scale=SCALE_M, maxPixels=MAX_PIXELS)
             return ee.Dictionary({"vv_db": stats.get("VV"), "vh_db": stats.get("VH"), "count": c.size(),
                                   "latest_ms": c.aggregate_max("system:time_start")})
 
@@ -361,12 +404,12 @@ class EarthEngineService:
                        water_signal=prev["vh_db"] < 0 and cur["vh_db"] / prev["vh_db"] > S1_WATER_RATIO)
         return out
 
-    def _baseline(self, stats: dict, value: float | None, today: date) -> dict:
+    def _baseline(self, stats: dict, value: float | None, today: date, roi_px: float = ROI_PIXELS, polygon: bool = False) -> dict:
         years = []
         for y in range(1, BASELINE_YEARS + 1):
             w = stats.get(f"baseline_{y}") or {}
-            years.append({"year": (today - timedelta(days=365 * y)).year, "ndvi": _round(self._usable_ndvi(w)),
-                          "clear_pixel_fraction": round(self._clear_fraction(w), 2), "image_count": w.get("count")})
+            years.append({"year": (today - timedelta(days=365 * y)).year, "ndvi": _round(self._usable_ndvi(w, roi_px, polygon)),
+                          "clear_pixel_fraction": round(self._clear_fraction(w, roi_px), 2), "image_count": w.get("count")})
         values = [y["ndvi"] for y in years if y["ndvi"] is not None]
         if len(values) < MIN_BASELINE_YEARS:
             return {"status": "insufficient_data", "years": years, "minimum_years": MIN_BASELINE_YEARS}
@@ -376,30 +419,104 @@ class EarthEngineService:
                 "position": position, "minimum_years": MIN_BASELINE_YEARS,
                 "method": "Same 30-day window in each previous year; range of the usable years"}
 
-    def _point_series(self, lat: float, lng: float, today: date) -> dict:
-        geometry = ee.Geometry.Point([lng, lat]).buffer(BUFFER_M)
+    # --- field geometry: the farmer's drawn plot, or a 250 m circle around the farm point ---------------------
+
+    @staticmethod
+    def _geometry(field: dict):
+        if field["mode"] == "polygon":
+            return ee.Geometry(field["geometry"])
+        return ee.Geometry.Point([field["lng"], field["lat"]]).buffer(BUFFER_M)
+
+    @staticmethod
+    def _roi(field: dict, roi_px: float | None) -> dict:
+        """What the numbers describe. A polygon's coordinates are not echoed: the farmer already has them."""
+        if field["mode"] == "polygon":
+            return {"mode": "polygon", "area_ha": field["area_ha"], "pixel_count": int(roi_px) if roi_px else None}
+        return {"lat": field["lat"], "lng": field["lng"], "radius_m": BUFFER_M, "mode": "point"}
+
+    @staticmethod
+    def _land_cover(histogram) -> dict:
+        """ESA WorldCover shares inside the region: a drawn outline can include roads, ponds, trees or a neighbour's land."""
+        if not isinstance(histogram, dict) or not histogram:
+            return {"status": "unavailable", "provenance": WORLDCOVER_PROVENANCE}
+        total = sum(v for v in histogram.values() if isinstance(v, (int, float)))
+        if not total:
+            return {"status": "unavailable", "provenance": WORLDCOVER_PROVENANCE}
+        share = lambda *classes: round(sum(histogram.get(str(c), 0) for c in classes) / total, 2)
+        known = (10, 20, 30, 40, 50, 80, 90)
+        return {"status": "available", "cropland_fraction": share(40), "tree_cover_fraction": share(10),
+                "grass_shrub_fraction": share(20, 30), "built_up_fraction": share(50), "water_fraction": share(80, 90),
+                "other_fraction": round(max(0.0, 1 - sum(histogram.get(str(c), 0) for c in known) / total), 2),
+                "provenance": WORLDCOVER_PROVENANCE}
+
+    def _quality(self, field: dict, current: dict, roi_px: float, land_cover: dict, usable: bool) -> dict:
+        """Explicit data-quality summary: how many pixels, how many were clear, and what else is inside the region."""
+        polygon = field["mode"] == "polygon"
+        flags = []
+        if polygon and roi_px < FIELD_MIN_PIXELS:
+            flags.append("field_too_small")
+        if not usable:
+            flags.append("too_few_clear_pixels")
+        if land_cover["status"] == "available":
+            if land_cover["cropland_fraction"] < MIXED_CROPLAND_FRACTION:
+                flags.append("mixed_land_cover")
+            if land_cover["water_fraction"] >= 0.1:
+                flags.append("contains_water")
+            if land_cover["tree_cover_fraction"] >= 0.2:
+                flags.append("contains_trees")
+            if land_cover["built_up_fraction"] >= 0.1:
+                flags.append("contains_built_up")
+        if not polygon:
+            flags.append("point_circle_not_field_boundary")
+        clear = self._clear_fraction(current, roi_px)
+        level = "insufficient" if not usable else "good" if clear >= GOOD_CLEAR_FRACTION and not (set(flags) & LIMITING_FLAGS) else "limited"
+        valid_px = current.get("valid_px")
+        return {
+            "mode": field["mode"], "level": level, "flags": flags,
+            "pixel_count": int(roi_px) if roi_px else 0,
+            "clear_pixel_count": int(current.get("clear_px") or 0),
+            "clear_pixel_fraction": round(clear, 2),
+            "valid_pixel_fraction": round(min(1.0, valid_px / roi_px), 2) if isinstance(valid_px, (int, float)) and roi_px else None,
+            "land_cover": land_cover,
+            "resolution_m": SCALE_M,
+            "method": ("Mean of the cloud-masked median NDVI over pixels whose centre falls inside the drawn outline"
+                       if polygon else f"Mean of the cloud-masked median NDVI within {BUFFER_M} m of the farm point"),
+        }
+
+    def _field_series(self, field: dict, today: date) -> dict:
+        polygon = field["mode"] == "polygon"
+        geometry = self._geometry(field)
         windows = [(today - timedelta(days=WINDOW_DAYS * (i + 1)), today - timedelta(days=WINDOW_DAYS * i)) for i in range(HISTORY_WINDOWS)]
-        stats = ee.Dictionary({str(i): self._window_stats(geometry, s.isoformat(), e.isoformat()) for i, (s, e) in enumerate(windows)}).getInfo()
+        request = {str(i): self._window_stats(geometry, s.isoformat(), e.isoformat()) for i, (s, e) in enumerate(windows)}
+        if polygon:
+            request.update(self._field_extras(geometry, True))
+        stats = ee.Dictionary(request).getInfo()
+        roi_px = (stats.get("roi_px") or 0) if polygon else ROI_PIXELS
         series = []
         for i, (start, end) in reversed(list(enumerate(windows))):
             w = stats.get(str(i)) or {}
-            series.append({"start": start.isoformat(), "end": end.isoformat(), "ndvi": _round(self._usable_ndvi(w)),
-                           "clear_pixel_fraction": round(self._clear_fraction(w), 2), "image_count": w.get("count"),
+            series.append({"start": start.isoformat(), "end": end.isoformat(), "ndvi": _round(self._usable_ndvi(w, roi_px, polygon)),
+                           "clear_pixel_fraction": round(self._clear_fraction(w, roi_px), 2), "image_count": w.get("count"),
                            "latest_image_date": _iso_day(w.get("latest_ms"))})
         usable = sum(p["ndvi"] is not None for p in series)
         return {"status": "available" if usable >= 2 else "insufficient_data", "series": series, "usable_windows": usable,
-                "window_days": WINDOW_DAYS, "roi": {"lat": lat, "lng": lng, "radius_m": BUFFER_M}}
+                "window_days": WINDOW_DAYS, "roi": self._roi(field, roi_px)}
 
-    def _point_ndvi(self, lat: float, lng: float, today: date) -> dict:
-        geometry = ee.Geometry.Point([lng, lat]).buffer(BUFFER_M)
+    def _point_series(self, lat: float, lng: float, today: date) -> dict:
+        return self._field_series({"mode": "point", "lat": lat, "lng": lng}, today)
+
+    def _field_ndvi(self, field: dict, today: date) -> dict:
+        polygon = field["mode"] == "polygon"
+        geometry = self._geometry(field)
         cur_start = today - timedelta(days=WINDOW_DAYS)
         prev_start = cur_start - timedelta(days=WINDOW_DAYS)
         sar_start = today - timedelta(days=S1_WINDOW_DAYS)
         sar_prev_start = sar_start - timedelta(days=S1_WINDOW_DAYS)
         # Every window in one request: one round trip to the Earth Engine API.
         windows = {
-            "current": self._window_stats(geometry, cur_start.isoformat(), today.isoformat()),
+            "current": self._window_stats(geometry, cur_start.isoformat(), today.isoformat(), True),
             "previous": self._window_stats(geometry, prev_start.isoformat(), cur_start.isoformat()),
+            **self._field_extras(geometry, polygon),
         }
         sar_enabled = getattr(self, "sar_available", False)
         if sar_enabled:
@@ -409,22 +526,38 @@ class EarthEngineService:
             shift = timedelta(days=365 * y)
             windows[f"baseline_{y}"] = self._window_stats(geometry, (cur_start - shift).isoformat(), (today - shift).isoformat())
         stats = ee.Dictionary(windows).getInfo()
+        roi_px = (stats.get("roi_px") or 0) if polygon else ROI_PIXELS
         current, previous = stats["current"], stats["previous"]
-        value, prev_value = self._usable_ndvi(current), self._usable_ndvi(previous)
+        too_small = polygon and roi_px < FIELD_MIN_PIXELS
+        value = None if too_small else self._usable_ndvi(current, roi_px, polygon)
+        prev_value = None if too_small else self._usable_ndvi(previous, roi_px, polygon)
+        land_cover = self._land_cover(stats.get("landcover"))
+        if too_small:
+            sar = {"status": "insufficient_data", "reason": "field_too_small", "provenance": S1_PROVENANCE}
+        elif sar_enabled:
+            # Radar is reported even when clouds hide the field from Sentinel-2.
+            sar = self._sar_summary(stats.get("sar_current"), stats.get("sar_previous"),
+                                    {"start": sar_start.isoformat(), "end": today.isoformat()},
+                                    {"start": sar_prev_start.isoformat(), "end": sar_start.isoformat()})
+        else:
+            sar = {"status": "unavailable", "reason": "radar_dataset_unavailable", "provenance": S1_PROVENANCE}
         common = {
             "window": {"start": cur_start.isoformat(), "end": today.isoformat()},
             "image_count": current.get("count"),
-            "clear_pixel_fraction": round(self._clear_fraction(current), 2),
+            "clear_pixel_fraction": round(self._clear_fraction(current, roi_px), 2),
             "observation": self._observation(current),
-            "roi": {"lat": lat, "lng": lng, "radius_m": BUFFER_M},
-            "baseline": self._baseline(stats, value, today),
-            # Radar is reported even when clouds hide the field from Sentinel-2.
-            "sar": self._sar_summary(stats.get("sar_current"), stats.get("sar_previous"),
-                                     {"start": sar_start.isoformat(), "end": today.isoformat()},
-                                     {"start": sar_prev_start.isoformat(), "end": sar_start.isoformat()})
-            if sar_enabled else {"status": "unavailable", "reason": "radar_dataset_unavailable", "provenance": S1_PROVENANCE},
+            "roi": self._roi(field, roi_px),
+            "quality": self._quality(field, current, roi_px, land_cover, value is not None),
+            "baseline": self._baseline(stats, value, today, roi_px, polygon) if not too_small
+            else {"status": "insufficient_data", "years": [], "minimum_years": MIN_BASELINE_YEARS},
+            "sar": sar,
         }
         if value is None:
+            if too_small:
+                return {"status": "insufficient_data", "reason": "field_too_small", **common}
+            if polygon and (current.get("clear_px") or 0) > 0:
+                # Some clear pixels, but too few to stand for the field: say so rather than show a precise-looking number.
+                return {"status": "insufficient_data", "reason": "too_few_clear_pixels", **common}
             return {"status": "no_data", "reason": NO_SUITABLE_OBSERVATION, **common}
         return {
             "status": "available",
@@ -436,32 +569,46 @@ class EarthEngineService:
             **common,
         }
 
+    def _point_ndvi(self, lat: float, lng: float, today: date) -> dict:
+        return self._field_ndvi({"mode": "point", "lat": lat, "lng": lng}, today)
+
     async def get_point_crop_health(self, lat: float, lng: float) -> dict:
         """Crop health at a point: NDVI now and 30 days earlier, the same-season baseline and Sentinel-1 radar."""
-        return await self._cached("health", lat, lng, self._point_ndvi)
+        return await self._cached("health", point_field(lat, lng), lambda f, today: self._point_ndvi(f["lat"], f["lng"], today))
+
+    async def get_plot_crop_health(self, plot: dict) -> dict:
+        """The same analysis over the farmer's drawn field (plot: {"geometry", "area_ha"})."""
+        return await self._cached("health", polygon_field(plot), self._field_ndvi)
+
+    async def get_crop_health(self, lat: float, lng: float, plot: dict | None = None) -> dict:
+        """Prefers the drawn field; falls back to the 250 m circle around the farm point."""
+        return await (self.get_plot_crop_health(plot) if plot else self.get_point_crop_health(lat, lng))
 
     def peek_point_crop_health(self, lat: float, lng: float) -> dict | None:
         """Today's cached crop-health answer, if any; never starts an Earth Engine query."""
-        cached = _point_cache.get(("health", round(lat, 3), round(lng, 3), date.today().isoformat()))
+        cached = _point_cache.get(("health", "point", round(lat, 3), round(lng, 3), date.today().isoformat()))
         return cached[1] if cached and time.monotonic() < cached[0] else None
 
     async def get_point_history(self, lat: float, lng: float) -> dict:
         """NDVI for the last HISTORY_WINDOWS consecutive 30-day windows (null where no clear observation)."""
-        return await self._cached("history", lat, lng, self._point_series)
+        return await self._cached("history", point_field(lat, lng), lambda f, today: self._point_series(f["lat"], f["lng"], today))
 
-    async def _cached(self, kind: str, lat: float, lng: float, query) -> dict:
+    async def get_history(self, lat: float, lng: float, plot: dict | None = None) -> dict:
+        if plot:
+            return await self._cached("history", polygon_field(plot), self._field_series)
+        return await self.get_point_history(lat, lng)
+
+    async def _cached(self, kind: str, field: dict, query) -> dict:
         """Successful and no-imagery answers are cached for POINT_CACHE_TTL_S (a new pass is at most every few days),
-        and concurrent callers for the same point share one query, so a caller that stops waiting (see farm
-        intelligence time budgets) still warms the cache."""
-        if not (-90 <= lat <= 90 and -180 <= lng <= 180):
-            raise ValueError("coordinates out of range")
-        key = (kind, round(lat, 3), round(lng, 3), date.today().isoformat())
+        and concurrent callers for the same region share one query, so a caller that stops waiting (see farm
+        intelligence time budgets) still warms the cache. A polygon is keyed by a hash, never by its coordinates."""
+        key = (kind, *field["key"], date.today().isoformat())
         cached = _point_cache.get(key)
         if cached and time.monotonic() < cached[0]:
             return cached[1]
         pending = _point_inflight.get(key)
         if pending is None:
-            pending = asyncio.ensure_future(self._query(query, lat, lng))
+            pending = asyncio.ensure_future(self._query(query, field))
             _point_inflight[key] = pending
             pending.add_done_callback(lambda _f, k=key: _point_inflight.pop(k, None))
         result = await asyncio.shield(pending)
@@ -471,20 +618,34 @@ class EarthEngineService:
             _point_cache[key] = (time.monotonic() + POINT_CACHE_TTL_S, result)
         return result
 
-    async def _query(self, query, lat: float, lng: float) -> dict:
+    async def _query(self, query, field: dict) -> dict:
         if not await asyncio.to_thread(self.ensure_initialized):
             reason = "not_configured" if self.status == "not_configured" else self.error
-            return {"status": "unavailable", "reason": reason, "retryable": reason in RETRYABLE, "provenance": PROVENANCE}
+            return {"status": "unavailable", "reason": reason, "retryable": reason in RETRYABLE, "provenance": PROVENANCE,
+                    "roi": {"mode": field["mode"]}}
         try:
-            result = await asyncio.wait_for(asyncio.to_thread(query, lat, lng, date.today()), timeout=TIMEOUT_S)
+            result = await asyncio.wait_for(asyncio.to_thread(query, field, date.today()), timeout=TIMEOUT_S)
         except Exception as e:
             code = classify_error(e, DATASET_QUERY_FAILED)
-            logger.error("Sentinel point query failed (%s): %s", code, e)
+            logger.error("Sentinel %s query failed (%s): %s", field["mode"], code, e)
             if code in (AUTH_FAILED, PROJECT_CONFIGURATION_ERROR):
                 self._fail(code)  # the key or project broke after start-up: report it in /api/sources too
-            result = {"status": "unavailable", "reason": code, "retryable": code in RETRYABLE}
+            result = {"status": "unavailable", "reason": code, "retryable": code in RETRYABLE, "roi": {"mode": field["mode"]}}
         result["provenance"] = PROVENANCE
         return result
+
+
+def point_field(lat: float, lng: float) -> dict:
+    if not (-90 <= lat <= 90 and -180 <= lng <= 180):
+        raise ValueError("coordinates out of range")
+    return {"mode": "point", "lat": lat, "lng": lng, "key": ("point", round(lat, 3), round(lng, 3))}
+
+
+def polygon_field(plot: dict) -> dict:
+    """plot: a stored, validated plot ({"geometry": GeoJSON Polygon, "area_ha": float})."""
+    if plot["area_ha"] > MAX_FIELD_AREA_HA:
+        raise ValueError("field too large")
+    return {"mode": "polygon", "geometry": plot["geometry"], "area_ha": plot["area_ha"], "key": ("plot", geometry_key(plot["geometry"]))}
 
 
 earth_engine_service = EarthEngineService()

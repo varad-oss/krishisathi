@@ -139,3 +139,18 @@ class AdvisoryActionRecord(Base):
     outcome_at = Column(DateTime, nullable=True)
 
     __table_args__ = (Index("ix_advisory_actions_farm_time", "farm_id", "created_at"),)
+
+
+class FarmPlotRecord(Base):
+    """The farmer's optional field outline (one per farm). GeoJSON Polygon, private to the farm-token holder:
+    never published, logged or used in cache keys. Farms without a plot keep using their location point."""
+    __tablename__ = "farm_plots"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    farm_id = Column(String, ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, unique=True)
+    geometry = Column(JSON, nullable=False)
+    area_ha = Column(Float, nullable=False)
+    crop = Column(String, nullable=True)
+    sowing_date = Column(Date, nullable=True)   # optional crop-cycle association
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)

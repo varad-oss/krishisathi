@@ -51,6 +51,8 @@ class FarmContext:
     soil_water: dict
     insights: list[dict] = field(default_factory=list)
     history: dict = field(default_factory=dict)  # recent farm diagnoses / actions from the digital twin
+    # What the satellite numbers describe: {"mode": "polygon", "area_ha": ...} for a drawn field, else the point circle.
+    field_geometry: dict = field(default_factory=lambda: {"mode": "point"})
 
     def insight(self, insight_id: str) -> Optional[dict]:
         return next((i for i in self.insights if i["id"] == insight_id), None)
@@ -88,9 +90,9 @@ async def _soil(lat, lng) -> Signal:
     return Signal(data["status"], data, reason=data.get("reason"), latency_ms=ms)
 
 
-async def _satellite(lat, lng) -> Signal:
+async def _satellite(lat, lng, plot=None) -> Signal:
     try:
-        data, ms, timed_out = await _timed(lambda: earth_engine_service.get_point_crop_health(lat, lng), SATELLITE_BUDGET_S)
+        data, ms, timed_out = await _timed(lambda: earth_engine_service.get_crop_health(lat, lng, plot), SATELLITE_BUDGET_S)
     except Exception:  # the service reports its own failures; anything else must not break the farm view
         return Signal("unavailable", reason="dataset_query_failed")
     if timed_out:
@@ -108,10 +110,11 @@ async def _outbreaks(lat, lng, crop) -> Signal:
 
 
 async def build_farm_context(lat: float, lng: float, crop: str | None = None, sowing_date: date | None = None,
-                             history: dict | None = None, today: date | None = None) -> FarmContext:
+                             history: dict | None = None, today: date | None = None, plot: dict | None = None) -> FarmContext:
+    """`plot` ({"geometry", "area_ha"}) makes satellite statistics field-specific; without it the point circle is used."""
     canonical = normalize_crop(crop)
     weather, soil, crop_health, outbreaks = await asyncio.gather(
-        _weather(lat, lng), _soil(lat, lng), _satellite(lat, lng), _outbreaks(lat, lng, canonical),
+        _weather(lat, lng), _soil(lat, lng), _satellite(lat, lng, plot), _outbreaks(lat, lng, canonical),
     )
     insights = agro_rules.evaluate(weather.data) if weather.ok else []
     moisture = weather.data["current"].get("soil_moisture_3_9cm") if weather.ok else None
@@ -121,4 +124,5 @@ async def build_farm_context(lat: float, lng: float, crop: str | None = None, so
         crop_stage=estimate_stage(canonical, sowing_date, today or date.today()),
         soil_water=topsoil_water(moisture, soil.data or {}),
         insights=insights, history=history or {},
+        field_geometry={"mode": "polygon", "area_ha": plot["area_ha"]} if plot else {"mode": "point"},
     )
