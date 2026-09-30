@@ -144,11 +144,11 @@ def test_weather_signals_publish_nothing_for_an_unavailable_forecast():
 
 class PartnerAdapter:
     """Test-only stand-in for another country's adapter: proves the API needs no change to serve it."""
-    country_code, name = "BR", "Test partner"
+    country_code, name = "ZA", "Test partner"
     privacy = PrivacyV1(aggregation="region", minimum_group_size=10, spatial_resolution="state")
 
     def describe(self):
-        return {"country_code": "BR", "name": self.name}
+        return {"country_code": "ZA", "name": self.name}
 
     async def crops(self):
         return []
@@ -169,11 +169,11 @@ class PartnerAdapter:
 def test_another_country_plugs_in_through_an_adapter():
     adapters.register(PartnerAdapter())
     try:
-        body = client.get("/api/interoperability/agricultural-observations", params={"country": "br"}, headers=auth()).json()
-        assert body["country_code"] == "BR" and body["items"][0]["geo"]["region_code"] == "BR-MT"
-        assert {a["country_code"] for a in client.get("/api/interoperability/adapters").json()["adapters"]} == {"IN", "BR"}
+        body = client.get("/api/interoperability/agricultural-observations", params={"country": "za"}, headers=auth()).json()
+        assert body["country_code"] == "ZA" and body["count"] == 1
+        assert {a["country_code"] for a in client.get("/api/interoperability/adapters").json()["adapters"]} == {"IN", "BR", "ZA"}
     finally:
-        adapters._REGISTRY.pop("BR")
+        adapters._REGISTRY.pop("ZA")
     with pytest.raises(TypeError):
         adapters.register(object())
 
@@ -195,3 +195,8 @@ def test_model_registry_is_honest_about_federation():
     assert all(m["federated"] is False for m in body["models"])
     assert {m["kind"] for m in body["models"]} == {"external_foundation_model", "rule_engine"}
     assert registry(datetime(2026, 1, 1, tzinfo=timezone.utc))["generated_at"].startswith("2026-01-01")
+    # Running models and federation-ready contracts are listed separately; no contract claims to train anything.
+    assert set(body["currently_running"]) == {m["model_id"] for m in body["models"]}
+    ready = {c["id"]: c["status"] for c in body["federated_ready"]}
+    assert ready["fedavg_aggregator"] == ready["model_update_contract"] == "contract_only"
+    assert all("simulation" not in m["kind"] for m in body["models"])

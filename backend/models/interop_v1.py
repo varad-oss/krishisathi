@@ -83,7 +83,9 @@ class PeriodV1(_V1):
 class ObservationV1(_V1):
     """One aggregated observation, e.g. the number of AI-classified disease detections in a grid cell and period."""
     schema_version: Literal["1.0"] = SCHEMA_VERSION
-    observation_type: Literal["disease_observation", "weather_observation", "soil_observation", "crop_health_observation"]
+    # production_statistic: official crop area / production / yield totals (added for Brazil's IBGE PAM; additive, v1.0)
+    observation_type: Literal["disease_observation", "weather_observation", "soil_observation", "crop_health_observation",
+                              "production_statistic"]
     geo: GeoRefV1
     period: PeriodV1
     crop_code: Optional[str] = None
@@ -177,6 +179,8 @@ T = TypeVar("T")
 class PageV1(BaseModel, Generic[T]):
     schema_version: Literal["1.0"] = SCHEMA_VERSION
     country_code: str
+    # "unsupported": the country has no real source for this category, so `items` is empty by definition, not by result.
+    status: Literal["available", "unsupported"] = "available"
     generated_at: datetime
     count: int
     next_cursor: Optional[str] = None
