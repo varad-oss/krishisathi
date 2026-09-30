@@ -12,6 +12,7 @@ from routers.states import INDIAN_STATES
 from services import agro_rules
 from services.earth_engine_service import earth_engine_service
 from services.gemini_service import gemini_service
+from services.measurement import feedback_metrics
 from services.persistence_service import persistence_service
 from services.weather_service import PROVENANCE_BASE, weather_service
 
@@ -50,6 +51,17 @@ async def get_dashboard_report(language: Language = "en"):
     result = {**base, "status": "available", "report_text": report_text}
     await cache_set(cache_key, result, REPORT_CACHE_SECONDS)
     return result
+
+
+@router.get("/feedback-metrics")
+async def get_feedback_metrics():
+    """App-derived follow-through and outcome signals (self-reported, small groups suppressed)."""
+    cached = await cache_get("cache:feedback_metrics:v1")
+    if cached:
+        return cached
+    metrics = await feedback_metrics()
+    await cache_set("cache:feedback_metrics:v1", metrics, STATS_CACHE_SECONDS)
+    return metrics
 
 
 @router.get("/outbreaks")

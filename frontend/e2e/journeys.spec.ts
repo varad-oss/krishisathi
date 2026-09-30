@@ -84,6 +84,36 @@ test.describe('Landing → farm dashboard → advisory', () => {
   });
 });
 
+test.describe('Farm digital twin', () => {
+  test('the farm is registered, the farmer reports follow-through, and history shows it', async ({ page }) => {
+    await withFarmProfile(page);
+    await mockApi(page);
+    await page.goto('/farm');
+
+    const today = page.locator('#today');
+    await expect(today.getByText('Check your crop for disease this week')).toBeVisible();
+    await expect(today.getByText('Did you follow this recommendation?')).toBeVisible();
+    await today.getByRole('button', { name: 'Yes', exact: true }).click();
+    await expect(today.getByText(/tell us how the crop responded under Farm history/)).toBeVisible();
+
+    const history = page.locator('#history');
+    await expect(history.getByRole('heading', { name: 'Farm history' })).toBeVisible();
+    await expect(history.getByText('You said: Yes')).toBeVisible();
+    await expect(history.getByText('How did the crop respond?')).toBeVisible();
+    await expect(history.getByText(/not proof that the advice worked/).first()).toBeVisible();
+    // The token is stored on the device so the record survives reloads.
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('krishi_farm_twin') ?? 'null')?.token)).toBe('e2e-farm-token');
+  });
+
+  test('without a server record the farm page still works and says why history is missing', async ({ page }) => {
+    await withFarmProfile(page);
+    await mockApi(page, { farmCreate: unavailable() });
+    await page.goto('/farm');
+    await expect(page.locator('#today').getByText('Check your crop for disease this week')).toBeVisible();
+    await expect(page.locator('#history').getByText(/starts once your farm is saved on the server/)).toBeVisible();
+  });
+});
+
 test.describe('Landing → Diagnose → Result', () => {
   test('uploads a photo and shows diagnosis, certainty, verified reference and disclaimer', async ({ page }) => {
     await withFarmProfile(page);

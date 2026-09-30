@@ -86,3 +86,30 @@ The API returns ids and numbers only; the frontend renders them in the farmer's 
 - Topsoil water is derived from two global models at 3–9 cm; it is not a field measurement.
 - No pest surveillance data is connected, so pest risk is not assessed.
 - The NDVI decline threshold is a screening rule; see `docs/EARTH_ENGINE.md` for the satellite method.
+
+## Farm digital twin and the action → outcome loop
+
+`POST /api/farms` registers a farm (location, optional crop, sowing date, area) and returns a `farm_id` and a
+random `farm_token` once; only the token's SHA-256 is stored and every later call sends `X-Farm-Token`.
+No name, phone or account is collected, and the location is kept to 3 decimals (~110 m).
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/farms` | register (rate-limited) |
+| `GET /api/farms/{id}` | profile + history: snapshots, recommendations with feedback, photo diagnoses |
+| `POST /api/farms/{id}` | update profile |
+| `GET /api/farms/{id}/intelligence` | intelligence for the stored profile, using the farm's own recent diagnoses; records a snapshot (≤ 1/h unless the top action changes) and the recommended action (one per action per day) |
+| `POST /api/farms/{id}/actions/{action_id}/feedback` | `followed`: yes / partial / no / not_applicable; `outcome`: improved / same / worse / diagnosis_wrong (diagnoses only) / not_sure |
+
+Tables (`migrations/versions/b7d2e4f6a8c1_farm_digital_twin.py`): `farms`, `farm_snapshots`,
+`advisory_actions` (recommendation + self-reported follow-through and outcome), and `diagnoses.farm_id`.
+
+Follow-through and outcomes are what the farmer says happened. They are feedback signals, never evidence
+that a recommendation caused an outcome, and the UI says so next to every question.
+
+### Measurement (`GET /api/dashboard/feedback-metrics`)
+
+Aggregates over 90 days: follow-through rate (yes + partly over applicable answers), outcome counts, and the
+same by source (daily advice, photo check, soil practice), crop, 1° region cell and diagnosis certainty
+(does the model's stated certainty match "diagnosis was wrong" reports?), plus repeat disease detections per
+farm. Groups under 5 records are suppressed. Labelled `app_derived_feedback`: not official statistics.

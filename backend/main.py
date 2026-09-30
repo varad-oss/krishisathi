@@ -14,7 +14,7 @@ from core.errors import install_error_handlers
 from core.middleware import RequestContextMiddleware
 from core.rate_limit import redis_client
 from services.earth_engine_service import earth_engine_service
-from routers import advisory, alerts, dashboard, debug, diagnose, farm, kvk, meta, states, weather
+from routers import advisory, alerts, dashboard, debug, diagnose, farm, farms, kvk, meta, states, weather
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -94,12 +94,12 @@ app.add_middleware(
     allow_origin_regex=settings.CORS_ALLOWED_ORIGIN_REGEX,
     allow_credentials=False,  # the API uses bearer tokens, never cookies
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "Idempotency-Key", "X-Request-ID"],
+    allow_headers=["Content-Type", "Authorization", "Idempotency-Key", "X-Request-ID", "X-Farm-Token"],
     expose_headers=["X-Request-ID", "Retry-After", "X-TTS-Provider", "X-TTS-Locale"],
     max_age=600,
 )
 
-for module in (diagnose, advisory, alerts, weather, farm, dashboard, states, kvk, meta, debug):
+for module in (diagnose, advisory, alerts, weather, farm, farms, dashboard, states, kvk, meta, debug):
     app.include_router(module.router)
 
 

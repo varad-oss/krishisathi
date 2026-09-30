@@ -5,7 +5,13 @@ import type {
   DashboardStats,
   DiagnosisResponse,
   FarmConditions,
+  FarmHistory,
   FarmIntelligence,
+  FarmTwin,
+  FarmTwinIntelligence,
+  Followed,
+  Outcome,
+  TwinAction,
   FederationReport,
   FederationSignal,
   Kvk,
@@ -200,6 +206,32 @@ export const getFarmIntelligence = (lat: number, lng: number, crop: string | nul
 
 export const getNearestKvk = (lat: number, lng: number, signal?: AbortSignal) =>
   request<Kvk>(`/api/kvk/nearest?${q({ lat, lng })}`, { signal });
+
+// --- Farm digital twin -------------------------------------------------------------------------------
+
+export interface FarmProfileInput {
+  lat: number;
+  lng: number;
+  crop: string | null;
+  sowing_date: string | null;
+}
+
+const twinHeaders = (twin: FarmTwin) => ({ 'X-Farm-Token': twin.token });
+
+export const createFarm = (input: FarmProfileInput) =>
+  request<{ farm_id: string; farm_token: string }>('/api/farms', { json: input });
+
+export const updateFarm = (twin: FarmTwin, input: FarmProfileInput) =>
+  request<unknown>(`/api/farms/${twin.farmId}`, { json: input, headers: twinHeaders(twin) });
+
+export const getFarmTwinIntelligence = (twin: FarmTwin, signal?: AbortSignal) =>
+  request<FarmTwinIntelligence>(`/api/farms/${twin.farmId}/intelligence`, { headers: twinHeaders(twin), signal, timeoutMs: 30_000 });
+
+export const getFarmHistory = (twin: FarmTwin, signal?: AbortSignal) =>
+  request<FarmHistory>(`/api/farms/${twin.farmId}`, { headers: twinHeaders(twin), signal });
+
+export const sendFeedback = (twin: FarmTwin, actionId: string, feedback: { followed?: Followed; outcome?: Outcome }) =>
+  request<TwinAction>(`/api/farms/${twin.farmId}/actions/${actionId}/feedback`, { json: feedback, headers: twinHeaders(twin) });
 
 export function diagnoseCrop(
   image: Blob,

@@ -3,11 +3,13 @@
 import { useState } from 'react';
 import { MapPin, Pencil } from 'lucide-react';
 import FarmProfileForm, { useLocationLabel } from '@/components/FarmProfileForm';
+import { FarmHistoryCard } from '@/components/farm/History';
 import { RiskRadar } from '@/components/farm/Intelligence';
 import { TodayCard, WeatherCard } from '@/components/farm/TodayAlertsWeather';
 import { CropHealthCard, KvkCard, SoilRegenCard } from '@/components/farm/SoilCropKvk';
 import { buttonClass, Card, LoadingBlock } from '@/components/ui';
-import { getCropHealth, getFarmConditions, getFarmIntelligence, getNearestKvk, getRegenerative } from '@/lib/api';
+import { getCropHealth, getFarmConditions, getFarmHistory, getFarmIntelligence, getFarmTwinIntelligence, getNearestKvk, getRegenerative } from '@/lib/api';
+import type { FarmTwinIntelligence } from '@/lib/types';
 import { useFarmProfile } from '@/lib/farm-profile';
 import { useI18n } from '@/lib/i18n';
 import { useResource } from '@/lib/use-resource';
@@ -20,11 +22,12 @@ const SECTIONS: { id: string; label: MessageKey }[] = [
   { id: 'weather', label: 'farm.section.weather' },
   { id: 'crop', label: 'farm.section.cropHealth' },
   { id: 'soil', label: 'farm.section.soil' },
+  { id: 'history', label: 'farm.section.history' },
 ];
 
 export default function FarmPage() {
   const { t } = useI18n();
-  const { profile, ready } = useFarmProfile();
+  const { profile, ready, twin, twinRevision, forgetTwin } = useFarmProfile();
   const [editing, setEditing] = useState(false);
   const locationLabel = useLocationLabel();
   const loc = profile.location;
@@ -34,7 +37,20 @@ export default function FarmPage() {
 
   // Each panel loads independently so one failing source never blanks the page.
   const conditions = useResource(loc ? (s) => getFarmConditions(loc.lat, loc.lng, s) : null, key);
-  const intel = useResource(loc ? (s) => getFarmIntelligence(loc.lat, loc.lng, crop, sowing, s) : null, [...key, sowing]);
+  // With a farm record the engine also uses the farm's own diagnoses and records what it advised.
+  const intel = useResource<FarmTwinIntelligence>(
+    loc
+      ? (s) =>
+          twin
+            ? getFarmTwinIntelligence(twin, s).catch((e) => {
+                if (e?.code === 'NOT_FOUND') forgetTwin();
+                throw e;
+              })
+            : getFarmIntelligence(loc.lat, loc.lng, crop, sowing, s)
+      : null,
+    [...key, sowing, twin?.farmId, twinRevision],
+  );
+  const history = useResource(twin ? (s) => getFarmHistory(twin, s) : null, [twin?.farmId, twinRevision, intel.updatedAt]);
   const regen = useResource(loc ? (s) => getRegenerative(loc.lat, loc.lng, crop, s) : null, key);
   const health = useResource(loc ? (s) => getCropHealth(loc.lat, loc.lng, s) : null, key);
   const kvk = useResource(loc ? (s) => getNearestKvk(loc.lat, loc.lng, s) : null, key);
@@ -87,7 +103,7 @@ export default function FarmPage() {
       </nav>
 
       <div className="space-y-6">
-        <TodayCard conditions={conditions} health={health} intel={intel} locationLabel={locationLabel(loc)} cropLabel={cropLabel} />
+        <TodayCard conditions={conditions} health={health} intel={intel} twin={twin} locationLabel={locationLabel(loc)} cropLabel={cropLabel} />
         <div className="grid items-start gap-6 lg:grid-cols-[1.6fr_1fr] [&>*]:min-w-0">
           <RiskRadar intel={intel} cropLabel={cropLabel} />
           <div className="space-y-6">
@@ -97,6 +113,7 @@ export default function FarmPage() {
         </div>
         <WeatherCard conditions={conditions} />
         <SoilRegenCard regen={regen} />
+        <FarmHistoryCard history={history} twin={twin} />
       </div>
     </div>
   );

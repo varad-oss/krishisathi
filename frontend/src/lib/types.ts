@@ -354,3 +354,51 @@ export interface FarmIntelligence {
   data_quality: DataQualityItem[];
   engine: { id: string; version: string; kind: string; ai_used: boolean };
 }
+
+// --- Farm digital twin (/api/farms) -----------------------------------------------------------------
+
+export type Followed = 'yes' | 'partial' | 'no' | 'not_applicable';
+export type Outcome = 'improved' | 'same' | 'worse' | 'diagnosis_wrong' | 'not_sure';
+
+export interface TwinAction {
+  action_id: string;
+  created_at: string;
+  source_type: 'intelligence' | 'diagnosis' | 'regenerative';
+  source_ref: string | null;
+  action: string;
+  category: RiskCategory | null;
+  severity: RiskSeverity | null;
+  confidence: Level | null;
+  crop: string | null;
+  followed: Followed | null;
+  followed_at: string | null;
+  outcome: Outcome | null;
+  outcome_at: string | null;
+}
+
+export interface FarmTwinIntelligence extends FarmIntelligence {
+  twin?: { snapshot_id: string | null; action: TwinAction | null };
+}
+
+export interface FarmSnapshot {
+  snapshot_id: string;
+  created_at: string;
+  crop: string | null;
+  crop_stage: string | null;
+  top_action: string | null;
+  top_severity: RiskSeverity | null;
+  risks: Record<string, RiskSeverity>;
+  data_quality: Record<string, DataStatus>;
+}
+
+export interface FarmHistory {
+  farm: { farm_id: string; crop: string | null; sowing_date: string | null };
+  snapshots: FarmSnapshot[];
+  actions: TwinAction[];
+  diagnoses: { diagnosis_id: string; status: string; disease: string | null; certainty: Level | null; date: string }[];
+}
+
+export interface FarmTwin {
+  farmId: string;
+  token: string;
+}

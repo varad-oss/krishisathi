@@ -4,11 +4,12 @@ import Link from 'next/link';
 import { Camera, CheckCircle2, CloudRain, CloudSun, Droplets, MapPin, MessageCircle, Sprout, TrendingDown, TrendingUp, Wind } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import type { Resource } from '@/lib/use-resource';
-import type { CropHealth, FarmConditions, FarmIntelligence, ForecastDay } from '@/lib/types';
+import type { CropHealth, FarmConditions, FarmTwin, FarmTwinIntelligence, ForecastDay } from '@/lib/types';
 import type { MessageKey } from '@/locales/en';
 import { cn } from '@/lib/utils';
 import { buttonClass, Card, CardTitle, ErrorState, KindTag, ProvenanceLine, severityDot, Skeleton } from '../ui';
 import { insightView } from './insight-text';
+import { ActionFeedback } from './History';
 import { DataQualityStrip, EvidenceList, SeverityChip } from './Intelligence';
 import { actionWhat, because, stageText, topActionTitle } from './intelligence-text';
 
@@ -50,12 +51,14 @@ export function TodayCard({
   conditions,
   health,
   intel,
+  twin,
   locationLabel,
   cropLabel,
 }: {
   conditions: Resource<FarmConditions>;
   health: Resource<CropHealth>;
-  intel: Resource<FarmIntelligence>;
+  intel: Resource<FarmTwinIntelligence>;
+  twin: FarmTwin | null;
   locationLabel: string;
   cropLabel: string | null;
 }) {
@@ -125,6 +128,11 @@ export function TodayCard({
                       </details>
                     )}
                   </>
+                )}
+                {twin && data.twin?.action && (
+                  <div className="mt-4">
+                    <ActionFeedback key={data.twin.action.action_id} twin={twin} action={data.twin.action} />
+                  </div>
                 )}
                 <a href="#risks" className="mt-2 inline-flex min-h-10 items-center text-sm font-semibold text-leaf-700 hover:underline">
                   {t('today.allRisks')}
