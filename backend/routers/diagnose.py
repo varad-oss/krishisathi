@@ -129,6 +129,10 @@ async def process_diagnosis(image_bytes: bytes, crop_type: str | None, latitude:
                 "certainty": ai.certainty,
                 "severity": ai.severity,
                 "spread_risk": ai.spread_risk,
+                "image_quality": ai.image_quality,
+                "guidance_level": advice["level"],
+                "differential": [{"name": d.name, "likelihood": d.likelihood} for d in ai.differential],
+                "model_version": settings.GEMINI_DIAGNOSIS_MODEL,
             },
             crop, latitude, longitude, language, farm_id=farm.id if farm else None,
         )

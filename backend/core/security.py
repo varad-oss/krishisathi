@@ -55,3 +55,10 @@ def require_partner_role(principal: Principal = Depends(get_current_user)) -> Pr
     if principal.role not in PARTNER_ROLES:
         raise ApiError(403, "FORBIDDEN", "Forbidden: insufficient privileges.")
     return principal
+
+
+def require_admin_role(principal: Principal = Depends(get_current_user)) -> Principal:
+    """Record-level evaluation exports: operators only."""
+    if principal.role != "admin":
+        raise ApiError(403, "FORBIDDEN", "Forbidden: insufficient privileges.")
+    return principal

@@ -9,7 +9,9 @@ from models.diagnosis import Language
 from services.early_warning import early_warning
 from services.earth_engine_service import earth_engine_service
 from services.gemini_service import gemini_service
-from services.measurement import feedback_metrics
+from core.security import Principal, require_admin_role
+from core.events import log_event
+from services.measurement import evaluation_metrics, evaluation_records, feedback_metrics
 from services.persistence_service import persistence_service
 from services.regions import state_weather_risk
 
@@ -59,6 +61,27 @@ async def get_feedback_metrics():
     metrics = await feedback_metrics()
     await cache_set("cache:feedback_metrics:v1", metrics, STATS_CACHE_SECONDS)
     return metrics
+
+
+@router.get("/evaluation")
+async def get_evaluation():
+    """KrishiSathi self-reported feedback, aggregated: diagnosis feedback by model confidence, follow-through and outcomes.
+    Groups under the minimum size are suppressed. Not a success rate, a yield effect or a calibration curve."""
+    cached = await cache_get("cache:evaluation:v1")
+    if cached:
+        return cached
+    metrics = await evaluation_metrics()
+    await cache_set("cache:evaluation:v1", metrics, STATS_CACHE_SECONDS)
+    return metrics
+
+
+@router.get("/evaluation/records")
+async def get_evaluation_records(principal: Principal = Depends(require_admin_role)):
+    """Record-level evaluation contract (prediction vs farmer feedback vs later app observation), admin only.
+    Pseudonymous: no farm id, token, exact location, photo or free text."""
+    result = await evaluation_records()
+    log_event("evaluation_records_exported", admin=principal.user_id, count=result["count"])
+    return result
 
 
 @router.get("/outbreaks")

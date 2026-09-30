@@ -23,6 +23,11 @@ class DiagnosisRecord(Base):
     lng = Column(Float, nullable=True)
     language = Column(String, default="en")
     farm_id = Column(String, ForeignKey("farms.id"), nullable=True, index=True)
+    # Evaluation context: what the model saw and said, so farmer feedback can later be compared with it.
+    image_quality = Column(String, nullable=True)     # good | poor (model's own assessment of the photo)
+    guidance_level = Column(String, nullable=True)    # supported | cautious | escalate | none (after safety rules)
+    differential = Column(JSON, nullable=True)        # [{"name", "likelihood"}] alternative causes the model listed
+    model_version = Column(String, nullable=True)
 
 class AdvisoryRecord(Base):
     __tablename__ = "advisories"
