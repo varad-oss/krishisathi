@@ -74,7 +74,7 @@ class GeminiService:
         return text
 
     async def diagnose_crop_disease(self, image_bytes: bytes, mime_type: str, crop_type: str | None,
-                                    language: str, reference_block: str, weather_block: str) -> AIDiagnosis:
+                                    language: str, reference_block: str, weather_block: str, farm_block: str = "") -> AIDiagnosis:
         lang = language_name(language)
         prompt = f"""You are a careful plant pathologist helping small farmers in India. Examine the photo.
 
@@ -86,8 +86,12 @@ Crop stated by the farmer: {crop_type or "not stated"}
 [WEATHER CONTEXT — model estimate, may be unavailable]
 {weather_block}
 
+[FARM CONTEXT — supporting information only, never proof of a diagnosis]
+{farm_block or "None provided."}
+
 Rules:
-1. Base the diagnosis ONLY on what is visible in the photo. Weather is supporting context, never proof.
+1. Base the diagnosis ONLY on what is visible in the photo. Weather and farm context are supporting information,
+   never proof: nearby reports are AI-classified and unconfirmed, and a crop stage is an estimate.
 2. diagnosis_status: "not_a_plant" if the photo does not show a plant; "healthy" if no symptoms are visible;
    "uncertain" if symptoms are visible but you cannot tell the cause, or the photo is too blurry/dark/far;
    otherwise "disease_detected".
@@ -97,7 +101,10 @@ Rules:
 5. Never invent pesticide doses, concentrations, brand names or regulatory claims. Only put an active ingredient
    in treatment.chemical if it appears in the matching reference entry, and add that the dose must be confirmed
    with the local agriculture officer or Krishi Vigyan Kendra.
-6. Human-readable text fields: {language_rule(language)} Keep enum fields
+6. differential: up to 3 possible causes, most likely first, each with likelihood (low | moderate | high) and a short
+   reason tied to visible symptoms. Include non-disease causes (nutrient deficiency, water stress, herbicide or
+   insect damage) when they fit. Use an empty list for healthy or not_a_plant.
+7. Human-readable text fields: {language_rule(language)} Keep enum fields
    (diagnosis_status, image_quality, certainty, severity, spread_risk, urgency) exactly as listed in English.
    Also give disease_name_en: the common English name (or null).
 
@@ -118,6 +125,7 @@ Return only JSON with this structure:
   "spread_risk": "low | moderate | high | null",
   "urgency": "routine | soon | immediate",
   "treatment": {{"immediate": [], "organic": [], "chemical": [], "prevention": []}},
+  "differential": [{{"name": "possible cause", "likelihood": "low | moderate | high", "reason": "why"}}],
   "summary": "2-3 sentences for the farmer"
 }}"""
         image_part = types.Part.from_bytes(data=image_bytes, mime_type=mime_type)

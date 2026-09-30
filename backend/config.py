@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -44,6 +44,12 @@ class Settings(BaseSettings):
     REDIS_URL: Optional[str] = None
     KV_URL: Optional[str] = None
     RATE_LIMIT_AI: int = 10
+
+    # Diagnosis safety thresholds (qualitative model certainty: low < moderate < high).
+    # Chemical options are shown only at or above this certainty AND with a verified reference entry.
+    DIAGNOSIS_CHEMICAL_MIN_CERTAINTY: Literal["moderate", "high"] = "moderate"
+    # "Supported" guidance (no verification prompt) needs this certainty, a verified reference and a good photo.
+    DIAGNOSIS_SUPPORTED_MIN_CERTAINTY: Literal["moderate", "high"] = "high"
 
 
 settings = Settings()

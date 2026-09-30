@@ -147,3 +147,37 @@ async def test_metrics_are_aggregated_and_small_groups_suppressed():
     assert set(m["by_crop"]["groups"]) == {"Rice"} and m["by_crop"]["suppressed_groups"] == 1  # 1 maize farm is hidden
     assert m["repeat_diagnosis"]["status"] == "insufficient_data"
     assert m["provenance"]["kind"] == "app_derived_feedback"
+
+
+@pytest.mark.asyncio
+async def test_diagnosis_linked_to_farm_supports_diagnosis_feedback_and_feeds_the_engine():
+    import base64
+    import json
+    from types import SimpleNamespace
+    from helpers import ai_diagnosis, jpeg_bytes
+    from services.gemini_service import gemini_service
+    from models.exceptions import ServiceUnavailableException
+    from services.weather_service import weather_service
+
+    async with api() as c:
+        farm_id, headers, _ = await create(c, crop="wheat")
+        body = {"image": base64.b64encode(jpeg_bytes()).decode(), "language": "en", "farm_id": farm_id}
+        ai = SimpleNamespace(text=json.dumps(ai_diagnosis(certainty="low")))
+        with patch.object(gemini_service, "_call", AsyncMock(return_value=ai)), \
+                patch.object(weather_service, "get_current_weather", AsyncMock(side_effect=ServiceUnavailableException("down"))):
+            res = await c.post("/api/diagnose/base64", json=body, headers=headers)
+            stale = await c.post("/api/diagnose/base64", json=body, headers={"X-Farm-Token": "wrong"})
+        data = res.json()
+        assert res.status_code == 200, res.text
+        # The farm record supplied crop and location the request left out.
+        assert data["context_used"]["farm"] == "linked" and data["context_used"]["crop"] == "provided"
+        assert data["context_used"]["location"] == "provided"
+        action = data["twin"]["action"]
+        assert action["source_type"] == "diagnosis" and action["action"] == "consult_expert" and action["confidence"] == "low"
+        ok = await c.post(f"/api/farms/{farm_id}/actions/{action['action_id']}/feedback", json={"outcome": "diagnosis_wrong"}, headers=headers)
+        assert ok.status_code == 200 and ok.json()["outcome"] == "diagnosis_wrong"
+
+        assert stale.status_code == 200 and stale.json()["context_used"]["farm"] == "not_linked" and stale.json()["twin"] is None
+
+        history = (await c.get(f"/api/farms/{farm_id}", headers=headers)).json()
+    assert len(history["diagnoses"]) == 1 and history["diagnoses"][0]["status"] == "disease_detected"

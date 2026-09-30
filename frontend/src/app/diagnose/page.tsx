@@ -20,7 +20,7 @@ type Phase = 'select' | 'analyzing' | 'result';
 
 export default function DiagnosePage() {
   const { t, language } = useI18n();
-  const { profile } = useFarmProfile();
+  const { profile, twin } = useFarmProfile();
   const locationLabel = useLocationLabel();
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -84,6 +84,9 @@ export default function DiagnosePage() {
         lng: location?.lng ?? null,
         language,
         idempotencyKey: idempotencyKey.current,
+        // The sowing date belongs to the profile crop; the farm record is linked only when the farmer shares location.
+        sowingDate: crop && crop === profile.crop ? profile.sowingDate : null,
+        twin: location ? twin : null,
         signal: controller.current.signal,
       });
       setResult(res);
@@ -153,7 +156,7 @@ export default function DiagnosePage() {
 
       {phase === 'result' && result ? (
         <div className="space-y-5">
-          <DiagnosisResult result={result} previewUrl={previewUrl} onReset={reset} />
+          <DiagnosisResult result={result} previewUrl={previewUrl} onReset={reset} twin={location ? twin : null} />
           {result.status !== 'not_a_plant' && (
             <Card aria-labelledby="followup-title">
               <h2 id="followup-title" className="mb-5 flex items-center gap-2 font-display text-[1.3rem] font-medium">

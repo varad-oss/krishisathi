@@ -113,3 +113,33 @@ Aggregates over 90 days: follow-through rate (yes + partly over applicable answe
 same by source (daily advice, photo check, soil practice), crop, 1° region cell and diagnosis certainty
 (does the model's stated certainty match "diagnosis was wrong" reports?), plus repeat disease detections per
 farm. Groups under 5 records are suppressed. Labelled `app_derived_feedback`: not official statistics.
+
+## Contextual diagnosis, safety tiers and escalation
+
+`POST /api/diagnose` (and `/base64`) still takes a photo, crop and location, and now also `sowing_date` and
+`farm_id` + `X-Farm-Token`. A linked farm fills in the crop, location and sowing date the request leaves out,
+and the result is stored on the farm (its disease detections then feed the farm's disease risk).
+
+The model receives, as clearly labelled *supporting information, never proof*: current weather (model
+estimate), the estimated crop stage, nearby AI-classified reports and, only if already cached, the Sentinel-2
+change. It returns a **differential** (up to 3 causes with likelihood and reason, non-disease causes included);
+malformed entries are dropped.
+
+Rules the model cannot override (`services/diagnosis_policy.py`, thresholds in settings, never below *moderate*):
+
+| Guidance | When | Effect |
+|---|---|---|
+| `supported` | disease detected, certainty ≥ `DIAGNOSIS_SUPPORTED_MIN_CERTAINTY` (high), verified reference, good photo | steps shown |
+| `cautious` | disease detected otherwise | steps shown with "confirm before buying treatment"; expert review advised when severity is high |
+| `escalate` | uncertain cause, low certainty or poor photo | "do not treat yet", KVK referral |
+| `none` | healthy / not a plant | — |
+
+Chemical options appear only with a verified ICAR reference entry *and* certainty ≥
+`DIAGNOSIS_CHEMICAL_MIN_CERTAINTY` (moderate), always next to "confirm product and dose with your KVK".
+
+**Escalation** returns the district KVK from the reference list (with its verification link) and a structured
+case (`schema_version` 1.0: crop, stage, ~1 km location, the AI result labelled `ai_generated`, symptoms,
+differential, weather, nearby reports). The photo is never included: the farmer attaches it when sharing.
+`EscalationSink` is the plug-in point for a real KVK or state extension system; the current
+`NotConnectedSink` answers `not_submitted / no_kvk_integration`, and the UI says the farmer shares the case
+themselves. No expert response is simulated.

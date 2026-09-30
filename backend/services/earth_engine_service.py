@@ -440,6 +440,11 @@ class EarthEngineService:
         """Crop health at a point: NDVI now and 30 days earlier, the same-season baseline and Sentinel-1 radar."""
         return await self._cached("health", lat, lng, self._point_ndvi)
 
+    def peek_point_crop_health(self, lat: float, lng: float) -> dict | None:
+        """Today's cached crop-health answer, if any; never starts an Earth Engine query."""
+        cached = _point_cache.get(("health", round(lat, 3), round(lng, 3), date.today().isoformat()))
+        return cached[1] if cached and time.monotonic() < cached[0] else None
+
     async def get_point_history(self, lat: float, lng: float) -> dict:
         """NDVI for the last HISTORY_WINDOWS consecutive 30-day windows (null where no clear observation)."""
         return await self._cached("history", lat, lng, self._point_series)

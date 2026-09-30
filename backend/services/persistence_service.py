@@ -78,8 +78,9 @@ def nearby_outbreaks(outbreaks: list[dict], lat: float, lng: float, crop: str | 
 
 
 class PersistenceService:
-    async def save_diagnosis(self, diagnosis_data: dict, crop: str, lat: float | None, lng: float | None, language: str) -> None:
-        """Records a diagnosis and updates outbreak clusters.
+    async def save_diagnosis(self, diagnosis_data: dict, crop: str, lat: float | None, lng: float | None, language: str,
+                             farm_id: str | None = None) -> str:
+        """Records a diagnosis, updates outbreak clusters and returns the diagnosis id.
 
         diagnosis_data keys: disease_name (canonical English), diagnosis_status, certainty, severity, spread_risk.
         """
@@ -99,14 +100,16 @@ class PersistenceService:
                     model_inferred_spread_risk=normalize_level(diagnosis_data.get("spread_risk")),
                     lat=lat,
                     lng=lng,
-                    language=language
+                    language=language,
+                    farm_id=farm_id,
                 )
                 session.add(record)
                 await session.commit()
-            
+                diagnosis_id = record.id
+
             # Step 2: Evaluate and update outbreaks
             if not outbreak_eligible(diagnosis_data, lat, lng):
-                return
+                return diagnosis_id
                 
             async with AsyncSessionLocal() as session:
                 # Lock all active outbreaks for this disease to serialize updates
@@ -207,6 +210,7 @@ class PersistenceService:
                                 if aggregated_severity == "high":
                                     retry_ob.aggregated_severity = "high"
                                 await session.commit()
+            return diagnosis_id
 
         except Exception as e:
             logger.error(f"Failed to persist diagnosis: {e}")

@@ -1227,17 +1227,148 @@
     }
    ]
   },
+  "differential": [
+   {
+    "name": "Late blight",
+    "likelihood": "moderate",
+    "reason": "Water-soaked brown lesions with pale margins"
+   },
+   {
+    "name": "Early blight",
+    "likelihood": "low",
+    "reason": "Some lesions look ring-like"
+   }
+  ],
+  "guidance": {
+   "level": "cautious",
+   "reasons": [
+    "moderate_certainty",
+    "high_severity"
+   ],
+   "thresholds": {
+    "chemical_min_certainty": "moderate",
+    "supported_min_certainty": "high"
+   }
+  },
+  "escalation": {
+   "recommended": true,
+   "reason": "high_severity_unconfirmed",
+   "kvk": {
+    "name": "KVK Pune",
+    "district": "Pune",
+    "state": "MH",
+    "match": "district",
+    "distance_km": null,
+    "lat": null,
+    "lng": null,
+    "provenance": {
+     "source": "KrishiSathi KVK list (subset)",
+     "kind": "static_reference",
+     "notes": "Covers a limited set of districts. Matched by the nearest district headquarters; the KVK address is not verified. Check the official KVK portal.",
+     "verify_url": "https://kvk.icar.gov.in/"
+    }
+   },
+   "kvk_portal": "https://kvk.icar.gov.in/",
+   "case": {
+    "schema_version": "1.0",
+    "case_id": "0ea18c1d-aa94-41ab-bba8-a9e99d1f6cbf",
+    "created_at": "2026-09-30T05:11:20+00:00",
+    "country_code": "IN",
+    "crop": "Tomato",
+    "crop_stage": null,
+    "location": {
+     "lat": 18.52,
+     "lng": 73.86
+    },
+    "ai_diagnosis": {
+     "kind": "ai_generated",
+     "model": "gemini-2.5-flash",
+     "status": "disease_detected",
+     "possible_disease": "Late Blight",
+     "scientific_name": "Phytophthora infestans",
+     "certainty": "moderate",
+     "certainty_reason": "Dark, water-soaked lesions with pale margins on several leaves match late blight; the photo does not show the leaf underside, so white growth cannot be confirmed.",
+     "severity": "high",
+     "observed_symptoms": [
+      "Dark brown, water-soaked patches on leaf edges",
+      "Pale green margins around lesions",
+      "Several leaves affected"
+     ],
+     "alternative_causes": [
+      "Early blight (usually has concentric rings)",
+      "Bacterial leaf spot"
+     ],
+     "differential": [
+      {
+       "name": "Late blight",
+       "likelihood": "moderate",
+       "reason": "Water-soaked brown lesions with pale margins"
+      },
+      {
+       "name": "Early blight",
+       "likelihood": "low",
+       "reason": "Some lesions look ring-like"
+      }
+     ],
+     "guidance_level": "cautious",
+     "verified_reference_id": "late-blight-potato"
+    },
+    "weather": {
+     "temp": 29.4,
+     "humidity": 64,
+     "rainfall": 0.0,
+     "valid_at": "2026-09-26T10:15",
+     "kind": "model_estimate"
+    },
+    "nearby_reports": [
+     {
+      "disease": "Late Blight",
+      "report_count": 4,
+      "distance_km": 10,
+      "kind": "ai_classified_user_reports"
+     }
+    ],
+    "image_included": false,
+    "note": "AI-generated assessment for expert review. Not a confirmed diagnosis."
+   },
+   "submission": {
+    "status": "not_submitted",
+    "reason": "no_kvk_integration",
+    "channel": "farmer_shares_case"
+   }
+  },
   "context_used": {
    "crop": "provided",
    "location": "provided",
    "weather": "used",
-   "reference": "matched"
+   "reference": "matched",
+   "crop_stage": "not_provided",
+   "nearby_reports": "used",
+   "satellite": "not_provided",
+   "farm": "linked"
   },
   "recorded": true,
   "language": "en",
   "generated_by": {
    "kind": "ai_model",
    "model": "gemini-2.5-flash"
+  },
+  "twin": {
+   "action": {
+    "action_id": "7d1f3c2e-0000-4000-8000-00000000d1a9",
+    "created_at": "2026-09-30T04:55:40.303054+00:00",
+    "source_type": "diagnosis",
+    "source_ref": "d-1",
+    "action": "consult_expert",
+    "category": "disease",
+    "severity": "high",
+    "confidence": "moderate",
+    "crop": "Tomato",
+    "followed": null,
+    "followed_at": null,
+    "outcome": null,
+    "outcome_at": null
+   }
   }
  },
  "diagnosis_uncertain": {
@@ -1268,18 +1399,110 @@
   },
   "summary": "The cause cannot be identified from this photo.",
   "reference": null,
+  "differential": [],
+  "guidance": {
+   "level": "escalate",
+   "reasons": [
+    "cause_uncertain",
+    "low_certainty",
+    "poor_photo"
+   ],
+   "thresholds": {
+    "chemical_min_certainty": "moderate",
+    "supported_min_certainty": "high"
+   }
+  },
+  "escalation": {
+   "recommended": true,
+   "reason": "expert_review_needed",
+   "kvk": {
+    "name": "KVK Pune",
+    "district": "Pune",
+    "state": "MH",
+    "match": "district",
+    "distance_km": null,
+    "lat": null,
+    "lng": null,
+    "provenance": {
+     "source": "KrishiSathi KVK list (subset)",
+     "kind": "static_reference",
+     "notes": "Covers a limited set of districts. Matched by the nearest district headquarters; the KVK address is not verified. Check the official KVK portal.",
+     "verify_url": "https://kvk.icar.gov.in/"
+    }
+   },
+   "kvk_portal": "https://kvk.icar.gov.in/",
+   "case": {
+    "schema_version": "1.0",
+    "case_id": "7a8126a0-22c5-4bc8-a09f-73bb46426aec",
+    "created_at": "2026-09-30T05:11:20+00:00",
+    "country_code": "IN",
+    "crop": "Tomato",
+    "crop_stage": null,
+    "location": {
+     "lat": 18.52,
+     "lng": 73.86
+    },
+    "ai_diagnosis": {
+     "kind": "ai_generated",
+     "model": "gemini-2.5-flash",
+     "status": "uncertain",
+     "possible_disease": null,
+     "scientific_name": null,
+     "certainty": "low",
+     "certainty_reason": "The photo is blurry and the affected area is small.",
+     "severity": null,
+     "observed_symptoms": [
+      "Small yellow patches"
+     ],
+     "alternative_causes": [
+      "Nutrient deficiency",
+      "Early fungal infection"
+     ],
+     "differential": [],
+     "guidance_level": "escalate",
+     "verified_reference_id": null
+    },
+    "weather": {
+     "temp": 29.4,
+     "humidity": 64,
+     "rainfall": 0.0,
+     "valid_at": "2026-09-26T10:15",
+     "kind": "model_estimate"
+    },
+    "nearby_reports": [
+     {
+      "disease": "Late Blight",
+      "report_count": 4,
+      "distance_km": 10,
+      "kind": "ai_classified_user_reports"
+     }
+    ],
+    "image_included": false,
+    "note": "AI-generated assessment for expert review. Not a confirmed diagnosis."
+   },
+   "submission": {
+    "status": "not_submitted",
+    "reason": "no_kvk_integration",
+    "channel": "farmer_shares_case"
+   }
+  },
   "context_used": {
    "crop": "provided",
    "location": "provided",
    "weather": "used",
-   "reference": "none_found"
+   "reference": "none_found",
+   "crop_stage": "not_provided",
+   "nearby_reports": "used",
+   "satellite": "not_provided",
+   "farm": "not_provided"
   },
   "recorded": true,
   "language": "en",
   "generated_by": {
    "kind": "ai_model",
    "model": "gemini-2.5-flash"
-  }
+  },
+  "twin": null
  },
  "advisory": {
   "advisory_text": "**What to do now:** Rain of about 12 mm is forecast for tomorrow, so hold irrigation today.\n\n**Why:** The forecast shows an 80% chance of rain and humidity near 88%.\n\n**Watch for:** Leaf spots after the rain; humid days favour late blight in tomato.",

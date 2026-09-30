@@ -1,4 +1,5 @@
 import base64
+from datetime import date
 from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
@@ -27,6 +28,26 @@ class TreatmentPlan(BaseModel):
         return _short(v) if isinstance(v, list) else []
 
 
+class Differential(BaseModel):
+    """One possible cause in a differential diagnosis."""
+    name: str = Field(..., min_length=1, max_length=160)
+    likelihood: Level
+    reason: str = Field("", max_length=300)
+
+
+def _differential(v) -> list:
+    """Keeps up to 3 well-formed entries; malformed model output is dropped, not repaired."""
+    if not isinstance(v, list):
+        return []
+    out = []
+    for item in v:
+        try:
+            out.append(Differential.model_validate(item))
+        except Exception:
+            continue
+    return out[:3]
+
+
 class AIDiagnosis(BaseModel):
     """Shape the vision model must return. Anything else is rejected as an invalid AI response."""
     diagnosis_status: DiagnosisStatus
@@ -45,11 +66,17 @@ class AIDiagnosis(BaseModel):
     urgency: Urgency = "routine"
     treatment: TreatmentPlan = Field(default_factory=TreatmentPlan)
     summary: str = Field("", max_length=1500)
+    differential: List[Differential] = Field(default_factory=list)
 
     @field_validator("observed_symptoms", "alternative_causes", mode="before")
     @classmethod
     def _bound(cls, v):
         return _short(v) if isinstance(v, list) else []
+
+    @field_validator("differential", mode="before")
+    @classmethod
+    def _bound_differential(cls, v):
+        return _differential(v)
 
 
 class ReferenceSource(BaseModel):
@@ -84,15 +111,21 @@ class DiagnosisResponse(BaseModel):
     treatment: TreatmentPlan
     summary: str
     reference: Optional[DiseaseReference] = None
+    differential: List[Differential] = Field(default_factory=list)
+    guidance: dict                     # {"level": supported | cautious | escalate | none, "reasons": [...], "thresholds": {...}}
+    escalation: Optional[dict] = None  # KVK referral and a case summary when expert review is advised
     context_used: dict
     recorded: bool
     language: Language
     generated_by: dict
+    twin: Optional[dict] = None        # the farm's feedback record for this diagnosis, when a farm is linked
 
 
 class DiagnosisRequest(BaseModel):
     image: str = Field(..., max_length=10_000_000)  # base64 str
     crop_type: Optional[str] = Field(None, max_length=40)
+    sowing_date: Optional[date] = None
+    farm_id: Optional[str] = Field(None, min_length=36, max_length=36)
     latitude: Optional[float] = Field(None, ge=-90, le=90)
     longitude: Optional[float] = Field(None, ge=-180, le=180)
     language: Language = "en"

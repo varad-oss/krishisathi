@@ -202,10 +202,31 @@ export interface DiagnosisResponse {
   treatment: { immediate: string[]; organic: string[]; chemical: string[]; prevention: string[] };
   summary: string;
   reference: DiseaseReference | null;
-  context_used: { crop: string; location: string; weather: string; reference: string };
+  differential: { name: string; likelihood: Level; reason: string }[];
+  guidance: { level: 'supported' | 'cautious' | 'escalate' | 'none'; reasons: string[] };
+  escalation: Escalation | null;
+  context_used: Record<'crop' | 'location' | 'weather' | 'reference' | 'crop_stage' | 'nearby_reports' | 'satellite' | 'farm', string>;
   recorded: boolean;
   language: LanguageCode;
   generated_by: { kind: string; model: string };
+  twin: { action: TwinAction } | null;
+}
+
+export interface EscalationCase {
+  case_id: string;
+  crop: string | null;
+  location: { lat: number; lng: number } | null;
+  ai_diagnosis: { possible_disease: string | null; certainty: Level; observed_symptoms: string[] };
+  image_included: boolean;
+}
+
+export interface Escalation {
+  recommended: boolean;
+  reason: 'expert_review_needed' | 'high_severity_unconfirmed';
+  kvk: (Omit<Kvk, 'provenance'> & { provenance: Provenance }) | null;
+  kvk_portal: string;
+  case: EscalationCase;
+  submission: { status: 'not_submitted' | 'submitted'; reason?: string };
 }
 
 export interface DataSourceUse {

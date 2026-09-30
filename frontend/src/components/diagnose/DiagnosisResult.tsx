@@ -1,12 +1,14 @@
 'use client';
 
-import { AlertTriangle, BookOpenCheck, CheckCircle2, CircleHelp, Eye, FlaskConical, ImageOff, Leaf, ShieldCheck, Share2, Timer } from 'lucide-react';
+import { useState } from 'react';
+import { AlertTriangle, BookOpenCheck, CheckCircle2, CircleHelp, Copy, ExternalLink, Eye, FlaskConical, ImageOff, Leaf, ShieldCheck, Share2, Timer, UserRound } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
-import type { DiagnosisResponse } from '@/lib/types';
+import type { DiagnosisResponse, Escalation, FarmTwin } from '@/lib/types';
 import type { MessageKey } from '@/locales/en';
 import { cn } from '@/lib/utils';
 import ReadAloud from '../ReadAloud';
 import { buttonClass, Card, KindTag, LevelBadge, Note } from '../ui';
+import { ActionFeedback } from '../farm/History';
 
 function StepList({ icon: Icon, title, items, tone, lang }: { icon: React.ElementType; title: string; items: string[]; tone: string; lang?: string }) {
   if (!items.length) return null;
@@ -24,7 +26,57 @@ function StepList({ icon: Icon, title, items, tone, lang }: { icon: React.Elemen
   );
 }
 
-export default function DiagnosisResult({ result, previewUrl, onReset }: { result: DiagnosisResponse; previewUrl: string | null; onReset: () => void }) {
+function EscalationCard({ escalation: e, result: r }: { escalation: Escalation; result: DiagnosisResponse }) {
+  const { t, fmt } = useI18n();
+  const [copied, setCopied] = useState(false);
+  const c = e.case;
+  const caseText = t('escalation.caseText', {
+    crop: c.crop ? t(`crop.${c.crop}` as MessageKey) : '—',
+    disease: c.ai_diagnosis.possible_disease ?? r.disease_name ?? '—',
+    certainty: t(`level.${c.ai_diagnosis.certainty}` as MessageKey),
+    symptoms: r.observed_symptoms.join('; ') || '—',
+    location: c.location ? `${fmt.num(c.location.lat, 2)}, ${fmt.num(c.location.lng, 2)}` : '—',
+    id: c.case_id.slice(0, 8),
+  });
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(caseText);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  };
+  return (
+    <Card aria-labelledby="escalation-title" className="ring-2 ring-watch-200">
+      <h2 id="escalation-title" className="flex items-center gap-2 font-display text-[1.3rem] font-medium">
+        <UserRound className="h-5 w-5 text-watch-700" aria-hidden /> {t('escalation.title')}
+      </h2>
+      <p className="mt-2 text-ink-soft">{t(`escalation.body.${e.reason}` as MessageKey)}</p>
+      <p className="mt-3 font-semibold">
+        {e.kvk ? <span lang="en">{t('escalation.kvk', { name: e.kvk.name, district: e.kvk.district })}</span> : t('escalation.noKvk')}
+      </p>
+      <div className="mt-4 flex flex-wrap gap-3">
+        <a
+          href={`https://api.whatsapp.com/send?text=${encodeURIComponent(caseText)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={buttonClass.primary}
+        >
+          <Share2 className="h-4 w-4" aria-hidden /> {t('escalation.share')}
+        </a>
+        <button type="button" onClick={copy} className={buttonClass.secondary}>
+          <Copy className="h-4 w-4" aria-hidden /> {copied ? t('escalation.copied') : t('escalation.copy')}
+        </button>
+        <a href={e.kvk_portal} target="_blank" rel="noopener noreferrer" className={buttonClass.ghost}>
+          {t('farm.kvk.portal')} <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+        </a>
+      </div>
+      <p className="mt-3 text-xs text-ink-faint">{t('escalation.photoNote')} {t('escalation.notSent')}</p>
+    </Card>
+  );
+}
+
+export default function DiagnosisResult({ result, previewUrl, onReset, twin }: { result: DiagnosisResponse; previewUrl: string | null; onReset: () => void; twin?: FarmTwin | null }) {
   const { t, language } = useI18n();
   const r = result;
   const detected = r.status === 'disease_detected';
@@ -138,6 +190,10 @@ export default function DiagnosisResult({ result, previewUrl, onReset }: { resul
               {t('diagnose.result.lowWarning')}
             </Note>
           )}
+          {(r.guidance.level === 'supported' || r.guidance.level === 'cautious') && (
+            <Note tone={r.guidance.level === 'supported' ? 'info' : 'watch'}>{t(`diagnose.guidance.${r.guidance.level}` as MessageKey)}</Note>
+          )}
+          {r.guidance.level === 'escalate' && !lowCertainty && <Note tone="warning" className="font-medium">{t('diagnose.guidance.escalate')}</Note>}
           {r.image_quality === 'poor' && <Note tone="watch">{t('diagnose.result.poorImage')}</Note>}
           {language !== r.language && <Note>{t('diagnose.result.languageMismatch')}</Note>}
           {r.summary && (
@@ -157,7 +213,7 @@ export default function DiagnosisResult({ result, previewUrl, onReset }: { resul
         </div>
       </section>
 
-      {(r.observed_symptoms.length > 0 || r.alternative_causes.length > 0) && (
+      {(r.observed_symptoms.length > 0 || r.alternative_causes.length > 0 || r.differential.length > 0) && (
         <Card aria-label={t('diagnose.result.symptoms')}>
           <div className="grid gap-6 sm:grid-cols-2">
             {r.observed_symptoms.length > 0 && (
@@ -170,7 +226,24 @@ export default function DiagnosisResult({ result, previewUrl, onReset }: { resul
                 </ul>
               </div>
             )}
-            {r.alternative_causes.length > 0 && (
+            {r.differential.length > 0 ? (
+              <div>
+                <h3 className="flex items-center gap-2 font-semibold">
+                  <CircleHelp className="h-4 w-4 text-ink-faint" aria-hidden /> {t('diagnose.differential.title')}
+                </h3>
+                <ol className="mt-2 space-y-2 text-sm">
+                  {r.differential.map((d, i) => (
+                    <li key={i}>
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium" lang={r.language}>{d.name}</span>
+                        <LevelBadge level={d.likelihood} label={t('diagnose.differential.likelihood')} />
+                      </span>
+                      {d.reason && <span className="block text-ink-soft" lang={r.language}>{d.reason}</span>}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ) : r.alternative_causes.length > 0 && (
               <div>
                 <h3 className="flex items-center gap-2 font-semibold">
                   <CircleHelp className="h-4 w-4 text-ink-faint" aria-hidden /> {t('diagnose.result.alternatives')}
@@ -181,6 +254,14 @@ export default function DiagnosisResult({ result, previewUrl, onReset }: { resul
               </div>
             )}
           </div>
+        </Card>
+      )}
+
+      {r.escalation && <EscalationCard escalation={r.escalation} result={r} />}
+
+      {twin && r.twin?.action && (
+        <Card aria-label={t('feedback.question')}>
+          <ActionFeedback twin={twin} action={r.twin.action} />
         </Card>
       )}
 
@@ -250,7 +331,7 @@ export default function DiagnosisResult({ result, previewUrl, onReset }: { resul
       <Card aria-labelledby="ctx-title" className="bg-paper/60 shadow-none">
         <h2 id="ctx-title" className="text-sm font-semibold">{t('diagnose.result.context')}</h2>
         <ul className="mt-2 flex flex-wrap gap-2 text-xs">
-          {(['crop', 'location', 'weather', 'reference'] as const).map((k) => (
+          {(['crop', 'location', 'weather', 'reference', 'crop_stage', 'nearby_reports', 'satellite', 'farm'] as const).filter((k) => r.context_used[k]).map((k) => (
             <li key={k} className="rounded-md bg-surface px-2.5 py-1 ring-1 ring-line">
               {t(`diagnose.result.ctx.${k}` as MessageKey)}: <strong>{t(`diagnose.result.ctx.${r.context_used[k]}` as MessageKey)}</strong>
             </li>

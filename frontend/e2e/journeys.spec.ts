@@ -134,6 +134,16 @@ test.describe('Landing → Diagnose → Result', () => {
     await expect(page.getByText(/Confirm the product, dose/)).toBeVisible();
     await expect(page.getByText(/not a substitute for an agronomist/).first()).toBeVisible();
     await expect(page.getByText('%')).toHaveCount(0); // no fabricated confidence percentage
+    // Moderate certainty + high severity: cautious guidance, a differential and an expert referral.
+    await expect(page.getByText(/Act with care: this result is not certain/)).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Possible causes' })).toBeVisible();
+    await expect(page.getByText('Early blight')).toBeVisible();
+    const expert = page.getByRole('region', { name: 'Ask an agricultural expert' });
+    await expect(expert.getByText('Your district KVK: KVK Pune (Pune)')).toBeVisible();
+    await expect(expert.getByRole('link', { name: 'Share case on WhatsApp' })).toHaveAttribute('href', /AI%20result%2C%20not%20confirmed/);
+    await expect(expert.getByText(/The photo is not included/)).toBeVisible();
+    // The farm record links the check, so the farmer can later report whether it was right.
+    await expect(page.getByText('Did you follow this recommendation?')).toBeVisible();
 
     await page.getByRole('button', { name: 'Can this spread to nearby plants?' }).click();
     await expect(page.getByText('hold irrigation today')).toBeVisible();
@@ -148,6 +158,7 @@ test.describe('Landing → Diagnose → Result', () => {
     await expect(page.getByText(/Do not apply chemicals based on this/)).toBeVisible();
     await expect(page.getByText(/Photo quality is poor/)).toBeVisible();
     await expect(page.getByText('Chemical options (verified reference)')).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'Ask an agricultural expert' }).getByText(/could not identify the problem with enough certainty/)).toBeVisible();
   });
 
   test('rejects unsupported files before upload', async ({ page }) => {

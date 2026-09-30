@@ -239,7 +239,17 @@ export const sendFeedback = (twin: FarmTwin, actionId: string, feedback: { follo
 
 export function diagnoseCrop(
   image: Blob,
-  opts: { crop: string | null; lat: number | null; lng: number | null; language: LanguageCode; idempotencyKey: string; signal?: AbortSignal },
+  opts: {
+    crop: string | null;
+    lat: number | null;
+    lng: number | null;
+    language: LanguageCode;
+    idempotencyKey: string;
+    sowingDate?: string | null;
+    /** Links the result to the farm record, so the farm's history and feedback include it. */
+    twin?: FarmTwin | null;
+    signal?: AbortSignal;
+  },
 ) {
   const form = new FormData();
   form.append('file', image, 'crop.jpg');
@@ -248,11 +258,13 @@ export function diagnoseCrop(
     form.append('latitude', String(opts.lat));
     form.append('longitude', String(opts.lng));
   }
+  if (opts.sowingDate) form.append('sowing_date', opts.sowingDate);
+  if (opts.twin) form.append('farm_id', opts.twin.farmId);
   form.append('language', opts.language);
   return request<DiagnosisResponse>('/api/diagnose', {
     method: 'POST',
     body: form,
-    headers: { 'Idempotency-Key': opts.idempotencyKey },
+    headers: { 'Idempotency-Key': opts.idempotencyKey, ...(opts.twin ? twinHeaders(opts.twin) : {}) },
     timeoutMs: AI_TIMEOUT_MS,
     signal: opts.signal,
   });
