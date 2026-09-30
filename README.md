@@ -15,9 +15,13 @@
 | What should I do today? | Ranked risks and the one action that matters now | Open-Meteo forecast + published IMD thresholds |
 | What will the weather do? | 7-day forecast translated into farming meaning (rain, heat, cold, fungal conditions, dry spells, spray wind) | Open-Meteo (model estimates, labelled as such) |
 | What is wrong with my crop? | Diagnosis with **status** (disease / healthy / uncertain / not a plant), **certainty** (low / moderate / high), symptoms seen, alternatives and safe next steps | Gemini vision + curated ICAR disease reference |
-| How can I improve my soil? | Regenerative practices ranked for the farm: why, what, when, expected benefit and the data behind it | ISRIC SoilGrids + Soil Health Card rating classes + forecast |
+| Something is wrong, where do I start? | One screen with seven plain choices (photo, pests, weather, water, slow growth, soil, "I don't know"), each routed to the right tool | Existing tools; no separate logic |
+| How can I improve my soil? | Regenerative practices placed on the crop cycle (this season, next season, long-term), with why, what, when, benefit and the data behind them; the farmer can record adoption | ISRIC SoilGrids + Soil Health Card rating classes + forecast + FAO-56 crop stage |
+| Which crops suit my area? | Water need, season length, verified disease guides and nearby clusters for the farm's crop and the state's crops. Not a ranking; prices shown as unavailable | FAO water-need and FAO-56 tables, ICAR reference, community reports |
 | Is there a risk nearby? | Weather alerts and disease clusters reported within ~100 km | Forecast rules + anonymised, AI-classified farmer reports |
-| Where are risks rising? (policymakers) | Real counts, trends, clusters, per-state forecast risk and an AI briefing, each with source and limitations | Aggregated diagnoses (coarsened to ~11 km) |
+| Where are risks rising? (policymakers) | Early warning: disease signals per 0.5° area (new / rising / falling, confidence from the number of reports), per-state weather threats and an explicit "unavailable" for regional satellite anomalies. Every chart states period, geography, observations, source and limits, and flags thin data | Aggregated diagnoses (≥ 0.5° for signals, ~11 km for clusters) + forecast |
+
+Ask by voice and the answer comes back short and spoken, grounded in the farm risk engine, with the text kept on screen. Offline, the app shows the last saved data clearly marked with its date, and queues farmer answers until the connection returns.
 
 Available in English, हिन्दी, मराठी, தமிழ், తెలుగు, বাংলা, ಕನ್ನಡ, ગુજરાતી, ਪੰਜਾਬੀ and മലയാളം with native scripts and numerals.
 

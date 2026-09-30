@@ -6,7 +6,6 @@ from typing import Literal, Optional
 from fastapi import APIRouter, Depends, Header, Path, Request
 from pydantic import BaseModel, Field, model_validator
 
-from core.errors import ApiError
 from core.events import log_event
 from core.rate_limit import rate_limit
 from models.intelligence import FarmIntelligence

@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends
 from core.cache import cache_get, cache_set
 from core.rate_limit import ai_rate_limit
 from models.diagnosis import Language
+from services.early_warning import early_warning
 from services.earth_engine_service import earth_engine_service
 from services.gemini_service import gemini_service
 from services.measurement import feedback_metrics
@@ -63,6 +64,13 @@ async def get_feedback_metrics():
 @router.get("/outbreaks")
 async def get_dashboard_outbreaks():
     return await persistence_service.get_outbreaks()
+
+
+@router.get("/early-warning")
+async def get_early_warning():
+    """Disease signals (0.5° cells, 7 days vs the 7 before), forecast weather threats per state and regional
+    crop-health status, each with geography, period, observations, confidence, source and limitations."""
+    return await early_warning()
 
 
 @router.get("/crop-health")

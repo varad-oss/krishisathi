@@ -1,9 +1,10 @@
 'use client';
 
 import { useId, useState } from 'react';
+import { EarlyWarningPanel } from '@/components/policy/EarlyWarning';
 import { CropHealthPanel, KpiRow, LimitationsPanel, OutbreaksPanel, ReportPanel, SignalsPanel, TrendAndDistribution, WeatherRiskPanel } from '@/components/policy/Panels';
 import { inputClass, PageHeader } from '@/components/ui';
-import { getDashboardStats, getExchangeSignals, getOutbreaks, getStates, getWeatherRisk } from '@/lib/api';
+import { getDashboardStats, getEarlyWarning, getExchangeSignals, getOutbreaks, getStates, getWeatherRisk } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
 import { useResource } from '@/lib/use-resource';
 import type { MessageKey } from '@/locales/en';
@@ -15,6 +16,7 @@ export default function PolicyDashboardPage() {
 
   // Independent panels: a failure in one source degrades only that panel.
   const stats = useResource((s) => getDashboardStats(s), []);
+  const ew = useResource((s) => getEarlyWarning(s), []);
   const outbreaks = useResource((s) => getOutbreaks(s), []);
   const risk = useResource((s) => getWeatherRisk(s), []);
   const signals = useResource((s) => getExchangeSignals(s), []);
@@ -50,6 +52,7 @@ export default function PolicyDashboardPage() {
 
       <div className="space-y-6">
         <KpiRow stats={stats} />
+        <EarlyWarningPanel ew={ew} states={stateList} stateFilter={stateFilter} />
         <OutbreaksPanel outbreaks={outbreaks} />
         <TrendAndDistribution stats={stats} />
         <WeatherRiskPanel risk={risk} states={stateList} stateFilter={stateFilter} />

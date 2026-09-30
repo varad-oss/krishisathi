@@ -337,6 +337,41 @@ export interface WeatherRisk {
   provenance: Provenance;
 }
 
+export interface DiseaseSignal {
+  type: 'disease';
+  disease: string;
+  crops: string[];
+  geography: { kind: 'grid_cell'; size_deg: number; lat: number; lng: number };
+  observations: number;
+  observations_previous: number;
+  trend: 'new' | 'rising' | 'steady' | 'falling';
+  severity: Level | null;
+  confidence: Level;
+  last_report: string;
+}
+
+export interface WeatherThreat extends Insight {
+  type: 'weather';
+  state: string;
+  geography: { kind: string; state: string };
+}
+
+export interface EarlyWarning {
+  generated_at: string;
+  period: { start: string; end: string; compared_with: { start: string; end: string } };
+  disease: {
+    signals: DiseaseSignal[];
+    below_threshold: number;
+    method: { cell_deg: number; min_reports: number; window_days: number; confidence_rule: string };
+    source: string;
+    kind: string;
+    limitations: string[];
+  };
+  weather: { threats: WeatherThreat[]; states_unavailable: string[]; provenance: Provenance };
+  crop_health: { status: 'unavailable'; reason: 'not_configured' | 'regional_aggregation_not_implemented' };
+  coverage: { observations_14d: number; grid_cells_14d: number; cell_deg: number; insufficient_data: boolean; min_observations: number };
+}
+
 export interface FederationSignal {
   signal_id: string;
   from_state: string;

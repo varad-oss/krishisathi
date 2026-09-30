@@ -42,6 +42,7 @@ export async function mockApi(page: Page, overrides: Overrides = {}) {
     followup: { match: /\/api\/advisory\/followup/, body: f.advisory },
     advisory: { match: /\/api\/advisory$/, body: f.advisory },
     stats: { match: /\/api\/dashboard\/stats/, body: f.stats },
+    earlyWarning: { match: /\/api\/dashboard\/early-warning/, body: f.early_warning },
     outbreaks: { match: /\/api\/dashboard\/outbreaks/, body: f.outbreaks },
     weatherRisk: { match: /\/api\/dashboard\/weather-risk/, body: f.weather_risk },
     report: { match: /\/api\/dashboard\/report/, body: f.report },

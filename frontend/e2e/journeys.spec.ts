@@ -332,3 +332,38 @@ test.describe('Language', () => {
     await expect(page.locator('html')).toHaveAttribute('lang', 'hi');
   });
 });
+
+test.describe('Policymaker early warning', () => {
+  test('signals show trend, confidence, observations and geography; thin data and missing satellite data are explicit', async ({ page }) => {
+    await mockApi(page);
+    await page.goto('/dashboard');
+    const ew = page.locator('#early-warning');
+    await expect(ew.getByRole('heading', { name: 'Early warning' })).toBeVisible();
+    await expect(ew.getByText(/Only 12 confident, located reports in the last 14 days/)).toBeVisible();
+
+    const disease = ew.getByRole('region', { name: 'Disease signals' });
+    await expect(disease.getByText('Late blight')).toBeVisible();
+    await expect(disease.getByText('Rising')).toBeVisible();
+    await expect(disease.getByText('6 reports this week, 2 the week before')).toBeVisible();
+    await expect(disease.getByText('Confidence: Moderate')).toBeVisible();
+    await expect(disease.getByText('Wheat rust')).toBeVisible();
+    await expect(disease.getByText('New this week')).toBeVisible();
+    await expect(disease.getByText(/1 weaker signals with fewer than 3 reports are not shown/)).toBeVisible();
+
+    await expect(ew.getByRole('region', { name: 'Weather threats' }).getByText('Punjab')).toBeVisible();
+    await expect(ew.getByRole('region', { name: 'Crop-health anomalies' }).getByText(/not connected on this server/)).toBeVisible();
+
+    // Every visualization states period, geography, observations, source and limits.
+    for (const label of ['Period:', 'Geography:', 'Observations:', 'Source:', 'Limits:']) await expect(ew.getByText(label, { exact: true })).toBeVisible();
+    await expect(ew.getByText(/0\.5° grid cells/)).toBeVisible();
+    await expect(page.getByText(/Cluster centres rounded to about 11 km/)).toBeVisible();
+    await expect(page.getByText(/One reference point per state, not statewide/).first()).toBeVisible();
+  });
+
+  test('early-warning failure is explicit and the rest of the dashboard still loads', async ({ page }) => {
+    await mockApi(page, { earlyWarning: unavailable() });
+    await page.goto('/dashboard');
+    await expect(page.locator('#early-warning').getByRole('alert')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Disease clusters' })).toBeVisible();
+  });
+});

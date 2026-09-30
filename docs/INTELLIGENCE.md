@@ -215,3 +215,26 @@ aloud" button.
 | Crop is not growing well / I don't know | `/advisor?topic=…`, with a starting question the farmer can edit (never sent automatically) |
 
 It is the landing page's main farmer action and is linked from the farm page's *Today* card.
+
+## Policymaker early warning
+
+`GET /api/dashboard/early-warning` (`services/early_warning.py`) returns three kinds of signal, plus coverage.
+Each signal carries its geography, period, number of observations, confidence and source.
+
+- **Disease signals.** Confident (moderate or high certainty), located `disease_detected` diagnoses are grouped
+  by disease and 0.5° cell (~55 km, coarser than any farm) for the last 7 days, and compared with the 7 days
+  before.
+  - A signal needs at least 3 reports in the current week, the same bar as a cluster. Weaker groups are only
+    counted (`below_threshold`).
+  - `trend` is `new`, `rising`, `steady` or `falling`.
+  - `confidence` is a sample-size rule, not a statistical test: under 5 reports is low, 5–9 moderate, 10 or
+    more high.
+- **Weather threats.** Watch and warning insights from the rule engine at one reference point per state. States
+  whose forecast failed are listed as unavailable.
+- **Crop-health anomalies.** Always `unavailable`, with the reason: satellite not configured, or regional
+  aggregation not implemented. No value is estimated.
+- **Coverage.** Observations and cells in 14 days. `insufficient_data` is true under 20 observations, and the
+  dashboard then tells officials to treat signals as leads for field verification.
+
+On the dashboard every chart and map (early warning, cluster map, 30-day trend, weather risk) ends with the same
+block: period, geography, observations, source and limits.

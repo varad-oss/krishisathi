@@ -20,6 +20,7 @@ import type {
   Outbreak,
   RegenerativeResponse,
   CropOptions,
+  EarlyWarning,
   PracticeStatus,
   SoilData,
   SourceStatus,
@@ -325,6 +326,7 @@ export const getSpeechVoices = (signal?: AbortSignal) =>
 
 export const getDashboardStats = (signal?: AbortSignal) => request<DashboardStats>('/api/dashboard/stats', { signal });
 export const getOutbreaks = (signal?: AbortSignal) => request<Outbreak[]>('/api/dashboard/outbreaks', { signal });
+export const getEarlyWarning = (signal?: AbortSignal) => request<EarlyWarning>('/api/dashboard/early-warning', { signal, timeoutMs: 30_000 });
 export const getWeatherRisk = (signal?: AbortSignal) => request<WeatherRisk>('/api/dashboard/weather-risk', { signal, timeoutMs: 30_000 });
 export const getDashboardReport = (language: LanguageCode, signal?: AbortSignal) =>
   request<DashboardReport>(`/api/dashboard/report?${q({ language })}`, { signal, timeoutMs: AI_TIMEOUT_MS });

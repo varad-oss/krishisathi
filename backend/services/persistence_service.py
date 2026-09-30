@@ -317,6 +317,19 @@ class PersistenceService:
                 ))
             return signals
 
+    async def recent_detections(self, days: int) -> List[dict]:
+        """Located, confident disease detections of the last `days` days (for early-warning aggregation)."""
+        since = datetime.utcnow() - timedelta(days=days)
+        async with AsyncSessionLocal() as session:
+            rows = (await session.execute(
+                select(DiagnosisRecord.disease, DiagnosisRecord.crop, DiagnosisRecord.model_inferred_severity,
+                       DiagnosisRecord.lat, DiagnosisRecord.lng, DiagnosisRecord.timestamp)
+                .where(DiagnosisRecord.diagnosis_status == "disease_detected", DiagnosisRecord.certainty.in_(ELIGIBLE_CERTAINTY),
+                       DiagnosisRecord.lat.is_not(None), DiagnosisRecord.lng.is_not(None), DiagnosisRecord.timestamp >= since)
+            )).all()
+        return [{"disease": r[0], "crop": r[1], "severity": normalize_level(r[2]), "lat": r[3], "lng": r[4],
+                 "timestamp": r[5].replace(tzinfo=timezone.utc)} for r in rows]
+
     async def get_dashboard_stats(self) -> dict:
         """Aggregated counts from stored records only. No external or estimated figures."""
         import asyncio

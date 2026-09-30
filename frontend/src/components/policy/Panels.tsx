@@ -12,6 +12,7 @@ import type { DashboardReport, DashboardStats, FederationReport, Outbreak, State
 import type { MessageKey } from '@/locales/en';
 import { cn } from '@/lib/utils';
 import { insightView } from '../farm/insight-text';
+import { VizMeta } from './EarlyWarning';
 import { buttonClass, Card, CardTitle, ErrorState, inputClass, LevelBadge, LoadingBlock, ProvenanceLine, severityDot, Skeleton, UnavailableNote } from '../ui';
 
 const OutbreakMap = dynamic(() => import('./OutbreakMap'), { ssr: false, loading: () => <Skeleton className="h-80 sm:h-96" /> });
@@ -79,7 +80,7 @@ export function TrendAndDistribution({ stats }: { stats: Resource<DashboardStats
         <CardTitle icon={Activity} id="trend-title">
           {t('policy.trend.title')}
         </CardTitle>
-        {s.daily_diagnoses_30d.length === 0 ? (
+        {s.daily_diagnoses_30d.every((d) => d.count === 0) ? (
           <p className="text-sm text-ink-soft">{t('policy.trend.empty')}</p>
         ) : (
           <>
@@ -99,7 +100,13 @@ export function TrendAndDistribution({ stats }: { stats: Resource<DashboardStats
             </div>
           </>
         )}
-        <ProvenanceLine source={s.provenance.source} kind={s.provenance.kind} time={s.generated_at} note={t('policy.limits.1')} />
+        <VizMeta
+          period={t('viz.periodRange', { start: fmt.date(s.daily_diagnoses_30d[0]?.date ?? s.generated_at), end: fmt.date(s.generated_at) })}
+          geography={t('policy.viz.trend.geo')}
+          observations={t('policy.viz.trend.obs', { count: fmt.num(s.daily_diagnoses_30d.reduce((n, d) => n + d.count, 0), 0) })}
+          limits={t('policy.limits.1')}
+        />
+        <ProvenanceLine source={s.provenance.source} kind={s.provenance.kind} time={s.generated_at} className="mt-1 border-t-0 pt-1" />
       </Card>
       <Card aria-labelledby="dist-title">
         <CardTitle icon={Sprout} id="dist-title">
@@ -162,7 +169,15 @@ export function OutbreaksPanel({ outbreaks }: { outbreaks: Resource<Outbreak[]> 
           </div>
         </>
       ) : null}
-      <ProvenanceLine source="KrishiSathi" kind="ai_classified_user_reports" note={t('policy.limits.2')} />
+      {list && (
+        <VizMeta
+          period={t('policy.viz.map.period')}
+          geography={t('policy.viz.map.geo')}
+          observations={t('policy.viz.map.obs', { count: fmt.num(list.reduce((n, o) => n + o.report_count, 0), 0), clusters: fmt.num(list.length, 0) })}
+          limits={t('policy.limits.2')}
+        />
+      )}
+      <ProvenanceLine source="KrishiSathi" kind="ai_classified_user_reports" className="mt-1 border-t-0 pt-1" />
     </Card>
   );
 }
@@ -217,7 +232,17 @@ export function WeatherRiskPanel({ risk, states, stateFilter }: { risk: Resource
         </ul>
         </>
       )}
-      {risk.data && <ProvenanceLine source={risk.data.provenance.source} url={risk.data.provenance.source_url} kind="forecast" time={risk.data.provenance.retrieved_at} />}
+      {risk.data && (
+        <>
+          <VizMeta
+            period={t('policy.viz.weather.period')}
+            geography={t('policy.viz.weather.geo')}
+            observations={t('policy.viz.weather.obs', { count: fmt.num(risk.data.regions.filter((r) => r.status === 'available').length, 0) })}
+            limits={t('policy.viz.weather.limits')}
+          />
+          <ProvenanceLine source={risk.data.provenance.source} url={risk.data.provenance.source_url} kind="forecast" time={risk.data.provenance.retrieved_at} className="mt-1 border-t-0 pt-1" />
+        </>
+      )}
     </Card>
   );
 }

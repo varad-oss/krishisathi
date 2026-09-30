@@ -2933,5 +2933,535 @@
   "outcome": null,
   "outcome_at": null,
   "kind": "regenerative"
+ },
+ "early_warning": {
+  "generated_at": "2026-09-30T12:12:29.121926+00:00",
+  "period": {
+   "start": "2026-09-23",
+   "end": "2026-09-30",
+   "compared_with": {
+    "start": "2026-09-16",
+    "end": "2026-09-23"
+   }
+  },
+  "disease": {
+   "signals": [
+    {
+     "type": "disease",
+     "disease": "Late blight",
+     "crops": [
+      "Tomato"
+     ],
+     "geography": {
+      "kind": "grid_cell",
+      "size_deg": 0.5,
+      "lat": 18.75,
+      "lng": 73.75
+     },
+     "observations": 6,
+     "observations_previous": 2,
+     "trend": "rising",
+     "severity": "high",
+     "confidence": "moderate",
+     "last_report": "2026-09-29T11:12:29.062959+00:00"
+    },
+    {
+     "type": "disease",
+     "disease": "Wheat rust",
+     "crops": [
+      "Wheat"
+     ],
+     "geography": {
+      "kind": "grid_cell",
+      "size_deg": 0.5,
+      "lat": 30.75,
+      "lng": 75.75
+     },
+     "observations": 3,
+     "observations_previous": 0,
+     "trend": "new",
+     "severity": "moderate",
+     "confidence": "low",
+     "last_report": "2026-09-28T11:12:29.062959+00:00"
+    }
+   ],
+   "below_threshold": 1,
+   "method": {
+    "cell_deg": 0.5,
+    "min_reports": 3,
+    "window_days": 7,
+    "confidence_rule": "reports: <5 low, 5-9 moderate, >=10 high"
+   },
+   "source": "KrishiSathi photo diagnoses",
+   "kind": "ai_classified_user_reports",
+   "limitations": [
+    "ai_classified",
+    "app_usage_bias",
+    "not_lab_confirmed"
+   ]
+  },
+  "weather": {
+   "threats": [
+    {
+     "type": "weather",
+     "state": "PB",
+     "id": "fungal_risk",
+     "severity": "watch",
+     "date": "2026-09-27",
+     "params": {
+      "humidity_mean_pct": 88.0,
+      "temp_mean_c": 25.5
+     },
+     "basis": {
+      "kind": "forecast",
+      "threshold": {
+       "humidity_mean_pct_gte": 85.0,
+       "temp_mean_c_range": [
+        15.0,
+        30.0
+       ]
+      },
+      "source": {
+       "name": "General agronomic guidance (KrishiSathi rule)",
+       "url": null
+      }
+     },
+     "geography": {
+      "kind": "single_reference_point_per_state",
+      "state": "PB"
+     },
+     "category": "disease"
+    },
+    {
+     "type": "weather",
+     "state": "MH",
+     "id": "fungal_risk",
+     "severity": "watch",
+     "date": "2026-09-27",
+     "params": {
+      "humidity_mean_pct": 88.0,
+      "temp_mean_c": 25.5
+     },
+     "basis": {
+      "kind": "forecast",
+      "threshold": {
+       "humidity_mean_pct_gte": 85.0,
+       "temp_mean_c_range": [
+        15.0,
+        30.0
+       ]
+      },
+      "source": {
+       "name": "General agronomic guidance (KrishiSathi rule)",
+       "url": null
+      }
+     },
+     "geography": {
+      "kind": "single_reference_point_per_state",
+      "state": "MH"
+     },
+     "category": "disease"
+    },
+    {
+     "type": "weather",
+     "state": "KA",
+     "id": "fungal_risk",
+     "severity": "watch",
+     "date": "2026-09-27",
+     "params": {
+      "humidity_mean_pct": 88.0,
+      "temp_mean_c": 25.5
+     },
+     "basis": {
+      "kind": "forecast",
+      "threshold": {
+       "humidity_mean_pct_gte": 85.0,
+       "temp_mean_c_range": [
+        15.0,
+        30.0
+       ]
+      },
+      "source": {
+       "name": "General agronomic guidance (KrishiSathi rule)",
+       "url": null
+      }
+     },
+     "geography": {
+      "kind": "single_reference_point_per_state",
+      "state": "KA"
+     },
+     "category": "disease"
+    },
+    {
+     "type": "weather",
+     "state": "TN",
+     "id": "fungal_risk",
+     "severity": "watch",
+     "date": "2026-09-27",
+     "params": {
+      "humidity_mean_pct": 88.0,
+      "temp_mean_c": 25.5
+     },
+     "basis": {
+      "kind": "forecast",
+      "threshold": {
+       "humidity_mean_pct_gte": 85.0,
+       "temp_mean_c_range": [
+        15.0,
+        30.0
+       ]
+      },
+      "source": {
+       "name": "General agronomic guidance (KrishiSathi rule)",
+       "url": null
+      }
+     },
+     "geography": {
+      "kind": "single_reference_point_per_state",
+      "state": "TN"
+     },
+     "category": "disease"
+    },
+    {
+     "type": "weather",
+     "state": "UP",
+     "id": "fungal_risk",
+     "severity": "watch",
+     "date": "2026-09-27",
+     "params": {
+      "humidity_mean_pct": 88.0,
+      "temp_mean_c": 25.5
+     },
+     "basis": {
+      "kind": "forecast",
+      "threshold": {
+       "humidity_mean_pct_gte": 85.0,
+       "temp_mean_c_range": [
+        15.0,
+        30.0
+       ]
+      },
+      "source": {
+       "name": "General agronomic guidance (KrishiSathi rule)",
+       "url": null
+      }
+     },
+     "geography": {
+      "kind": "single_reference_point_per_state",
+      "state": "UP"
+     },
+     "category": "disease"
+    },
+    {
+     "type": "weather",
+     "state": "MP",
+     "id": "fungal_risk",
+     "severity": "watch",
+     "date": "2026-09-27",
+     "params": {
+      "humidity_mean_pct": 88.0,
+      "temp_mean_c": 25.5
+     },
+     "basis": {
+      "kind": "forecast",
+      "threshold": {
+       "humidity_mean_pct_gte": 85.0,
+       "temp_mean_c_range": [
+        15.0,
+        30.0
+       ]
+      },
+      "source": {
+       "name": "General agronomic guidance (KrishiSathi rule)",
+       "url": null
+      }
+     },
+     "geography": {
+      "kind": "single_reference_point_per_state",
+      "state": "MP"
+     },
+     "category": "disease"
+    },
+    {
+     "type": "weather",
+     "state": "GJ",
+     "id": "fungal_risk",
+     "severity": "watch",
+     "date": "2026-09-27",
+     "params": {
+      "humidity_mean_pct": 88.0,
+      "temp_mean_c": 25.5
+     },
+     "basis": {
+      "kind": "forecast",
+      "threshold": {
+       "humidity_mean_pct_gte": 85.0,
+       "temp_mean_c_range": [
+        15.0,
+        30.0
+       ]
+      },
+      "source": {
+       "name": "General agronomic guidance (KrishiSathi rule)",
+       "url": null
+      }
+     },
+     "geography": {
+      "kind": "single_reference_point_per_state",
+      "state": "GJ"
+     },
+     "category": "disease"
+    },
+    {
+     "type": "weather",
+     "state": "WB",
+     "id": "fungal_risk",
+     "severity": "watch",
+     "date": "2026-09-27",
+     "params": {
+      "humidity_mean_pct": 88.0,
+      "temp_mean_c": 25.5
+     },
+     "basis": {
+      "kind": "forecast",
+      "threshold": {
+       "humidity_mean_pct_gte": 85.0,
+       "temp_mean_c_range": [
+        15.0,
+        30.0
+       ]
+      },
+      "source": {
+       "name": "General agronomic guidance (KrishiSathi rule)",
+       "url": null
+      }
+     },
+     "geography": {
+      "kind": "single_reference_point_per_state",
+      "state": "WB"
+     },
+     "category": "disease"
+    },
+    {
+     "type": "weather",
+     "state": "PB",
+     "id": "heat_stress",
+     "severity": "watch",
+     "date": "2026-09-28",
+     "params": {
+      "temp_max_c": 41.2
+     },
+     "basis": {
+      "kind": "forecast",
+      "threshold": {
+       "temp_max_c_gte": 40.0
+      },
+      "source": {
+       "name": "India Meteorological Department (IMD)",
+       "url": "https://mausam.imd.gov.in/"
+      }
+     },
+     "geography": {
+      "kind": "single_reference_point_per_state",
+      "state": "PB"
+     },
+     "category": "crop_stress"
+    },
+    {
+     "type": "weather",
+     "state": "MH",
+     "id": "heat_stress",
+     "severity": "watch",
+     "date": "2026-09-28",
+     "params": {
+      "temp_max_c": 41.2
+     },
+     "basis": {
+      "kind": "forecast",
+      "threshold": {
+       "temp_max_c_gte": 40.0
+      },
+      "source": {
+       "name": "India Meteorological Department (IMD)",
+       "url": "https://mausam.imd.gov.in/"
+      }
+     },
+     "geography": {
+      "kind": "single_reference_point_per_state",
+      "state": "MH"
+     },
+     "category": "crop_stress"
+    },
+    {
+     "type": "weather",
+     "state": "KA",
+     "id": "heat_stress",
+     "severity": "watch",
+     "date": "2026-09-28",
+     "params": {
+      "temp_max_c": 41.2
+     },
+     "basis": {
+      "kind": "forecast",
+      "threshold": {
+       "temp_max_c_gte": 40.0
+      },
+      "source": {
+       "name": "India Meteorological Department (IMD)",
+       "url": "https://mausam.imd.gov.in/"
+      }
+     },
+     "geography": {
+      "kind": "single_reference_point_per_state",
+      "state": "KA"
+     },
+     "category": "crop_stress"
+    },
+    {
+     "type": "weather",
+     "state": "TN",
+     "id": "heat_stress",
+     "severity": "watch",
+     "date": "2026-09-28",
+     "params": {
+      "temp_max_c": 41.2
+     },
+     "basis": {
+      "kind": "forecast",
+      "threshold": {
+       "temp_max_c_gte": 40.0
+      },
+      "source": {
+       "name": "India Meteorological Department (IMD)",
+       "url": "https://mausam.imd.gov.in/"
+      }
+     },
+     "geography": {
+      "kind": "single_reference_point_per_state",
+      "state": "TN"
+     },
+     "category": "crop_stress"
+    },
+    {
+     "type": "weather",
+     "state": "UP",
+     "id": "heat_stress",
+     "severity": "watch",
+     "date": "2026-09-28",
+     "params": {
+      "temp_max_c": 41.2
+     },
+     "basis": {
+      "kind": "forecast",
+      "threshold": {
+       "temp_max_c_gte": 40.0
+      },
+      "source": {
+       "name": "India Meteorological Department (IMD)",
+       "url": "https://mausam.imd.gov.in/"
+      }
+     },
+     "geography": {
+      "kind": "single_reference_point_per_state",
+      "state": "UP"
+     },
+     "category": "crop_stress"
+    },
+    {
+     "type": "weather",
+     "state": "MP",
+     "id": "heat_stress",
+     "severity": "watch",
+     "date": "2026-09-28",
+     "params": {
+      "temp_max_c": 41.2
+     },
+     "basis": {
+      "kind": "forecast",
+      "threshold": {
+       "temp_max_c_gte": 40.0
+      },
+      "source": {
+       "name": "India Meteorological Department (IMD)",
+       "url": "https://mausam.imd.gov.in/"
+      }
+     },
+     "geography": {
+      "kind": "single_reference_point_per_state",
+      "state": "MP"
+     },
+     "category": "crop_stress"
+    },
+    {
+     "type": "weather",
+     "state": "GJ",
+     "id": "heat_stress",
+     "severity": "watch",
+     "date": "2026-09-28",
+     "params": {
+      "temp_max_c": 41.2
+     },
+     "basis": {
+      "kind": "forecast",
+      "threshold": {
+       "temp_max_c_gte": 40.0
+      },
+      "source": {
+       "name": "India Meteorological Department (IMD)",
+       "url": "https://mausam.imd.gov.in/"
+      }
+     },
+     "geography": {
+      "kind": "single_reference_point_per_state",
+      "state": "GJ"
+     },
+     "category": "crop_stress"
+    },
+    {
+     "type": "weather",
+     "state": "WB",
+     "id": "heat_stress",
+     "severity": "watch",
+     "date": "2026-09-28",
+     "params": {
+      "temp_max_c": 41.2
+     },
+     "basis": {
+      "kind": "forecast",
+      "threshold": {
+       "temp_max_c_gte": 40.0
+      },
+      "source": {
+       "name": "India Meteorological Department (IMD)",
+       "url": "https://mausam.imd.gov.in/"
+      }
+     },
+     "geography": {
+      "kind": "single_reference_point_per_state",
+      "state": "WB"
+     },
+     "category": "crop_stress"
+    }
+   ],
+   "states_unavailable": [],
+   "provenance": {
+    "source": "Open-Meteo",
+    "source_url": "https://open-meteo.com/",
+    "kind": "model",
+    "notes": "Current values are numerical weather model estimates (15-minute resolution), not ground-station observations. Daily values are forecasts.",
+    "retrieved_at": "2026-09-26T02:06:42.153826+00:00"
+   }
+  },
+  "crop_health": {
+   "status": "unavailable",
+   "reason": "not_configured"
+  },
+  "coverage": {
+   "observations_14d": 12,
+   "grid_cells_14d": 3,
+   "cell_deg": 0.5,
+   "insufficient_data": true,
+   "min_observations": 20
+  }
  }
 }
