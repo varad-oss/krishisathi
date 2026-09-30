@@ -3,7 +3,7 @@
 import { CheckCircle2, CircleDashed, Radar, XCircle } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import type { Resource } from '@/lib/use-resource';
-import type { DataQualityItem, Evidence, FarmIntelligence, Risk, RiskSeverity, RuleRef } from '@/lib/types';
+import type { DataQualityItem, Evidence, FarmIntelligence, Level, Risk, RiskSeverity, RuleRef } from '@/lib/types';
 import type { MessageKey } from '@/locales/en';
 import { cn } from '@/lib/utils';
 import { Card, CardTitle, ErrorState, KindTag, LevelBadge, LoadingBlock } from '../ui';
@@ -22,6 +22,34 @@ export function SeverityChip({ severity, className }: { severity: RiskSeverity; 
   return <LevelBadge level={severity} className={className} />;
 }
 
+/** Evidence confidence, kept visibly separate from the risk level. */
+export function ConfidenceChip({ level, className }: { level: Level; className?: string }) {
+  const { t } = useI18n();
+  const tone = level === 'high' ? 'ring-leaf-500 text-leaf-700' : level === 'moderate' ? 'ring-line-strong text-ink' : 'ring-watch-200 text-watch-700';
+  return (
+    <span className={cn('inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold ring-1', tone, className)} data-testid="confidence-chip">
+      {t('risk.evidenceConfidence', { level: t(`level.${level}` as MessageKey) })}
+    </span>
+  );
+}
+
+/** Why the evidence confidence is what it is, from the engine's basis ids. */
+export function ConfidenceWhy({ basis }: { basis?: string[] }) {
+  const { t } = useI18n();
+  const items = (basis ?? []).map((b) => [b, t(`risk.basis.${b}` as MessageKey)] as const).filter(([b, text]) => text !== `risk.basis.${b}`);
+  if (!items.length) return null;
+  return (
+    <div className="text-sm">
+      <p className="font-semibold">{t('risk.confidenceWhy')}</p>
+      <ul className="mt-1 list-disc space-y-0.5 pl-5 text-ink-soft">
+        {items.map(([b, text]) => (
+          <li key={b}>{text}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function EvidenceList({ evidence, rules }: { evidence: Evidence[]; rules?: RuleRef[] }) {
   const { t, fmt } = useI18n();
   if (!evidence.length && !rules?.length) return null;
@@ -32,9 +60,10 @@ export function EvidenceList({ evidence, rules }: { evidence: Evidence[]; rules?
           <p className="font-semibold">{t('risk.evidence')}</p>
           <ul className="mt-1 space-y-1.5">
             {evidence.map((e, i) => (
-              <li key={`${e.id}-${i}`} className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-ink-soft">
+              <li key={`${e.id}-${i}`} className={cn('flex flex-wrap items-baseline gap-x-2 gap-y-1 text-ink-soft', e.role === 'context' && 'opacity-75')}>
                 <span>{evidenceText(t, fmt, e)}</span>
                 <KindTag kind={basisKind(e.basis)} className="text-xs" />
+                {e.role === 'context' && <span className="text-xs text-ink-faint">{t('risk.evidence.context')}</span>}
               </li>
             ))}
           </ul>
@@ -76,6 +105,7 @@ function RiskRow({ risk, cropLabel }: { risk: Risk; cropLabel: string | null }) 
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-semibold">{t(`risk.${risk.category}` as MessageKey)}</span>
               <SeverityChip severity={risk.severity} />
+              {risk.severity !== 'unavailable' && risk.confidence && <ConfidenceChip level={risk.confidence} />}
             </div>
             <p className="mt-0.5 text-sm text-ink-soft">{summary}</p>
           </div>
@@ -100,13 +130,9 @@ function RiskRow({ risk, cropLabel }: { risk: Risk; cropLabel: string | null }) 
               <span className="text-ink-soft">{impact}</span>
             </p>
           )}
+          {risk.severity !== 'unavailable' && risk.confidence && <ConfidenceWhy basis={risk.confidence_basis} />}
           <EvidenceList evidence={risk.evidence} rules={risk.rules} />
-          {risk.confidence && (
-            <p className="text-xs text-ink-faint">
-              {t('risk.confidence', { level: t(`level.${risk.confidence}` as MessageKey) })}
-              {risk.date && ` · ${fmt.date(risk.date, { weekday: 'long', day: 'numeric', month: 'short' })}`}
-            </p>
-          )}
+          {risk.date && <p className="text-xs text-ink-faint">{fmt.date(risk.date, { weekday: 'long', day: 'numeric', month: 'short' })}</p>}
         </div>
       </details>
     </li>
@@ -133,7 +159,8 @@ export function RiskRadar({ intel, cropLabel }: { intel: Resource<FarmIntelligen
               <RiskRow key={r.category} risk={r} cropLabel={cropLabel} />
             ))}
           </ul>
-          <p className="mt-3 text-xs text-ink-faint">{t('risk.engineNote')}</p>
+          <p className="mt-3 text-sm text-ink-soft">{t('risk.levelVsConfidence')}</p>
+          <p className="mt-2 text-xs text-ink-faint">{t('risk.engineNote')}</p>
         </>
       ) : null}
     </Card>

@@ -1,6 +1,7 @@
 'use client';
 
 import { BookOpen, Camera, Database, Lock, Scale } from 'lucide-react';
+import { InteropComparison } from '@/components/InteropComparison';
 import { Card, CardTitle, ErrorState, LoadingBlock } from '@/components/ui';
 import { getSources } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
@@ -90,6 +91,7 @@ export default function AboutPage() {
           ))}
         </ul>
       </Card>
+      <InteropComparison />
     </div>
   );
 }

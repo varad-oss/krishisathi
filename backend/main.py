@@ -93,7 +93,7 @@ app.add_middleware(
     allow_origins=[o.strip() for o in settings.CORS_ALLOWED_ORIGINS.split(",") if o.strip()],
     allow_origin_regex=settings.CORS_ALLOWED_ORIGIN_REGEX,
     allow_credentials=False,  # the API uses bearer tokens, never cookies
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "Idempotency-Key", "X-Request-ID", "X-Farm-Token"],
     expose_headers=["X-Request-ID", "Retry-After", "X-TTS-Provider", "X-TTS-Locale"],
     max_age=600,

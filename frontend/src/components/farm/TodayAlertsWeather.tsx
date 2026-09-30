@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { buttonClass, Card, CardTitle, ErrorState, KindTag, ProvenanceLine, severityDot, Skeleton } from '../ui';
 import { insightView } from './insight-text';
 import { ActionFeedback } from './History';
-import { DataQualityStrip, EvidenceList, SeverityChip } from './Intelligence';
+import { ConfidenceChip, ConfidenceWhy, DataQualityStrip, EvidenceList, SeverityChip } from './Intelligence';
 import { actionWhat, because, stageText, topActionTitle } from './intelligence-text';
 
 const accent: Record<string, string> = { low: 'bg-leaf-500', moderate: 'bg-watch-500', high: 'bg-warn-500' };
@@ -107,9 +107,10 @@ export function TodayCard({
                     <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
                       {top.category && <span className="font-semibold">{t(`risk.${top.category}` as MessageKey)}</span>}
                       {top.severity && <SeverityChip severity={top.severity} />}
-                      {top.confidence && <span className="text-ink-faint">{t('risk.confidence', { level: t(`level.${top.confidence}` as MessageKey) })}</span>}
+                      {top.confidence && <ConfidenceChip level={top.confidence} />}
                     </div>
                     {reason && <p className="mt-3 text-ink-soft">{reason}</p>}
+                    {top.priority_reason && <p className="mt-1 text-xs text-ink-faint" data-testid="priority-reason">{t(`priority.${top.priority_reason}` as MessageKey)}</p>}
                     {top.action && (
                       <div className="mt-4 rounded-[var(--radius-inner)] bg-leaf-50 p-4">
                         <p className="text-xs font-semibold text-leaf-700">{t('risk.whatToDo')}</p>
@@ -122,8 +123,9 @@ export function TodayCard({
                           {t('today.whyThis')}
                           <span aria-hidden className="transition-transform group-open:rotate-180">▾</span>
                         </summary>
-                        <div className="mt-2 rounded-[var(--radius-inner)] bg-paper/70 p-4">
-                          <EvidenceList evidence={top.evidence} />
+                        <div className="mt-2 space-y-3 rounded-[var(--radius-inner)] bg-paper/70 p-4">
+                          <ConfidenceWhy basis={top.confidence_basis} />
+                          <EvidenceList evidence={top.evidence} rules={top.rules} />
                         </div>
                       </details>
                     )}

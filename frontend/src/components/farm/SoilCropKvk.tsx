@@ -2,12 +2,13 @@
 
 import { useState } from 'react';
 import { Building2, ExternalLink, Layers, Leaf, Minus, Radio, RefreshCw, Satellite, TrendingDown, TrendingUp } from 'lucide-react';
-import { getCropHealthHistory } from '@/lib/api';
+import { getCropHealthHistory, getFieldCropHealthHistory } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
 import { useResource, type Resource } from '@/lib/use-resource';
-import type { CropHealth, CropHealthHistory, FarmTwin, Kvk, RegenerativeResponse, RegenTrigger, SarSummary, SoilData, SoilReason } from '@/lib/types';
+import type { CropHealth, CropHealthHistory, FarmPlot, FarmTwin, SatelliteQuality, Kvk, RegenerativeResponse, RegenTrigger, SarSummary, SoilData, SoilReason } from '@/lib/types';
 import type { MessageKey } from '@/locales/en';
 import { cn } from '@/lib/utils';
+import { FieldOutline } from './FieldPlot';
 import { PracticePlan } from './Regenerative';
 import { buttonClass, Card, CardTitle, ErrorState, LevelBadge, LoadingBlock, Note, ProvenanceLine, UnavailableNote } from '../ui';
 
@@ -168,7 +169,7 @@ function Radar({ sar }: { sar: SarSummary }) {
           <p className="mt-1 text-xs text-ink-faint">{t('farm.crop.radar.note')}</p>
         </>
       ) : (
-        <p className="mt-1 text-ink-faint">{t(sar.status === 'no_data' ? 'farm.crop.radar.noData' : 'farm.crop.radar.unavailable')}</p>
+        <p className="mt-1 text-ink-faint">{t(sar.status === 'no_data' ? 'farm.crop.radar.noData' : sar.status === 'insufficient_data' ? 'farm.crop.fieldTooSmall' : 'farm.crop.radar.unavailable')}</p>
       )}
     </div>
   );
@@ -192,10 +193,14 @@ function Sparkline({ series }: { series: NonNullable<CropHealthHistory['series']
   );
 }
 
-function SatelliteHistory({ lat, lng }: { lat: number; lng: number }) {
+function SatelliteHistory({ lat, lng, twin }: { lat: number; lng: number; twin: FarmTwin | null }) {
   const { t, fmt } = useI18n();
   const [open, setOpen] = useState(false);
-  const history = useResource(open ? (s) => getCropHealthHistory(lat, lng, s) : null, [open, lat, lng]);
+  // With a farm record the series follows the drawn field (or the point, when there is none).
+  const history = useResource(
+    open ? (s) => (twin ? getFieldCropHealthHistory(twin, s) : getCropHealthHistory(lat, lng, s)) : null,
+    [open, lat, lng, twin?.farmId],
+  );
   const d = history.data;
   return (
     <details className="group mt-4" onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}>
@@ -232,29 +237,95 @@ function SatelliteHistory({ lat, lng }: { lat: number; lng: number }) {
   );
 }
 
-export function CropHealthCard({ health, location }: { health: Resource<CropHealth>; location: { lat: number; lng: number } }) {
+const QUALITY_TONE: Record<SatelliteQuality['level'], string> = { good: 'text-leaf-700', limited: 'text-watch-700', insufficient: 'text-warn-700' };
+
+/** How much the satellite value can be trusted for this field: pixels, clear share, land cover and flags. */
+function QualityDetails({ h }: { h: CropHealth }) {
+  const { t, fmt } = useI18n();
+  const q = h.quality;
+  if (!q) return null;
+  const pct = (v: number | null | undefined) => fmt.num(v == null ? null : Math.round(v * 100), 0);
+  const lc = q.land_cover;
+  return (
+    <details className="group mt-3 text-sm" data-testid="satellite-quality">
+      <summary className="inline-flex min-h-10 cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="font-semibold">{t('farm.crop.quality.title')}:</span>
+        <span className={cn('font-semibold', QUALITY_TONE[q.level])}>{t(`farm.crop.quality.level.${q.level}` as MessageKey)}</span>
+        <span aria-hidden className="text-ink-faint transition-transform group-open:rotate-180">▾</span>
+      </summary>
+      <ul className="mt-1 space-y-1 text-ink-soft">
+        {h.image_count != null && <li>{t('farm.crop.quality.scenes', { count: fmt.num(h.image_count, 0) })}</li>}
+        <li>{t('farm.crop.quality.pixels', { clear: fmt.num(q.clear_pixel_count, 0), total: fmt.num(q.pixel_count, 0), pct: pct(q.clear_pixel_fraction) })}</li>
+        {lc.status === 'available' && <li>{t('farm.crop.quality.cropland', { pct: pct(lc.cropland_fraction) })}</li>}
+        {q.flags.map((f) => (
+          <li key={f} className="text-watch-700">{t(`farm.crop.quality.flag.${f}` as MessageKey)}</li>
+        ))}
+      </ul>
+      <p className="mt-2 text-xs text-ink-faint" lang="en">{q.method}; {q.resolution_m} m. {lc.status === 'available' ? lc.provenance.source : null}</p>
+    </details>
+  );
+}
+
+function Scope({ h }: { h: CropHealth }) {
+  const { t, fmt } = useI18n();
+  const roi = h.roi;
+  if (!roi) return null;
+  return (
+    <p className="mb-3 text-sm text-ink-soft" data-testid="satellite-scope">
+      {roi.mode === 'polygon'
+        ? t('farm.crop.scope.field', { area: fmt.num(roi.area_ha, roi.area_ha < 1 ? 2 : 1) })
+        : t('farm.crop.scope.point')}
+    </p>
+  );
+}
+
+export function CropHealthCard({
+  health,
+  location,
+  twin,
+  plot,
+  onPlotChanged,
+}: {
+  health: Resource<CropHealth>;
+  location: { lat: number; lng: number };
+  twin: FarmTwin | null;
+  plot: Resource<{ plot: FarmPlot | null }>;
+  onPlotChanged: () => void;
+}) {
   const { t, fmt } = useI18n();
   const h = health.data;
   const b = h?.baseline;
   const trend = h?.change == null ? null : h.change <= -NDVI_CHANGE ? 'decline' : h.change >= NDVI_CHANGE ? 'increase' : 'stable';
   const TrendIcon = trend === 'decline' ? TrendingDown : trend === 'increase' ? TrendingUp : Minus;
+  const unavailableText = (x: CropHealth) =>
+    x.reason === 'not_configured'
+      ? t('farm.crop.notConfigured')
+      : x.status === 'insufficient_data'
+        ? t(x.reason === 'field_too_small' ? 'farm.crop.fieldTooSmall' : 'farm.crop.tooFewClearPixels')
+        : x.status === 'no_data'
+          ? t('farm.crop.noImagery')
+          : t('farm.crop.unavailable');
   return (
     <Card id="crop" aria-labelledby="crop-title" className="scroll-mt-header">
       <CardTitle icon={Satellite} id="crop-title">
-        {t('farm.crop.title')}
+        {t('farm.crop.signalTitle')}
       </CardTitle>
+      <div className="mb-4">
+        <FieldOutline twin={twin} center={location} plot={plot} onChanged={onPlotChanged} />
+      </div>
       {!h && health.status === 'loading' ? (
         <LoadingBlock lines={2} />
       ) : !h && health.status === 'error' ? (
         <ErrorState error={health.error} onRetry={health.reload} title={t('farm.crop.unavailable')} />
       ) : h ? (
         <>
+          <Scope h={h} />
           {h.status === 'available' && h.ndvi != null ? (
             <>
               <div className="flex flex-wrap items-end gap-6">
                 <div>
                   <p className="text-sm text-ink-soft">{t('farm.crop.ndvi')}</p>
-                  <p className="font-display text-4xl font-medium tabular-nums">{fmt.num(h.ndvi, 2)}</p>
+                  <p className="font-display text-4xl font-medium tabular-nums" data-testid="ndvi-value">{fmt.num(h.ndvi, 2)}</p>
                 </div>
                 {h.change != null && trend && (
                   <div>
@@ -282,18 +353,24 @@ export function CropHealthCard({ health, location }: { health: Resource<CropHeal
                   {t('farm.crop.quality', { date: fmt.date(h.latest_image_date), pct: fmt.num(Math.round(h.clear_pixel_fraction * 100), 0) })}
                 </p>
               )}
-              <p className="mt-3 text-sm text-ink-soft">{t('farm.crop.explain')}</p>
+              <Note tone="info" className="mt-3">{t('farm.crop.indicatorNote')}</Note>
             </>
           ) : (
             <UnavailableNote>
-              {t(h.reason === 'not_configured' ? 'farm.crop.notConfigured' : h.status === 'no_data' ? 'farm.crop.noImagery' : 'farm.crop.unavailable')}
+              <span data-testid="satellite-unavailable">{unavailableText(h)}</span>
               <span className="mt-1 block text-xs text-ink-faint">{t('farm.crop.explain')}</span>
             </UnavailableNote>
           )}
+          <QualityDetails h={h} />
           {h.sar && <Radar sar={h.sar} />}
-          {h.status !== 'unavailable' && <SatelliteHistory lat={location.lat} lng={location.lng} />}
+          {h.status !== 'unavailable' && <SatelliteHistory lat={location.lat} lng={location.lng} twin={twin} />}
           {h.status !== 'unavailable' && (
-            <ProvenanceLine source={h.sar ? 'Sentinel-1 + Sentinel-2 (Copernicus) via Google Earth Engine' : h.provenance.source} url={h.provenance.source_url} kind="satellite_observation" note={h.provenance.resolution} />
+            <ProvenanceLine
+              source={h.sar ? 'Sentinel-1 + Sentinel-2 (Copernicus) via Google Earth Engine' : h.provenance.source}
+              url={h.provenance.source_url}
+              kind="satellite_observation"
+              note={<>{t('farm.crop.explain')} <span lang="en">{h.provenance.resolution}</span></>}
+            />
           )}
         </>
       ) : null}

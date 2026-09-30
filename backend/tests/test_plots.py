@@ -278,3 +278,14 @@ async def test_polygon_query_failure_is_unavailable_never_fabricated():
         res = await svc.get_plot_crop_health(PLOT)
     assert res["status"] == "unavailable" and res["reason"] == "dataset_query_failed" and "ndvi" not in res
     assert res["roi"] == {"mode": "polygon"}
+
+
+@pytest.mark.asyncio
+async def test_browser_preflight_allows_plot_edit_and_remove():
+    from config import settings
+    origin = settings.CORS_ALLOWED_ORIGINS.split(",")[0].strip()
+    async with api() as c:
+        for method in ("PUT", "DELETE"):
+            res = await c.options("/api/farms/x/plot", headers={"Origin": origin, "Access-Control-Request-Method": method,
+                                                                 "Access-Control-Request-Headers": "x-farm-token,content-type"})
+            assert res.status_code == 200 and method in res.headers["access-control-allow-methods"]
