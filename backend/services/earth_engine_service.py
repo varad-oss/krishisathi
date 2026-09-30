@@ -627,7 +627,8 @@ class EarthEngineService:
             result = await asyncio.wait_for(asyncio.to_thread(query, field, date.today()), timeout=TIMEOUT_S)
         except Exception as e:
             code = classify_error(e, DATASET_QUERY_FAILED)
-            logger.error("Sentinel %s query failed (%s): %s", field["mode"], code, e)
+            # A polygon's error text can echo the request geometry, which is private: log only the error type then.
+            logger.error("Sentinel %s query failed (%s): %s", field["mode"], code, type(e).__name__ if field["mode"] == "polygon" else e)
             if code in (AUTH_FAILED, PROJECT_CONFIGURATION_ERROR):
                 self._fail(code)  # the key or project broke after start-up: report it in /api/sources too
             result = {"status": "unavailable", "reason": code, "retryable": code in RETRYABLE, "roi": {"mode": field["mode"]}}

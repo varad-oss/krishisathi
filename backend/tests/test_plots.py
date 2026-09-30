@@ -289,3 +289,39 @@ async def test_browser_preflight_allows_plot_edit_and_remove():
             res = await c.options("/api/farms/x/plot", headers={"Origin": origin, "Access-Control-Request-Method": method,
                                                                  "Access-Control-Request-Headers": "x-farm-token,content-type"})
             assert res.status_code == 200 and method in res.headers["access-control-allow-methods"]
+
+
+@pytest.mark.asyncio
+async def test_polygon_failures_never_log_the_geometry(caplog):
+    import logging
+    caplog.set_level(logging.ERROR, logger="services.earth_engine_service")
+    logging.getLogger("services.earth_engine_service").disabled = False  # alembic's fileConfig disables loggers in tests
+    svc = EarthEngineService.__new__(EarthEngineService)
+    svc.initialized, svc.status, svc.error = True, "available", None
+    svc.ensure_initialized = lambda: True
+    ees._point_cache.clear()
+    ring = PLOT["geometry"]["coordinates"][0]
+    with patch.object(EarthEngineService, "_field_ndvi", side_effect=Exception(f"Geometry {ring} is invalid")):
+        await svc.get_plot_crop_health(PLOT)
+    assert str(ring[0][0]) not in caplog.text and "Exception" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_saved_plot_never_reaches_public_interoperability_or_dashboards():
+    import jwt as pyjwt
+    from config import settings
+    secret = "plot-privacy-secret-with-32-bytes!!"
+    geometry = square(100)
+    async with api() as c:
+        farm_id, h = await create(c)
+        assert (await c.put(f"/api/farms/{farm_id}/plot", headers=h, json={"geometry": geometry})).status_code == 200
+        token = {"Authorization": "Bearer " + pyjwt.encode({"sub": "p", "role": "partner"}, secret, algorithm="HS256")}
+        with patch.object(settings, "JWT_SECRET", secret), \
+                patch("services.interop.brazil.pam_observations", AsyncMock(return_value=[])):
+            bodies = [(await c.get(path, headers=token)).text for path in (
+                "/api/interoperability/agricultural-observations?country=IN", "/api/interoperability/risk-signals?country=IN",
+                "/api/interoperability/compare", "/api/dashboard/evaluation", "/api/dashboard/feedback-metrics",
+                "/api/dashboard/early-warning", "/api/dashboard/stats")]
+    corner = f"{validate_polygon(geometry)['geometry']['coordinates'][0][0][0]}"
+    for body in bodies:
+        assert corner not in body and farm_id not in body and '"geometry"' not in body
