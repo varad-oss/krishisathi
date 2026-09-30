@@ -216,17 +216,19 @@ function SatelliteHistory({ lat, lng, twin }: { lat: number; lng: number; twin: 
             <p className="text-sm font-semibold">{t('farm.crop.history.title')}</p>
             {d.status === 'insufficient_data' && <p className="text-sm text-ink-soft">{t('farm.crop.history.insufficient')}</p>}
             <Sparkline series={d.series} />
-            <table className="mt-1 w-full text-xs">
-              <caption className="sr-only">{t('farm.crop.history.chartLabel')}</caption>
-              <tbody className="flex justify-between gap-1">
-                {d.series.map((p) => (
-                  <tr key={p.end} className="flex flex-col items-center">
-                    <th scope="row" className="font-normal text-ink-faint">{fmt.date(p.end, { month: 'short' })}</th>
-                    <td className="tabular-nums">{p.ndvi != null ? fmt.num(p.ndvi, 2) : <span className="text-ink-faint">{t('farm.crop.history.noImage')}</span>}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="mt-1 overflow-x-auto">
+              <table className="w-full text-xs">
+                <caption className="sr-only">{t('farm.crop.history.chartLabel')}</caption>
+                <tbody className="flex justify-between gap-1">
+                  {d.series.map((p) => (
+                    <tr key={p.end} className="flex flex-col items-center">
+                      <th scope="row" className="font-normal text-ink-faint">{fmt.date(p.end, { month: 'short' })}</th>
+                      <td className="tabular-nums">{p.ndvi != null ? fmt.num(p.ndvi, 2) : <span className="text-ink-faint">{t('farm.crop.history.noImage')}</span>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </>
         )}
       </div>

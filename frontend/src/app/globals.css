@@ -94,6 +94,11 @@ main {
   overflow-wrap: anywhere;
 }
 
+/* Tables keep whole words and scroll sideways inside their wrapper instead of breaking words mid-way. */
+main table {
+  overflow-wrap: normal;
+}
+
 /* Indic scripts need extra line height for matras and conjuncts. */
 html:not([lang="en"]) body {
   line-height: 1.75;

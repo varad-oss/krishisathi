@@ -20,10 +20,10 @@ const TrendChart = dynamic(() => import('./TrendChart'), { ssr: false, loading: 
 
 function Kpi({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="p-4 sm:p-6">
+    <div className="py-4 lg:px-6 lg:first:pl-0">
       <dt className="text-sm text-ink-soft [overflow-wrap:anywhere]">{label}</dt>
-      <dd className="mt-1 font-display text-[2.4rem] font-medium leading-none tabular-nums">{value}</dd>
-      {sub && <dd className="mt-2 text-xs text-ink-faint">{sub}</dd>}
+      <dd className="mt-1 font-display text-2xl font-semibold tabular-nums">{value}</dd>
+      {sub && <dd className="mt-0.5 text-xs text-ink-faint">{sub}</dd>}
     </div>
   );
 }
@@ -34,7 +34,8 @@ export function KpiRow({ stats }: { stats: Resource<DashboardStats> }) {
   if (!stats.data) return stats.status === 'error' ? <ErrorState error={stats.error} onRetry={stats.reload} title={t('policy.kpi.unavailable')} /> : null;
   const s = stats.data;
   return (
-    <dl className="grid grid-cols-2 divide-line overflow-hidden rounded-[var(--radius-card)] bg-surface shadow-[var(--shadow-card)] ring-1 ring-line/80 lg:grid-cols-4 lg:divide-x [&>div:nth-child(-n+2)]:border-b [&>div:nth-child(-n+2)]:border-line lg:[&>div:nth-child(-n+2)]:border-b-0 [&>div:nth-child(odd)]:border-r [&>div:nth-child(odd)]:border-line lg:[&>div:nth-child(odd)]:border-r-0">
+    // A quiet summary strip: counts of app reports, not headline statistics.
+    <dl className="grid grid-cols-2 gap-x-6 border-y border-line lg:grid-cols-4 lg:gap-x-0 lg:divide-x lg:divide-line">
       <Kpi label={t('policy.kpi.diagnoses')} value={fmt.num(s.total_diagnoses, 0)} />
       <Kpi label={t('policy.kpi.last7')} value={fmt.num(s.diagnoses_last_7_days, 0)} sub={t('policy.kpi.prev7', { count: fmt.num(s.diagnoses_previous_7_days, 0) })} />
       <Kpi label={t('policy.kpi.outbreaks')} value={fmt.num(s.active_outbreaks, 0)} />
