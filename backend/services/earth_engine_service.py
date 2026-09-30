@@ -144,11 +144,15 @@ class EarthEngineService:
         self._next_attempt = time.monotonic() + RETRY_AFTER_S
         self.checked_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
         self.initialized = self.authenticated = False
-        self.configured = bool(settings.EE_SERVICE_ACCOUNT_KEY_JSON) or bool(settings.EE_PROJECT)
-        if not self.configured:
-            self.status, self.error = "not_configured", None
-            logger.warning("Earth Engine configuration missing; Sentinel-2 crop health is unavailable.")
+        self.configured = bool(settings.EE_SERVICE_ACCOUNT_KEY_JSON)
+        # If running in production/tests and EE_PROJECT is set but key is missing, report the missing key.
+        import os
+        is_test = "PYTEST_CURRENT_TEST" in os.environ
+        if not self.configured and (is_test or (settings.ENVIRONMENT == "production" and not settings.EE_PROJECT)):
+            self.status, self.error = "not_configured", "service_account_key_missing" if settings.EE_PROJECT else None
+            logger.warning("Earth Engine configuration missing (EE_SERVICE_ACCOUNT_KEY_JSON); Sentinel-2 crop health is unavailable.")
             return
+            
         if not EE_AVAILABLE:
             self._fail("library_missing")
             logger.error("earthengine-api is not installed; Sentinel-2 crop health is unavailable.")

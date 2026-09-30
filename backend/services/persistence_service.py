@@ -319,6 +319,12 @@ class PersistenceService:
             self.get_outbreaks(),
         )
 
+        daily_dict = {str(r[0])[:10]: r[1] for r in daily_rows}
+        filled_daily = []
+        for i in range(30, -1, -1):
+            d = (now - timedelta(days=i)).date().isoformat()
+            filled_daily.append({"date": d, "count": daily_dict.get(d, 0)})
+
         return {
             "generated_at": now.isoformat() + "Z",
             "total_diagnoses": total_diag,
@@ -329,7 +335,7 @@ class PersistenceService:
             "disease_distribution": {r[0]: r[1] for r in disease_rows},
             "crop_distribution_30d": {r[0]: r[1] for r in crop_rows},
             "status_distribution_30d": {r[0]: r[1] for r in status_rows},
-            "daily_diagnoses_30d": [{"date": str(r[0])[:10], "count": r[1]} for r in daily_rows],
+            "daily_diagnoses_30d": filled_daily,
             "coverage": {"grid_cells_30d": len(cells), "grid_size_deg": 0.5},
             "provenance": {
                 "source": "KrishiSathi diagnosis and advisory records",
