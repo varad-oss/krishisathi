@@ -150,7 +150,7 @@ export function CropOptionsCard({ options }: { options: Resource<CropOptions> })
       ) : data ? (
         <>
           {options.status === 'error' && <ErrorState compact error={options.error} onRetry={options.reload} updatedAt={options.updatedAt} />}
-          <div className="relative -mx-1 overflow-x-auto">
+          <div className="relative overflow-x-auto">
             <table className="w-full min-w-[34rem] text-left text-sm">
               <thead className="text-xs text-ink-soft">
                 <tr className="border-b border-line">

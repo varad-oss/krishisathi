@@ -30,7 +30,7 @@ test.describe('Field intelligence loop', () => {
 
     // 1-2. The farm is registered; before a field is drawn, values describe a circle around the location.
     const crop = page.locator('#crop');
-    await expect(crop.getByRole('heading', { name: 'Satellite vegetation signal' })).toBeVisible();
+    await expect(crop.getByText('Satellite vegetation signal').first()).toBeVisible();
     await expect(crop.getByTestId('satellite-scope')).toContainText('Around your location');
     await expect(crop.getByText('No field drawn.', { exact: false })).toBeVisible();
     await expect(crop.getByText('Used to make satellite observations more specific to your field.', { exact: false })).toBeVisible();
@@ -64,7 +64,7 @@ test.describe('Field intelligence loop', () => {
 
     // 6-7. Feedback is recorded and appears in the history.
     await today.getByRole('button', { name: 'Yes', exact: true }).click();
-    await expect(page.locator('#history').getByText('You said: Yes')).toBeVisible();
+    await expect(today.getByText(/tell us how the crop responded under Farm history/)).toBeVisible();
 
     // Edit and remove the field; values fall back to the location circle.
     await crop.getByRole('button', { name: 'Edit field' }).click();

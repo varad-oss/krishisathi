@@ -88,6 +88,12 @@ body {
   line-height: 1.6;
 }
 
+/* Long single words in Indic scripts (and long source names) must wrap instead of widening layouts on
+   small phones. `anywhere` also lets flex and grid items shrink below the length of such a word. */
+main {
+  overflow-wrap: anywhere;
+}
+
 /* Indic scripts need extra line height for matras and conjuncts. */
 html:not([lang="en"]) body {
   line-height: 1.75;

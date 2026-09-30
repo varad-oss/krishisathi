@@ -10,7 +10,7 @@ test.describe('Landing → farm dashboard → advisory', () => {
   test('first visit sets up the farm, shows today, weather, alerts and soil, then asks the advisor', async ({ page }) => {
     await mockApi(page);
     await page.goto('/');
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('agricultural intelligence');
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('what to do next');
     await page.getByRole('link', { name: 'Open farmer dashboard' }).first().click();
 
     await expect(page.getByRole('heading', { name: 'Set up your farm' })).toBeVisible();
@@ -18,8 +18,9 @@ test.describe('Landing → farm dashboard → advisory', () => {
     await page.getByLabel('Main crop').selectOption('Tomato');
     await page.getByRole('button', { name: 'Save' }).click();
 
+    // The farm header names the place before any advice.
+    await expect(page.getByRole('main').getByText('Pune, Maharashtra').first()).toBeVisible();
     const today = page.locator('#today');
-    await expect(today.getByText('Pune, Maharashtra')).toBeVisible();
     // The engine's top action leads the day: humid weather plus a nearby Late Blight cluster make disease the
     // highest risk, ahead of the 41.2 °C heat forecast.
     await expect(today.getByText('Check your crop for disease this week')).toBeVisible();
@@ -97,8 +98,10 @@ test.describe('Farm digital twin', () => {
     await today.getByRole('button', { name: 'Yes', exact: true }).click();
     await expect(today.getByText(/tell us how the crop responded under Farm history/)).toBeVisible();
 
-    const history = page.locator('#history');
-    await expect(history.getByRole('heading', { name: 'Farm history' })).toBeVisible();
+    // History is its own page now, reached from the farm page and the bottom navigation.
+    await page.goto('/history');
+    const history = page.getByRole('main');
+    await expect(history.getByRole('heading', { name: 'Farm history', level: 1 })).toBeVisible();
     await expect(history.getByText('You said: Yes')).toBeVisible();
     await expect(history.getByText('How did the crop respond?')).toBeVisible();
     await expect(history.getByText(/not proof that the advice worked/).first()).toBeVisible();
@@ -111,7 +114,8 @@ test.describe('Farm digital twin', () => {
     await mockApi(page, { farmCreate: unavailable() });
     await page.goto('/farm');
     await expect(page.locator('#today').getByText('Check your crop for disease this week')).toBeVisible();
-    await expect(page.locator('#history').getByText(/starts once your farm is saved on the server/)).toBeVisible();
+    await page.goto('/history');
+    await expect(page.getByRole('main').getByText(/starts once your farm is saved on the server/)).toBeVisible();
   });
 });
 
@@ -168,7 +172,7 @@ test.describe('Something is wrong with my crop', () => {
     await mockApi(page);
     await page.goto('/problem');
     await expect(page.getByRole('heading', { name: 'Something is wrong with my crop' })).toBeVisible();
-    await expect(page.getByRole('link', { name: /Take a photo/ })).toHaveAttribute('href', '/diagnose');
+    await expect(page.getByRole('link', { name: /^Take a photo/ })).toHaveAttribute('href', '/diagnose');
     await expect(page.getByRole('link', { name: /Weather problem/ })).toHaveAttribute('href', '/farm#weather');
     await expect(page.getByRole('link', { name: /Soil concern/ })).toHaveAttribute('href', '/farm#soil');
 
@@ -225,7 +229,7 @@ test.describe('Landing → Diagnose → Result', () => {
     // The farmer starts from "something is wrong", not from a module name.
     await page.getByRole('link', { name: 'Something is wrong with my crop' }).first().click();
     await expect(page.getByRole('heading', { name: 'Something is wrong with my crop' })).toBeVisible();
-    await page.getByRole('link', { name: /Take a photo/ }).click();
+    await page.getByRole('link', { name: /^Take a photo/ }).click();
     await expect(page.getByRole('heading', { name: 'Crop disease check' })).toBeVisible();
 
     await page.getByRole('main').getByTestId('file-input').setInputFiles(leaf);
@@ -235,7 +239,9 @@ test.describe('Landing → Diagnose → Result', () => {
     await expect(page.getByRole('heading', { name: 'Possible Late blight' })).toBeVisible();
     await expect(page.getByRole('img', { name: 'Certainty: Moderate' })).toBeVisible();
     await expect(page.getByText('What the AI saw')).toBeVisible();
+    // Progressive disclosure: the verified reference is one tap away, not dumped on the page.
     await expect(page.getByRole('heading', { name: 'Verified reference', exact: true })).toBeVisible();
+    await page.getByRole('heading', { name: 'Verified reference', exact: true }).click();
     await expect(page.getByText(/ICAR/).first()).toBeVisible();
     await expect(page.getByText(/Confirm the product, dose/)).toBeVisible();
     await expect(page.getByText(/not a substitute for an agronomist/).first()).toBeVisible();
@@ -319,7 +325,7 @@ test.describe('Language', () => {
     await withFarmProfile(page);
     await mockApi(page);
     await page.goto('/farm');
-    await expect(page.locator('#today').getByText('Pune, Maharashtra')).toBeVisible();
+    await expect(page.getByRole('main').getByText('Pune, Maharashtra').first()).toBeVisible();
 
     await page.getByLabel('Language').selectOption('hi');
     await expect(page.locator('html')).toHaveAttribute('lang', 'hi');

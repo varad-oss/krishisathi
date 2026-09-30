@@ -391,7 +391,7 @@ const KIND_KEYS: Record<string, MessageKey> = {
 export function KindTag({ kind, className }: { kind: string; className?: string }) {
   const { t } = useI18n();
   if (!KIND_KEYS[kind]) return null;
-  return <span className={cn('whitespace-nowrap rounded-[var(--radius-tag)] border border-line-strong px-1.5 py-px font-medium text-ink-soft', className)}>{t(KIND_KEYS[kind])}</span>;
+  return <span className={cn('inline-block max-w-full rounded-[var(--radius-tag)] border border-line-strong px-1.5 py-px font-medium text-ink-soft', className)}>{t(KIND_KEYS[kind])}</span>;
 }
 
 /**
