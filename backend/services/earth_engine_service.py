@@ -144,34 +144,33 @@ class EarthEngineService:
         self._next_attempt = time.monotonic() + RETRY_AFTER_S
         self.checked_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
         self.initialized = self.authenticated = False
-        self.configured = bool(settings.EE_SERVICE_ACCOUNT_KEY_JSON)
+        self.configured = bool(settings.EE_SERVICE_ACCOUNT_KEY_JSON) or bool(settings.EE_PROJECT)
         if not self.configured:
-            # EE_PROJECT without a key means Earth Engine was meant to be on: say what is missing.
-            self.status, self.error = "not_configured", "service_account_key_missing" if settings.EE_PROJECT else None
-            logger.warning("Earth Engine configuration missing (EE_SERVICE_ACCOUNT_KEY_JSON); Sentinel-2 crop health is unavailable.")
+            self.status, self.error = "not_configured", None
+            logger.warning("Earth Engine configuration missing; Sentinel-2 crop health is unavailable.")
             return
         if not EE_AVAILABLE:
             self._fail("library_missing")
             logger.error("earthengine-api is not installed; Sentinel-2 crop health is unavailable.")
             return
+
+        self.project = settings.EE_PROJECT
         try:
-            key = parse_service_account_key(settings.EE_SERVICE_ACCOUNT_KEY_JSON)
-        except CredentialError as e:
-            self._fail(e.code)
-            logger.error("Earth Engine key rejected (%s); Sentinel-2 crop health is unavailable.", e.code)
-            return
-        # The Cloud project must be registered for Earth Engine; it may differ from the key's own project.
-        self.project = settings.EE_PROJECT or key["project_id"]
-        logger.info("Earth Engine credentials configured (project %s); verifying access.", self.project)
-        try:
-            credentials = ee.ServiceAccountCredentials(key["client_email"], key_data=json.dumps(key))
-            ee.Initialize(credentials, project=self.project)
+            if settings.EE_SERVICE_ACCOUNT_KEY_JSON:
+                key = parse_service_account_key(settings.EE_SERVICE_ACCOUNT_KEY_JSON)
+                self.project = self.project or key["project_id"]
+                logger.info("Earth Engine credentials configured (project %s); verifying access.", self.project)
+                credentials = ee.ServiceAccountCredentials(key["client_email"], key_data=json.dumps(key))
+                ee.Initialize(credentials, project=self.project)
+            else:
+                logger.info("Earth Engine local credentials configured (project %s); verifying access.", self.project)
+                ee.Initialize(project=self.project)
+                
             ee.data.setDeadline(TIMEOUT_S * 1000)
-            # Initialize() does not contact the API; one tiny request proves the account and project work.
             ee.Number(1).getInfo()
         except Exception as e:
             self._fail(classify_error(e))
-            logger.error("Earth Engine authentication failed (%s) for %s in project %s: %s", self.error, key["client_email"], self.project, e)
+            logger.error("Earth Engine authentication failed (%s) in project %s: %s", self.error, self.project, e)
             return
         self.authenticated = True
         try:
@@ -208,7 +207,7 @@ class EarthEngineService:
 
         def clear_ndvi(img):
             clear = img.select("SCL").remap(list(CLEAR_SCL_CLASSES), [1] * len(CLEAR_SCL_CLASSES), 0)
-            return img.normalizedDifference(["B8", "B4"]).rename("NDVI").updateMask(clear)
+            return img.normalizedDifference(["B8", "B4"]).toFloat().rename("NDVI").updateMask(clear)
 
         # A fully masked NDVI band keeps the composite well-formed when no scene matches, so the
         # result is a null NDVI ("no clear imagery") instead of an Earth Engine error.
