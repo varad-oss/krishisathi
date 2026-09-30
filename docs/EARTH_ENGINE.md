@@ -61,8 +61,9 @@ Latitude must be within −90…90 and longitude within −180…180; other valu
 5. **Set the environment variable** on the backend. For Vercel: *Project → Settings → Environment Variables*, then redeploy.
    - `EE_SERVICE_ACCOUNT_KEY_JSON`: the whole JSON file. If your dashboard mangles multi-line values, paste the base64 output of `base64 -w0 key.json` instead.
    - `EE_PROJECT` (optional): set this only if the project registered in step 2 differs from the key's `project_id`.
+   - Without a key (for example, when an organisation policy blocks JSON key creation): set only `EE_PROJECT` and the backend uses Application Default Credentials — `gcloud auth application-default login` locally, or the host's attached service account. Status and error codes are the same as with a key.
    - Render: the variables are declared in `render.yaml` with `sync: false`; set their values in the dashboard.
-   - Docker / other hosts: pass them as environment variables or secrets. No credential file, `gcloud` login or browser authentication is used.
+   - Docker / other hosts: pass them as environment variables or secrets. With a key set, no credential file, `gcloud` login or browser authentication is used.
 6. **Keep the key secret.** Never commit it. `.env` is git-ignored, and the key is read only from the environment.
 
 ## Verify
@@ -95,14 +96,13 @@ To run the live test in CI, add the key as the GitHub Actions secret `EE_SERVICE
 
 | Code | Meaning | Fix |
 |---|---|---|
-| `not_configured` | `EE_SERVICE_ACCOUNT_KEY_JSON` is not set | Set it (step 5) and redeploy |
-| `service_account_key_missing` | `EE_PROJECT` is set, so Earth Engine was intended, but the key is not | Set `EE_SERVICE_ACCOUNT_KEY_JSON` |
+| `not_configured` | Neither `EE_SERVICE_ACCOUNT_KEY_JSON` nor `EE_PROJECT` is set | Set them (step 5) and redeploy |
 | `invalid_key_encoding` | The value is neither JSON nor base64 | Paste the file contents, or `base64 -w0 key.json` |
 | `invalid_key_json` | The JSON is truncated or malformed | Paste the whole file again |
 | `not_a_service_account_key` | The value is a user OAuth token or another credential type | Create a service-account **JSON key** (step 4) |
 | `key_missing_fields` | `client_email`, `private_key` or `project_id` is missing | Download a fresh key |
 | `library_missing` | `earthengine-api` is not installed | `pip install -r requirements.txt` |
-| `auth_failed` | Google rejected the key (deleted or disabled account, revoked key, `invalid_grant`) | Create a new key (step 4.3) |
+| `auth_failed` | Google rejected the key or application default credentials (deleted or disabled account, revoked key, expired `gcloud` login, `invalid_grant`) | Create a new key (step 4.3) |
 | `project_configuration_error` | The project is not registered for Earth Engine, the API is disabled, or the account lacks a role | Repeat steps 2–4; set `EE_PROJECT` if the registered project differs |
 | `dataset_query_failed` | Authenticated, but reading or querying `COPERNICUS/S2_SR_HARMONIZED` failed | Check server logs |
 | `earth_engine_unavailable` | Network error or Earth Engine server error | None; retried automatically (`retryable: true`) |

@@ -100,7 +100,8 @@ In `ENVIRONMENT=production` the backend requires a real database and Redis.
 ## Validation
 
 ```bash
-# Backend: 156 tests (the Postgres concurrency test runs in CI with a Postgres service)
+# Backend. Tests never use DATABASE_URL: they migrate a throwaway SQLite file, or TEST_DATABASE_URL when set.
+# The Postgres concurrency test runs only with a Postgres TEST_DATABASE_URL (CI provides one).
 cd backend && python -m pytest -q
 
 # Frontend

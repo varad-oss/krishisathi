@@ -144,37 +144,41 @@ class EarthEngineService:
         self._next_attempt = time.monotonic() + RETRY_AFTER_S
         self.checked_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
         self.initialized = self.authenticated = False
-        self.configured = bool(settings.EE_SERVICE_ACCOUNT_KEY_JSON)
-        # If running in production/tests and EE_PROJECT is set but key is missing, report the missing key.
-        import os
-        is_test = "PYTEST_CURRENT_TEST" in os.environ
-        if not self.configured and (is_test or (settings.ENVIRONMENT == "production" and not settings.EE_PROJECT)):
-            self.status, self.error = "not_configured", "service_account_key_missing" if settings.EE_PROJECT else None
-            logger.warning("Earth Engine configuration missing (EE_SERVICE_ACCOUNT_KEY_JSON); Sentinel-2 crop health is unavailable.")
+        # Configured means credentials were supplied: a service-account key, or EE_PROJECT alone for local
+        # Application Default Credentials (`gcloud auth application-default login`) or a platform service account.
+        self.configured = bool(settings.EE_SERVICE_ACCOUNT_KEY_JSON or settings.EE_PROJECT)
+        if not self.configured:
+            self.status, self.error = "not_configured", None
+            logger.warning("Earth Engine not configured (EE_SERVICE_ACCOUNT_KEY_JSON or EE_PROJECT); Sentinel-2 crop health is unavailable.")
             return
-            
         if not EE_AVAILABLE:
             self._fail("library_missing")
             logger.error("earthengine-api is not installed; Sentinel-2 crop health is unavailable.")
             return
 
-        self.project = settings.EE_PROJECT
-        try:
-            if settings.EE_SERVICE_ACCOUNT_KEY_JSON:
+        key = None
+        if settings.EE_SERVICE_ACCOUNT_KEY_JSON:
+            try:
                 key = parse_service_account_key(settings.EE_SERVICE_ACCOUNT_KEY_JSON)
-                self.project = self.project or key["project_id"]
-                logger.info("Earth Engine credentials configured (project %s); verifying access.", self.project)
-                credentials = ee.ServiceAccountCredentials(key["client_email"], key_data=json.dumps(key))
-                ee.Initialize(credentials, project=self.project)
+            except CredentialError as e:
+                self._fail(e.code)
+                logger.error("Earth Engine key rejected (%s); Sentinel-2 crop health is unavailable.", e.code)
+                return
+        # The Cloud project must be registered for Earth Engine; it may differ from the key's own project.
+        self.project = settings.EE_PROJECT or (key and key["project_id"])
+        account = key["client_email"] if key else "application default credentials"
+        logger.info("Earth Engine credentials configured (%s, project %s); verifying access.", account, self.project)
+        try:
+            if key:
+                ee.Initialize(ee.ServiceAccountCredentials(key["client_email"], key_data=json.dumps(key)), project=self.project)
             else:
-                logger.info("Earth Engine local credentials configured (project %s); verifying access.", self.project)
                 ee.Initialize(project=self.project)
-                
             ee.data.setDeadline(TIMEOUT_S * 1000)
+            # Initialize() does not contact the API; one tiny request proves the credentials and project work.
             ee.Number(1).getInfo()
         except Exception as e:
             self._fail(classify_error(e))
-            logger.error("Earth Engine authentication failed (%s) in project %s: %s", self.error, self.project, e)
+            logger.error("Earth Engine authentication failed (%s) for %s in project %s: %s", self.error, account, self.project, e)
             return
         self.authenticated = True
         try:

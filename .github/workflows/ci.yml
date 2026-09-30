@@ -67,7 +67,8 @@ jobs:
         env:
           # Optional: when this secret exists, tests/test_earth_engine.py also queries real Sentinel-2 data.
           EE_SERVICE_ACCOUNT_KEY_JSON: ${{ secrets.EE_SERVICE_ACCOUNT_KEY_JSON }}
-        run: uv pip install --system pytest pytest-asyncio && cd backend && python -m alembic upgrade head && cd .. && DATABASE_URL="sqlite+aiosqlite:///${PWD}/backend/krishisathi.db" pytest backend/tests/
+        # tests/conftest.py migrates a throwaway SQLite database for the run.
+        run: uv pip install --system pytest pytest-asyncio && pytest backend/tests/
 
   test-backend-postgres:
     name: Test Backend (PostgreSQL Concurrency)
@@ -94,7 +95,6 @@ jobs:
           python-version: '3.11'
       - name: Install Dependencies
         run: pip install uv && uv pip install --system -r backend/requirements.txt pytest pytest-asyncio asyncpg psycopg2-binary
-      - name: Run Alembic
-        run: cd backend && DATABASE_URL="postgresql+asyncpg://krishi:password@localhost:5432/krishisathi" python -m alembic upgrade head
       - name: Run Postgres Concurrency Tests
-        run: cd backend && DATABASE_URL="postgresql+asyncpg://krishi:password@localhost:5432/krishisathi" python -m pytest tests/test_p05_postgres.py
+        # tests/conftest.py runs the migrations against TEST_DATABASE_URL, the only database tests may write to.
+        run: cd backend && TEST_DATABASE_URL="postgresql+asyncpg://krishi:password@localhost:5432/krishisathi" python -m pytest tests/test_p05_postgres.py

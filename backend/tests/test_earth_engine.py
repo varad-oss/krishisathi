@@ -74,9 +74,19 @@ def test_missing_key_is_not_configured():
     ee_mock.Initialize.assert_not_called()
 
 
-def test_project_without_key_says_what_is_missing():
-    svc, _ = _service(None, project="registered-ee-project")
-    assert (svc.status, svc.error) == ("not_configured", "service_account_key_missing")
+def test_project_without_key_uses_application_default_credentials():
+    svc, ee_mock = _service(None, project="registered-ee-project")
+    assert _state(svc) == (True, True, True, "available", None)
+    ee_mock.ServiceAccountCredentials.assert_not_called()
+    ee_mock.Initialize.assert_called_once_with(project="registered-ee-project")
+    ee_mock.Number.return_value.getInfo.assert_called_once()  # ADC is verified like a key, never assumed
+
+
+def test_rejected_application_default_credentials_are_unavailable():
+    ee_mock = MagicMock()
+    ee_mock.Number.return_value.getInfo.side_effect = RefreshError("Reauthentication is needed")
+    svc, _ = _service(None, ee_mock, project="registered-ee-project")
+    assert _state(svc) == (True, False, False, "unavailable", "auth_failed")
 
 
 def test_bad_key_is_unavailable_not_a_silent_not_set_up():

@@ -159,3 +159,15 @@ async def test_stale_outbreaks_are_not_active():
         await session.execute(update(OutbreakRecord).values(timestamp=datetime.utcnow() - timedelta(days=30)))
         await session.commit()
     assert await persistence_service.get_outbreaks() == []
+
+
+@pytest.mark.asyncio
+async def test_daily_diagnoses_are_zero_filled_for_days_without_records():
+    await persistence_service.save_diagnosis(RUST, "Wheat", None, None, "en")
+    await persistence_service.save_diagnosis(RUST, "Wheat", None, None, "en")
+    daily = (await persistence_service.get_dashboard_stats())["daily_diagnoses_30d"]
+    dates = [d["date"] for d in daily]
+    assert dates == sorted(dates) and len(set(dates)) == len(dates) == 31  # every day in the window, once
+    assert dates[-1] == datetime.utcnow().date().isoformat()
+    assert daily[-1]["count"] == 2
+    assert sum(d["count"] for d in daily) == 2  # padding adds days, never diagnoses
