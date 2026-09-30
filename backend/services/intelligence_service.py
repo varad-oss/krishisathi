@@ -13,6 +13,16 @@ from services.weather_service import PROVENANCE_BASE as WEATHER_PROVENANCE
 LOCATION_DECIMALS = 3  # ~110 m: enough to identify the field for the farmer, returned only to them
 
 
+def _radar_quality(c) -> DataQuality:
+    sar = (c.data or {}).get("sar") or {}
+    if sar:
+        status = {"available": "available", "no_data": "no_data"}.get(sar.get("status"), "unavailable")
+        return DataQuality(source="radar", status=status, kind="satellite_observation", provider="Sentinel-1 (Copernicus)",
+                           reason=sar.get("reason"), as_of=sar.get("latest_image_date"))
+    # No query ran (not configured, failed or still loading): same state as the optical satellite.
+    return DataQuality(source="radar", status=c.status, kind="satellite_observation", provider="Sentinel-1 (Copernicus)", reason=c.reason)
+
+
 def data_quality(ctx: FarmContext) -> list[DataQuality]:
     w, s, c, o = ctx.weather, ctx.soil, ctx.crop_health, ctx.outbreaks
     stage = ctx.crop_stage
@@ -24,6 +34,7 @@ def data_quality(ctx: FarmContext) -> list[DataQuality]:
                     as_of=(s.data.get("provenance") or {}).get("retrieved_at") if s.ok else None),
         DataQuality(source="satellite", status=c.status, kind="satellite_observation", provider="Sentinel-2 (Copernicus)", reason=c.reason,
                     as_of=c.data.get("latest_image_date") if c.ok else None),
+        _radar_quality(c),
         DataQuality(source="crop_stage", status=stage_status, kind="rule", provider="FAO-56 Table 11",
                     reason=None if stage_status == "available" else stage["status"]),
         DataQuality(source="outbreaks", status=o.status, kind="ai_classified_user_reports", provider="KrishiSathi community reports", reason=o.reason),

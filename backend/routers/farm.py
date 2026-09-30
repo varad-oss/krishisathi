@@ -49,6 +49,12 @@ async def get_crop_health(lat: float = Lat, lng: float = Lng):
     return await earth_engine_service.get_point_crop_health(lat, lng)
 
 
+@router.get("/crop-health/history")
+async def get_crop_health_history(lat: float = Lat, lng: float = Lng):
+    """Sentinel-2 NDVI for six consecutive 30-day windows; a window without a clear observation is null, never filled in."""
+    return await earth_engine_service.get_point_history(lat, lng)
+
+
 @router.get("/regenerative")
 async def get_regenerative(lat: float = Lat, lng: float = Lng, crop: str | None = Crop):
     canonical_crop = normalize_crop(crop)

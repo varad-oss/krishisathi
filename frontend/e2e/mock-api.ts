@@ -28,6 +28,7 @@ export async function mockApi(page: Page, overrides: Overrides = {}) {
   const ROUTES: Record<string, { match: RegExp; body: unknown }> = {
     conditions: { match: /\/api\/farm\/conditions/, body: f.conditions },
     regenerative: { match: /\/api\/farm\/regenerative/, body: f.regenerative },
+    cropHistory: { match: /\/api\/farm\/crop-health\/history/, body: { status: 'unavailable', reason: 'not_configured' } },
     cropHealth: { match: /\/api\/farm\/crop-health/, body: f.crop_health },
     intelligence: { match: /\/api\/farm\/intelligence/, body: f.intelligence },
     farmFeedback: { match: /\/api\/farms\/[^/]+\/actions\/[^/]+\/feedback$/, body: f.feedback },

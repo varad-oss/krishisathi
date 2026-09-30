@@ -252,3 +252,27 @@ def test_intelligence_endpoint_when_weather_is_down():
 def test_intelligence_endpoint_validates_input():
     assert client.get("/api/farm/intelligence", params={"lat": 91, "lng": 0}).status_code == 422
     assert client.get("/api/farm/intelligence", params={"lat": 1, "lng": 1, "sowing_date": "yesterday"}).status_code == 422
+
+
+def test_radar_water_signal_raises_waterlogging_through_cloud():
+    sar = {"status": "available", "orbit_pass": "ASCENDING", "vh_db": -19.5, "vh_db_previous": -15.0, "vh_change_db": -4.5,
+           "water_signal": True, "latest_image_date": "2026-09-24"}
+    cloudy = Signal("no_data", {"status": "no_data", "reason": "no_suitable_observation", "sar": sar}, reason="no_suitable_observation")
+    r = risks_by_category(ctx(daily=DRY_WEEK, sat=cloudy))
+    assert r["waterlogging"].severity == "moderate" and r["waterlogging"].drivers[0] == "sar_water_signal"
+    assert r["waterlogging"].evidence[0].id == "sar_vh_change" and r["waterlogging"].evidence[0].basis == "satellite_observation"
+    assert any("UN-SPIDER" in rule.source for rule in r["waterlogging"].rules)
+    assert r["crop_health"].severity == "unavailable"  # radar is not turned into a crop-health score
+    dq = {d.source: d for d in assemble(ctx(sat=cloudy)).data_quality}
+    assert dq["satellite"].status == "no_data" and dq["radar"].status == "available" and dq["radar"].as_of == "2026-09-24"
+
+
+def test_ndvi_below_seasonal_baseline():
+    base = {"status": "available", "position": "below_range", "min": 0.58, "max": 0.62, "years": [{"ndvi": 0.62}, {"ndvi": 0.58}, {"ndvi": None}]}
+    both = Signal("available", {"status": "available", "ndvi": 0.41, "ndvi_previous": 0.58, "change": -0.17, "baseline": base})
+    r = risks_by_category(ctx(sat=both))["crop_health"]
+    assert r.severity == "moderate" and r.drivers == ["ndvi_decline", "ndvi_below_baseline"] and r.confidence == "moderate"
+    only_baseline = Signal("available", {"status": "available", "ndvi": 0.41, "change": None, "baseline": base})
+    r = risks_by_category(ctx(sat=only_baseline))["crop_health"]
+    assert r.drivers == ["ndvi_below_baseline"] and r.confidence == "low"
+    assert {e.id for e in r.evidence} == {"ndvi_baseline"}

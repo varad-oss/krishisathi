@@ -32,7 +32,7 @@ const IMPACT: Partial<Record<Risk['category'], MessageKey>> = {
 const DRIVERS = new Set([
   'heavy_rain_forecast', 'rain_expected', 'soil_wet', 'soil_dry', 'dry_spell_forecast', 'heat_stress_forecast',
   'cold_stress_forecast', 'sensitive_stage', 'fungal_weather', 'nearby_outbreak', 'recent_farm_diagnosis', 'wind_high',
-  'rain_soon', 'harvest_stage', 'ndvi_decline', 'ndvi_stable', 'not_harvest_stage',
+  'rain_soon', 'harvest_stage', 'ndvi_decline', 'ndvi_stable', 'not_harvest_stage', 'sar_water_signal', 'ndvi_below_baseline',
 ]);
 
 const BASIS_KIND: Record<EvidenceBasis, string> = {
@@ -124,6 +124,10 @@ export function evidenceText(t: T, fmt: Fmt, e: Evidence): string {
       });
     case 'ndvi_change':
       return t('evidence.ndvi_change', { ndvi: num(p.ndvi, 2), change: `${typeof e.value === 'number' && e.value > 0 ? '+' : ''}${num(e.value, 2)}` });
+    case 'ndvi_baseline':
+      return t('evidence.ndvi_baseline', { ndvi: num(p.ndvi, 2), years: num(p.years, 0), min: num(p.min, 2), max: num(p.max, 2) });
+    case 'sar_vh_change':
+      return t('evidence.sar_vh_change', { vh: num(p.vh_db, 1), change: `${typeof e.value === 'number' && e.value > 0 ? '+' : ''}${num(e.value, 1)}` });
     default:
       return String(e.value ?? '');
   }

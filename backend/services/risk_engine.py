@@ -31,6 +31,9 @@ STAGE_RULE = RuleRef(id="crop_stage_calendar", source="FAO Irrigation and Draina
 DISEASE_RULE = RuleRef(id="disease_signal_count", source=GUIDANCE)
 NDVI_RULE = RuleRef(id="ndvi_decline", source=f"{GUIDANCE}; screening threshold, not a validated crop-loss indicator")
 NDVI_DECLINE = -0.1   # NDVI change between two 30-day windows that is worth a field visit
+BASELINE_RULE = RuleRef(id="ndvi_baseline_range", source="KrishiSathi rule: current NDVI outside the range of the same weeks in previous years")
+SAR_WATER_RULE = RuleRef(id="sar_water_signal", source="UN-SPIDER Recommended Practice, Sentinel-1 flood mapping (VH ratio > 1.25)",
+                         url="https://www.un-spider.org/advisory-support/recommended-practices/recommended-practice-google-earth-engine-flood-mapping")
 RECENT_DIAGNOSIS_DAYS = 14
 
 
@@ -74,6 +77,19 @@ def _ev_soil_water(ctx: FarmContext) -> list[Evidence]:
     return out
 
 
+def _sar(ctx: FarmContext) -> dict:
+    """Sentinel-1 summary when the satellite query ran (it is reported even when Sentinel-2 saw only cloud)."""
+    data = ctx.crop_health.data or {}
+    sar = data.get("sar") or {}
+    return sar if sar.get("status") == "available" else {}
+
+
+def _ev_sar(sar: dict) -> Evidence:
+    return Evidence(id="sar_vh_change", value=sar.get("vh_change_db"), unit="dB", date=sar.get("latest_image_date"),
+                    basis="satellite_observation", source="satellite_radar",
+                    params={"vh_db": sar.get("vh_db"), "vh_db_previous": sar.get("vh_db_previous"), "orbit_pass": sar.get("orbit_pass")})
+
+
 def _ev_stage(ctx: FarmContext) -> list[Evidence]:
     s = ctx.crop_stage
     if s["status"] not in ("estimated", "beyond_season"):
@@ -102,6 +118,13 @@ def waterlogging(ctx: FarmContext) -> Risk:
     if heavy:
         return _risk("waterlogging", "high", ctx, confidence="moderate", drivers=["heavy_rain_forecast"] + (["soil_wet"] if wet else []),
                      evidence=[_ev_insight(heavy), *soil_ev], action="clear_drainage", date=heavy["date"], rules=[_rule(heavy), *soil_rules])
+    sar = _sar(ctx)
+    if sar.get("water_signal"):
+        # Radar sees through the cloud that usually accompanies waterlogging; a screening signal, never a flood map.
+        drivers = ["sar_water_signal"] + (["rain_expected"] if rain else []) + (["soil_wet"] if wet else [])
+        evidence = [_ev_sar(sar)] + ([_ev_insight(rain)] if rain else []) + soil_ev
+        return _risk("waterlogging", "moderate", ctx, confidence="low", drivers=drivers, evidence=evidence, action="clear_drainage",
+                     date=sar.get("latest_image_date"), rules=[SAR_WATER_RULE] + ([_rule(rain)] if rain else []) + soil_rules)
     if rain and wet:
         return _risk("waterlogging", "moderate", ctx, confidence="low", drivers=["rain_expected", "soil_wet"],
                      evidence=[_ev_insight(rain), *soil_ev], action="delay_irrigation", date=rain["date"], rules=[_rule(rain), SOIL_WATER_RULE])
@@ -234,14 +257,27 @@ def crop_health(ctx: FarmContext) -> Risk:
         return _unavailable("crop_health", sat.reason or sat.status, ctx)
     h = sat.data
     change = h.get("change")
-    if change is None:
+    baseline = h.get("baseline") or {}
+    below = baseline.get("status") == "available" and baseline.get("position") == "below_range"
+    if change is None and baseline.get("status") != "available":
         return _unavailable("crop_health", "insufficient_history", ctx)
-    evidence = [Evidence(id="ndvi_change", value=change, date=h.get("latest_image_date"), basis="satellite_observation", source="satellite",
-                         params={"ndvi": h.get("ndvi"), "ndvi_previous": h.get("ndvi_previous"), "clear_pixel_fraction": h.get("clear_pixel_fraction")})]
-    if change <= NDVI_DECLINE:
-        return _risk("crop_health", "moderate", ctx, confidence="low", drivers=["ndvi_decline"], evidence=evidence,
-                     action="inspect_field", date=h.get("latest_image_date"), rules=[NDVI_RULE])
-    return _risk("crop_health", "low", ctx, confidence="low", drivers=["ndvi_stable"], evidence=evidence, rules=[NDVI_RULE])
+    evidence = []
+    if change is not None:
+        evidence.append(Evidence(id="ndvi_change", value=change, date=h.get("latest_image_date"), basis="satellite_observation", source="satellite",
+                                 params={"ndvi": h.get("ndvi"), "ndvi_previous": h.get("ndvi_previous"), "clear_pixel_fraction": h.get("clear_pixel_fraction")}))
+    if baseline.get("status") == "available":
+        evidence.append(Evidence(id="ndvi_baseline", value=baseline.get("position"), date=h.get("latest_image_date"), basis="satellite_observation",
+                                 source="satellite", params={"ndvi": h.get("ndvi"), "min": baseline.get("min"), "max": baseline.get("max"),
+                                                             "years": sum(y["ndvi"] is not None for y in baseline.get("years", []))}))
+    declined = change is not None and change <= NDVI_DECLINE
+    drivers = (["ndvi_decline"] if declined else []) + (["ndvi_below_baseline"] if below else [])
+    rules = ([NDVI_RULE] if change is not None else []) + ([BASELINE_RULE] if baseline.get("status") == "available" else [])
+    if drivers:
+        # Two independent views (recent change and the same season in past years) agreeing raise confidence, not severity:
+        # crop rotation, sowing date and harvest also move NDVI.
+        return _risk("crop_health", "moderate", ctx, confidence="moderate" if len(drivers) == 2 else "low", drivers=drivers,
+                     evidence=evidence, action="inspect_field", date=h.get("latest_image_date"), rules=rules)
+    return _risk("crop_health", "low", ctx, confidence="low", drivers=["ndvi_stable"], evidence=evidence, rules=rules)
 
 
 def assess(ctx: FarmContext) -> list[Risk]:

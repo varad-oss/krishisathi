@@ -119,6 +119,28 @@ export interface RegenerativeResponse {
   recommendations: RegenRecommendation[];
 }
 
+export interface SarSummary {
+  status: 'available' | 'no_data' | 'unavailable';
+  reason?: string;
+  orbit_pass?: 'ASCENDING' | 'DESCENDING';
+  latest_image_date?: string | null;
+  vv_db?: number;
+  vh_db?: number;
+  vh_db_previous?: number | null;
+  vh_change_db?: number | null;
+  /** UN-SPIDER change-detection screening signal for standing water; null when there is no earlier pass. */
+  water_signal?: boolean | null;
+}
+
+export interface NdviBaseline {
+  status: 'available' | 'insufficient_data';
+  years: { year: number; ndvi: number | null; clear_pixel_fraction: number; image_count: number | null }[];
+  mean?: number;
+  min?: number;
+  max?: number;
+  position?: 'below_range' | 'within_range' | 'above_range' | null;
+}
+
 export interface CropHealth {
   status: 'available' | 'unavailable' | 'no_data';
   reason?: string;
@@ -127,7 +149,17 @@ export interface CropHealth {
   change?: number | null;
   window?: { start: string; end: string };
   image_count?: number | null;
+  latest_image_date?: string | null;
+  clear_pixel_fraction?: number;
+  baseline?: NdviBaseline;
+  sar?: SarSummary;
   provenance: Provenance;
+}
+
+export interface CropHealthHistory {
+  status: 'available' | 'insufficient_data' | 'unavailable';
+  reason?: string;
+  series?: { start: string; end: string; ndvi: number | null; clear_pixel_fraction: number; image_count: number | null }[];
 }
 
 export interface Kvk {

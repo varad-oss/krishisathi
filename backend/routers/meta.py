@@ -2,7 +2,7 @@
 from fastapi import APIRouter
 
 from config import settings
-from services.earth_engine_service import PROVENANCE as SATELLITE_PROVENANCE, earth_engine_service
+from services.earth_engine_service import PROVENANCE as SATELLITE_PROVENANCE, S1_PROVENANCE, earth_engine_service
 from services.gemini_service import gemini_service
 
 router = APIRouter(prefix="/api", tags=["Meta"])
@@ -23,6 +23,11 @@ async def list_sources():
              "status": {"available": "configured", "not_configured": "not_configured"}.get(earth_engine_service.status, "unavailable"),
              "detail": earth_engine_service.error, "used_for": ["crop_health"],
              **{k: SATELLITE_PROVENANCE[k] for k in ("dataset", "provider", "processing")}},
+            {"id": "radar", "name": "Sentinel-1 via Google Earth Engine", "url": S1_PROVENANCE["source_url"], "kind": "satellite_observation",
+             "status": "configured" if earth_engine_service.initialized and earth_engine_service.sar_available
+             else "not_configured" if earth_engine_service.status == "not_configured" else "unavailable",
+             "detail": earth_engine_service.error, "used_for": ["crop_health", "waterlogging"],
+             **{k: S1_PROVENANCE[k] for k in ("dataset", "provider", "processing")}},
             {"id": "ai", "name": f"Google Gemini ({settings.GEMINI_DIAGNOSIS_MODEL})", "url": "https://ai.google.dev/", "kind": "ai_model", "status": configured(gemini_service.configured), "used_for": ["diagnosis", "advisory", "report"]},
             {"id": "disease_reference", "name": "Curated disease reference (ICAR institutes)", "url": None, "kind": "curated_reference", "status": "configured", "used_for": ["diagnosis", "advisory"]},
             {"id": "community_reports", "name": "KrishiSathi diagnosis records", "url": None, "kind": "ai_classified_user_reports", "status": "configured", "used_for": ["outbreaks", "policy_dashboard"]},

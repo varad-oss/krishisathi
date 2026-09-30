@@ -74,6 +74,33 @@ test.describe('Soil and KVK honesty', () => {
   });
 });
 
+test.describe('Satellite crop health', () => {
+  test('shows NDVI against past seasons, radar through cloud, and history gaps as gaps', async ({ page }) => {
+    await withFarmProfile(page);
+    const provenance = { ...fixtureData.crop_health.provenance };
+    const health = {
+      status: 'available', ndvi: 0.41, ndvi_previous: 0.58, change: -0.17, latest_image_date: '2026-09-20', clear_pixel_fraction: 0.82,
+      window: { start: '2026-08-31', end: '2026-09-30' }, image_count: 4,
+      baseline: { status: 'available', years: [{ year: 2025, ndvi: 0.62, clear_pixel_fraction: 0.9, image_count: 3 }, { year: 2024, ndvi: 0.58, clear_pixel_fraction: 0.7, image_count: 2 }], min: 0.58, max: 0.62, mean: 0.6, position: 'below_range' },
+      sar: { status: 'available', orbit_pass: 'ASCENDING', latest_image_date: '2026-09-24', vv_db: -9, vh_db: -19.5, vh_db_previous: -15, vh_change_db: -4.5, water_signal: true },
+      provenance,
+    };
+    const series = ['2026-04-03', '2026-05-03', '2026-06-02', '2026-07-02', '2026-08-01', '2026-08-31'].map((start, i) => ({
+      start, end: start, ndvi: [0.3, null, 0.55, 0.6, null, 0.41][i], clear_pixel_fraction: 0.5, image_count: 2,
+    }));
+    await mockApi(page, { cropHealth: { body: health }, cropHistory: { body: { status: 'available', series } } });
+    await page.goto('/farm');
+    const crop = page.locator('#crop');
+    await expect(crop.getByText('Getting less green')).toBeVisible();
+    await expect(crop.getByText(/Less green than the same weeks in past years \(0\.58 to 0\.62\)/)).toBeVisible();
+    await expect(crop.getByText(/82% of the area was free of cloud/)).toBeVisible();
+    await expect(crop.getByText(/typical of standing water/)).toBeVisible();
+    await crop.getByText('View satellite history').click();
+    await expect(crop.getByText('Greenness over the last 6 months')).toBeVisible();
+    await expect(crop.getByText('no clear image')).toHaveCount(2);
+  });
+});
+
 test.describe('Connection errors', () => {
   test('a blocked request to a reachable server is a service problem, not "check your internet"', async ({ page }) => {
     await mockApi(page, { stats: { abort: true } });

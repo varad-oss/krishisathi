@@ -49,6 +49,38 @@ Latitude must be within −90…90 and longitude within −180…180; other valu
 5. It returns `ndvi`, `ndvi_previous`, `change`, `image_count`, `latest_image_date`, `clear_pixel_fraction`, `observation` (newest scene: `image_id`, `sensed_at`, `scene_cloud_pct`), `roi`, both windows and provenance. Both windows come back in a single Earth Engine request.
 6. If no usable observation exists (for example during the monsoon), it returns `"status": "no_data", "reason": "no_suitable_observation"`, never a number. `observation` still names the newest scene, if any, so you can see it was cloudy.
 
+### Same-season baseline (temporal context)
+
+The same request also computes steps 1–4 for the **same 30-day window in each of the previous 3 years**
+(`baseline.years`). With at least 2 usable years, `baseline.position` says whether the current NDVI is
+`below_range`, `within_range` or `above_range` of those years (their min–max). With fewer, `baseline.status`
+is `insufficient_data` and no position is given. No threshold is involved; rotation, a different sowing date
+or a different crop in past years also move this comparison, so it is shown as context, not a diagnosis.
+
+### History series
+
+`GET /api/farm/crop-health/history?lat=&lng=` returns NDVI for the last **six consecutive 30-day windows**
+(one Earth Engine request). A window without a clear observation is `null` and the UI draws it as a gap;
+nothing is interpolated. Fewer than 2 usable windows gives `"status": "insufficient_data"`.
+
+### Sentinel-1 radar (cloud-resilient)
+
+[`COPERNICUS/S1_GRD`](https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S1_GRD) is read in the same
+request when its metadata check passed at start-up (`radar_available` in `/api/debug/earth-engine-status`; a
+failing radar check never disables Sentinel-2). For the last 12 days and the 12 days before, it takes IW-mode
+scenes with VV and VH, averages backscatter (dB, already calibrated and terrain-corrected) over the 250 m circle,
+separately for ascending and descending passes, and compares only the same pass direction.
+
+| Field | Meaning | Interpretation |
+|---|---|---|
+| `vv_db`, `vh_db` | mean backscatter now | Shown, not scored. VH responds to vegetation volume; both respond to soil moisture, tillage and water. |
+| `vh_change_db` | change from the earlier pass | Shown, not scored: growth, harvest, tillage and flooding all change it. |
+| `water_signal` | `vh_now / vh_before > 1.25` (both dB) | UN-SPIDER Recommended Practice change-detection threshold for new open water. Applied to the circle's mean, so it is a *screening* signal for standing water, never a flood map. `null` without an earlier pass. |
+
+Radar does not measure crop health, pH or nutrients and is never turned into a crop-health score. Its only use in
+the risk engine is the `water_signal`, which can raise waterlogging to *moderate* (confidence *low*).
+Averaging dB values is a simplification; over ~2 000 pixels it mainly suppresses speckle.
+
 ## One-time setup
 
 1. **Google Cloud project.** Create a project, or reuse one, in the [Cloud console](https://console.cloud.google.com/).

@@ -102,7 +102,9 @@ def test_valid_key_initializes_and_verifies_account_and_dataset_with_real_reques
     ee_mock.ServiceAccountCredentials.assert_called_once()
     assert ee_mock.Initialize.call_args.kwargs["project"] == "krishisathi-ee"
     ee_mock.Number.return_value.getInfo.assert_called_once()  # proves account + project, not just parsing
-    ee_mock.data.getAsset.assert_called_once_with("COPERNICUS/S2_SR_HARMONIZED")  # proves the dataset is readable
+    # proves the datasets are readable: Sentinel-2 (required) and Sentinel-1 (optional radar)
+    assert [c.args[0] for c in ee_mock.data.getAsset.call_args_list] == ["COPERNICUS/S2_SR_HARMONIZED", "COPERNICUS/S1_GRD"]
+    assert svc.sar_available is True
     ee_mock.data.setDeadline.assert_called_once_with(ees.TIMEOUT_S * 1000)
 
 
@@ -304,3 +306,95 @@ def test_live_sentinel2_ndvi_for_a_ludhiana_wheat_field():
         assert -1.0 <= body["ndvi"] <= 1.0
         assert body["image_count"] >= 1 and body["latest_image_date"] <= date.today().isoformat()
         assert body["observation"]["image_id"].startswith("COPERNICUS/S2_SR_HARMONIZED/")
+
+
+# --- Temporal baseline, history series and Sentinel-1 radar ------------------------------------
+
+def _point_with(info, sar_available=True):
+    svc = EarthEngineService.__new__(EarthEngineService)
+    svc.sar_available = sar_available
+    ee_mock = MagicMock()
+    ee_mock.Dictionary.return_value.getInfo.return_value = info
+    with patch.object(ees, "ee", ee_mock, create=True), patch.object(EarthEngineService, "_window_stats", staticmethod(lambda *a: None)), \
+            patch.object(EarthEngineService, "_sar_stats", staticmethod(lambda *a: None)):
+        return svc._point_ndvi(30.9, 75.85, date(2026, 3, 1))
+
+
+def _win(ndvi, px=FULL):
+    return {"ndvi": ndvi, "clear_px": px, "count": 3, "latest_ms": 1772150400000, **SCENE}
+
+
+def _pass(vv, vh, count=2):
+    return {"vv_db": vv, "vh_db": vh, "count": count, "latest_ms": 1772150400000}
+
+
+def test_baseline_compares_with_the_same_weeks_of_previous_years():
+    res = _point_with({"current": _win(0.41), "previous": _win(0.55),
+                       "baseline_1": _win(0.62), "baseline_2": _win(0.58), "baseline_3": _win(None, 0)})
+    b = res["baseline"]
+    assert b["status"] == "available" and (b["min"], b["max"], b["mean"]) == (0.58, 0.62, 0.6)
+    assert b["position"] == "below_range"
+    assert [y["year"] for y in b["years"]] == [2025, 2024, 2023] and b["years"][2]["ndvi"] is None  # cloudy year stays null
+
+
+def test_baseline_needs_two_usable_years():
+    res = _point_with({"current": _win(0.41), "previous": _win(0.55), "baseline_1": _win(0.62), "baseline_2": _win(0.7, 10)})
+    assert res["baseline"]["status"] == "insufficient_data" and "position" not in res["baseline"]
+
+
+def test_radar_is_reported_even_when_clouds_hide_the_field():
+    res = _point_with({"current": _win(None, 0), "previous": _win(0.5),
+                       "sar_current": {"ASCENDING": _pass(-9.0, -19.5), "DESCENDING": _pass(None, None, 0)},
+                       "sar_previous": {"ASCENDING": _pass(-8.0, -15.0), "DESCENDING": _pass(None, None, 0)}})
+    assert res["status"] == "no_data" and "ndvi" not in res
+    sar = res["sar"]
+    assert sar["status"] == "available" and sar["orbit_pass"] == "ASCENDING"
+    assert (sar["vh_db"], sar["vh_db_previous"], sar["vh_change_db"]) == (-19.5, -15.0, -4.5)
+    assert sar["water_signal"] is True  # -19.5 / -15.0 = 1.3 > 1.25 (UN-SPIDER)
+    assert sar["provenance"]["dataset"] == "COPERNICUS/S1_GRD" and "not a measurement" in sar["provenance"]["signal"]
+
+
+def test_radar_compares_only_the_same_orbit_direction():
+    res = _point_with({"current": _win(0.5), "previous": _win(0.5),
+                       "sar_current": {"ASCENDING": _pass(-9, -16), "DESCENDING": _pass(-10, -18)},
+                       "sar_previous": {"ASCENDING": _pass(None, None, 0), "DESCENDING": _pass(-10, -17)}})
+    assert res["sar"]["orbit_pass"] == "DESCENDING" and res["sar"]["water_signal"] is False
+
+
+def test_radar_without_a_previous_pass_has_no_change_and_no_water_claim():
+    res = _point_with({"current": _win(0.5), "previous": _win(0.5),
+                       "sar_current": {"ASCENDING": _pass(-9, -16), "DESCENDING": _pass(None, None, 0)},
+                       "sar_previous": {"ASCENDING": _pass(None, None, 0), "DESCENDING": _pass(None, None, 0)}})
+    assert res["sar"]["vh_change_db"] is None and res["sar"]["water_signal"] is None
+
+
+def test_no_radar_scene_and_radar_dataset_unavailable():
+    empty = {"ASCENDING": _pass(None, None, 0), "DESCENDING": _pass(None, None, 0)}
+    assert _point_with({"current": _win(0.5), "previous": _win(0.5), "sar_current": empty, "sar_previous": empty})["sar"]["reason"] == "no_radar_scene"
+    res = _point_with({"current": _win(0.5), "previous": _win(0.5)}, sar_available=False)
+    assert res["status"] == "available" and res["sar"]["reason"] == "radar_dataset_unavailable"
+
+
+def test_radar_dataset_failure_does_not_disable_sentinel2():
+    ee_mock = MagicMock()
+
+    def get_asset(asset):
+        if asset == "COPERNICUS/S1_GRD":
+            raise Exception("permission denied")
+        return {}
+
+    ee_mock.data.getAsset.side_effect = get_asset
+    svc, _ = _service(json.dumps(KEY), ee_mock)
+    assert svc.status == "available" and svc.initialized and svc.sar_available is False
+
+
+def test_history_series_keeps_gaps_as_null():
+    svc = EarthEngineService.__new__(EarthEngineService)
+    ee_mock = MagicMock()
+    ee_mock.Dictionary.return_value.getInfo.return_value = {"0": _win(0.6), "1": _win(None, 0), "2": _win(0.55), "3": _win(0.4, 20),
+                                                            "4": _win(0.3), "5": {}}
+    with patch.object(ees, "ee", ee_mock, create=True), patch.object(EarthEngineService, "_window_stats", staticmethod(lambda *a: None)):
+        res = svc._point_series(30.9, 75.85, date(2026, 3, 1))
+    assert [p["ndvi"] for p in res["series"]] == [None, 0.3, None, 0.55, None, 0.6]  # oldest first; cloudy windows stay null
+    assert res["series"][-1]["end"] == "2026-03-01" and res["usable_windows"] == 3 and res["status"] == "available"
+    assert ee_mock.Dictionary.return_value.getInfo.call_count == 1

@@ -1,6 +1,7 @@
 import type {
   AdvisoryResponse,
   CropHealth,
+  CropHealthHistory,
   DashboardReport,
   DashboardStats,
   DiagnosisResponse,
@@ -199,6 +200,9 @@ export const getSoil = (lat: number, lng: number, signal?: AbortSignal) =>
 
 export const getCropHealth = (lat: number, lng: number, signal?: AbortSignal) =>
   request<CropHealth>(`/api/farm/crop-health?${q({ lat, lng })}`, { signal, timeoutMs: 40_000 });
+
+export const getCropHealthHistory = (lat: number, lng: number, signal?: AbortSignal) =>
+  request<CropHealthHistory>(`/api/farm/crop-health/history?${q({ lat, lng })}`, { signal, timeoutMs: 40_000 });
 
 /** Fused risks and the one prioritized action for a farm (rule-based; sources report their own status). */
 export const getFarmIntelligence = (lat: number, lng: number, crop: string | null, sowingDate: string | null, signal?: AbortSignal) =>

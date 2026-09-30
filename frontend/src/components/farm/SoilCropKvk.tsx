@@ -1,9 +1,11 @@
 'use client';
 
-import { Building2, ExternalLink, Layers, Leaf, RefreshCw, Satellite, TrendingDown, TrendingUp } from 'lucide-react';
+import { useState } from 'react';
+import { Building2, ExternalLink, Layers, Leaf, Minus, Radio, RefreshCw, Satellite, TrendingDown, TrendingUp } from 'lucide-react';
+import { getCropHealthHistory } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
-import type { Resource } from '@/lib/use-resource';
-import type { CropHealth, Kvk, RegenerativeResponse, RegenTrigger, SoilData, SoilReason } from '@/lib/types';
+import { useResource, type Resource } from '@/lib/use-resource';
+import type { CropHealth, CropHealthHistory, Kvk, RegenerativeResponse, RegenTrigger, SarSummary, SoilData, SoilReason } from '@/lib/types';
 import type { MessageKey } from '@/locales/en';
 import { cn } from '@/lib/utils';
 import { buttonClass, Card, CardTitle, ErrorState, LevelBadge, LoadingBlock, Note, ProvenanceLine, UnavailableNote } from '../ui';
@@ -183,9 +185,99 @@ export function SoilRegenCard({ regen }: { regen: Resource<RegenerativeResponse>
   );
 }
 
-export function CropHealthCard({ health }: { health: Resource<CropHealth> }) {
+// Same screening threshold as the risk engine (services/risk_engine.py NDVI_DECLINE): smaller changes are "about the same".
+const NDVI_CHANGE = 0.1;
+
+function Radar({ sar }: { sar: SarSummary }) {
+  const { t, fmt } = useI18n();
+  const signed = (v: number) => `${v > 0 ? '+' : ''}${fmt.num(v, 1)}`;
+  return (
+    <div className="mt-4 rounded-[var(--radius-inner)] bg-paper/70 p-3 text-sm">
+      <p className="flex items-center gap-1.5 font-semibold">
+        <Radio className="h-4 w-4 text-sky-700" aria-hidden /> {t('farm.crop.radar.title')}
+      </p>
+      {sar.status === 'available' && sar.vh_db != null ? (
+        <>
+          <p className="mt-1 tabular-nums text-ink-soft">
+            {sar.vh_change_db != null
+              ? t('farm.crop.radar.values', { vh: fmt.num(sar.vh_db, 1), change: signed(sar.vh_change_db) })
+              : t('farm.crop.radar.valuesNoChange', { vh: fmt.num(sar.vh_db, 1) })}
+            {sar.latest_image_date && ` · ${fmt.date(sar.latest_image_date)}`}
+          </p>
+          {sar.water_signal && <Note tone="watch" className="mt-2">{t('farm.crop.radar.water')}</Note>}
+          <p className="mt-1 text-xs text-ink-faint">{t('farm.crop.radar.note')}</p>
+        </>
+      ) : (
+        <p className="mt-1 text-ink-faint">{t(sar.status === 'no_data' ? 'farm.crop.radar.noData' : 'farm.crop.radar.unavailable')}</p>
+      )}
+    </div>
+  );
+}
+
+function Sparkline({ series }: { series: NonNullable<CropHealthHistory['series']> }) {
+  const w = 300;
+  const h = 80;
+  const x = (i: number) => 12 + (i * (w - 24)) / Math.max(1, series.length - 1);
+  const y = (v: number) => h - 8 - Math.max(0, Math.min(1, v)) * (h - 16);
+  // Lines join only neighbouring windows that both have a reading: a gap stays a gap.
+  const segments = series.slice(1).map((p, i) => (p.ndvi != null && series[i].ndvi != null ? `M${x(i)},${y(series[i].ndvi!)} L${x(i + 1)},${y(p.ndvi)}` : ''));
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="h-20 w-full" aria-hidden>
+      <line x1="0" x2={w} y1={y(0)} y2={y(0)} className="stroke-line" />
+      <path d={segments.join(' ')} className="fill-none stroke-leaf-600" strokeWidth="2" />
+      {series.map((p, i) =>
+        p.ndvi != null ? <circle key={p.end} cx={x(i)} cy={y(p.ndvi)} r="3.5" className="fill-leaf-600" /> : <circle key={p.end} cx={x(i)} cy={y(0)} r="3" className="fill-none stroke-line-strong" />,
+      )}
+    </svg>
+  );
+}
+
+function SatelliteHistory({ lat, lng }: { lat: number; lng: number }) {
+  const { t, fmt } = useI18n();
+  const [open, setOpen] = useState(false);
+  const history = useResource(open ? (s) => getCropHealthHistory(lat, lng, s) : null, [open, lat, lng]);
+  const d = history.data;
+  return (
+    <details className="group mt-4" onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}>
+      <summary className="inline-flex min-h-10 cursor-pointer list-none items-center gap-1 text-sm font-semibold text-leaf-700 hover:underline">
+        {t('farm.crop.history.show')} <span aria-hidden className="transition-transform group-open:rotate-180">▾</span>
+      </summary>
+      <div className="mt-2">
+        {history.status === 'loading' ? (
+          <LoadingBlock lines={2} />
+        ) : history.status === 'error' ? (
+          <ErrorState compact error={history.error} onRetry={history.reload} title={t('farm.crop.history.unavailable')} />
+        ) : d?.status === 'unavailable' || !d?.series ? (
+          d ? <UnavailableNote>{t('farm.crop.history.unavailable')}</UnavailableNote> : null
+        ) : (
+          <>
+            <p className="text-sm font-semibold">{t('farm.crop.history.title')}</p>
+            {d.status === 'insufficient_data' && <p className="text-sm text-ink-soft">{t('farm.crop.history.insufficient')}</p>}
+            <Sparkline series={d.series} />
+            <table className="mt-1 w-full text-xs">
+              <caption className="sr-only">{t('farm.crop.history.chartLabel')}</caption>
+              <tbody className="flex justify-between gap-1">
+                {d.series.map((p) => (
+                  <tr key={p.end} className="flex flex-col items-center">
+                    <th scope="row" className="font-normal text-ink-faint">{fmt.date(p.end, { month: 'short' })}</th>
+                    <td className="tabular-nums">{p.ndvi != null ? fmt.num(p.ndvi, 2) : <span className="text-ink-faint">{t('farm.crop.history.noImage')}</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+      </div>
+    </details>
+  );
+}
+
+export function CropHealthCard({ health, location }: { health: Resource<CropHealth>; location: { lat: number; lng: number } }) {
   const { t, fmt } = useI18n();
   const h = health.data;
+  const b = h?.baseline;
+  const trend = h?.change == null ? null : h.change <= -NDVI_CHANGE ? 'decline' : h.change >= NDVI_CHANGE ? 'increase' : 'stable';
+  const TrendIcon = trend === 'decline' ? TrendingDown : trend === 'increase' ? TrendingUp : Minus;
   return (
     <Card id="crop" aria-labelledby="crop-title" className="scroll-mt-header">
       <CardTitle icon={Satellite} id="crop-title">
@@ -196,38 +288,54 @@ export function CropHealthCard({ health }: { health: Resource<CropHealth> }) {
       ) : !h && health.status === 'error' ? (
         <ErrorState error={health.error} onRetry={health.reload} title={t('farm.crop.unavailable')} />
       ) : h ? (
-        h.status === 'available' && h.ndvi != null ? (
-          <>
-            <div className="flex flex-wrap items-end gap-6">
-              <div>
-                <p className="text-sm text-ink-soft">{t('farm.crop.ndvi')}</p>
-                <p className="font-display text-4xl font-medium tabular-nums">{fmt.num(h.ndvi, 2)}</p>
-              </div>
-              {h.change != null && (
+        <>
+          {h.status === 'available' && h.ndvi != null ? (
+            <>
+              <div className="flex flex-wrap items-end gap-6">
                 <div>
-                  <p className="text-sm text-ink-soft">{t('farm.crop.change')}</p>
-                  <p className={cn('flex items-center gap-1 text-xl font-semibold tabular-nums', h.change < 0 ? 'text-warn-700' : 'text-leaf-700')}>
-                    {h.change < 0 ? <TrendingDown className="h-5 w-5" aria-hidden /> : <TrendingUp className="h-5 w-5" aria-hidden />}
-                    {h.change > 0 ? '+' : ''}
-                    {fmt.num(h.change, 2)}
-                  </p>
+                  <p className="text-sm text-ink-soft">{t('farm.crop.ndvi')}</p>
+                  <p className="font-display text-4xl font-medium tabular-nums">{fmt.num(h.ndvi, 2)}</p>
                 </div>
+                {h.change != null && trend && (
+                  <div>
+                    <p className="text-sm text-ink-soft">{t('farm.crop.change')}</p>
+                    <p className={cn('flex items-center gap-1 text-lg font-semibold', trend === 'decline' ? 'text-warn-700' : 'text-leaf-700')}>
+                      <TrendIcon className="h-5 w-5" aria-hidden />
+                      {t(`farm.crop.trend.${trend}` as MessageKey)}
+                      <span className="text-sm font-normal tabular-nums text-ink-soft">({h.change > 0 ? '+' : ''}{fmt.num(h.change, 2)})</span>
+                    </p>
+                  </div>
+                )}
+              </div>
+              {b && (
+                <p className="mt-3 text-sm">
+                  {b.status === 'available' && b.position && b.min != null && b.max != null
+                    ? t(`farm.crop.baseline.${b.position === 'below_range' ? 'below' : b.position === 'above_range' ? 'above' : 'within'}` as MessageKey, {
+                        min: fmt.num(b.min, 2),
+                        max: fmt.num(b.max, 2),
+                      })
+                    : <span className="text-ink-soft">{t('farm.crop.baseline.insufficient')}</span>}
+                </p>
               )}
-            </div>
-            <p className="mt-3 text-sm text-ink-soft">{t('farm.crop.explain')}</p>
-            {h.window && (
-              <p className="mt-1 text-xs text-ink-faint">
-                {t('farm.crop.images', { count: fmt.num(h.image_count ?? 0, 0), start: fmt.date(h.window.start), end: fmt.date(h.window.end) })}
-              </p>
-            )}
-            <ProvenanceLine source={h.provenance.source} url={h.provenance.source_url} kind="satellite_observation" note={h.provenance.resolution} />
-          </>
-        ) : (
-          <UnavailableNote>
-            {t(h.reason === 'not_configured' ? 'farm.crop.notConfigured' : h.status === 'no_data' ? 'farm.crop.noImagery' : 'farm.crop.unavailable')}
-            <span className="mt-1 block text-xs text-ink-faint">{t('farm.crop.explain')}</span>
-          </UnavailableNote>
-        )
+              {h.latest_image_date && h.clear_pixel_fraction != null && (
+                <p className="mt-1 text-xs text-ink-faint">
+                  {t('farm.crop.quality', { date: fmt.date(h.latest_image_date), pct: fmt.num(Math.round(h.clear_pixel_fraction * 100), 0) })}
+                </p>
+              )}
+              <p className="mt-3 text-sm text-ink-soft">{t('farm.crop.explain')}</p>
+            </>
+          ) : (
+            <UnavailableNote>
+              {t(h.reason === 'not_configured' ? 'farm.crop.notConfigured' : h.status === 'no_data' ? 'farm.crop.noImagery' : 'farm.crop.unavailable')}
+              <span className="mt-1 block text-xs text-ink-faint">{t('farm.crop.explain')}</span>
+            </UnavailableNote>
+          )}
+          {h.sar && <Radar sar={h.sar} />}
+          {h.status !== 'unavailable' && <SatelliteHistory lat={location.lat} lng={location.lng} />}
+          {h.status !== 'unavailable' && (
+            <ProvenanceLine source={h.sar ? 'Sentinel-1 + Sentinel-2 (Copernicus) via Google Earth Engine' : h.provenance.source} url={h.provenance.source_url} kind="satellite_observation" note={h.provenance.resolution} />
+          )}
+        </>
       ) : null}
     </Card>
   );

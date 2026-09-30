@@ -107,7 +107,7 @@ export default function FarmPage() {
         <div className="grid items-start gap-6 lg:grid-cols-[1.6fr_1fr] [&>*]:min-w-0">
           <RiskRadar intel={intel} cropLabel={cropLabel} />
           <div className="space-y-6">
-            <CropHealthCard health={health} />
+            <CropHealthCard health={health} location={loc} />
             <KvkCard kvk={kvk} />
           </div>
         </div>

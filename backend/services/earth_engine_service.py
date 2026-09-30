@@ -57,6 +57,32 @@ MIN_CLEAR_FRACTION = 0.1
 RETRY_AFTER_S = 300
 REQUIRED_KEY_FIELDS = ("client_email", "private_key", "project_id")
 POINT_CACHE_TTL_S = 6 * 3600
+BASELINE_YEARS = 3        # the same 30-day window in each of the previous 3 years
+MIN_BASELINE_YEARS = 2    # fewer usable years cannot describe a normal range
+HISTORY_WINDOWS = 6       # consecutive 30-day windows for the history series (~6 months)
+
+# Sentinel-1 C-band SAR sees through cloud. Ground Range Detected scenes in Earth Engine are already
+# calibrated, terrain-corrected backscatter in dB.
+S1_DATASET = "COPERNICUS/S1_GRD"
+S1_WINDOW_DAYS = 12       # Sentinel-1 revisits a point within about 6-12 days
+# UN-SPIDER Recommended Practice (flood mapping with Sentinel-1 in GEE): a later/earlier VH dB ratio above
+# 1.25 marks a strong drop in backscatter, typical of new open water. Here it is applied to the circle's mean,
+# so it is a screening signal for standing water, not a flood map.
+S1_WATER_RATIO = 1.25
+S1_PROVENANCE = {
+    "source": "Sentinel-1 via Google Earth Engine (COPERNICUS/S1_GRD)",
+    "source_url": "https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S1_GRD",
+    "dataset": S1_DATASET,
+    "provider": "Copernicus / ESA",
+    "processing": "Ground Range Detected, IW mode, calibrated and terrain-corrected backscatter (dB)",
+    "signal": "Radar backscatter (VV, VH), not a measurement of soil moisture or crop health",
+    "kind": "satellite_observation",
+    "resolution": "10 m (averaged over a 250 m radius)",
+    "notes": "Radar works through clouds. A strong drop in VH backscatter can indicate standing water; VH also changes with "
+             "canopy growth, harvest and tillage, so changes are shown, not interpreted as crop condition.",
+    "references": [{"source": "UN-SPIDER Recommended Practice: flood mapping and damage assessment using Sentinel-1 SAR data in GEE",
+                    "url": "https://www.un-spider.org/advisory-support/recommended-practices/recommended-practice-google-earth-engine-flood-mapping"}],
+}
 # (lat, lng, day) -> (expires_at monotonic, result); in-flight queries shared by concurrent callers
 _point_cache: dict[tuple, tuple[float, dict]] = {}
 _point_inflight: dict[tuple, asyncio.Future] = {}
@@ -91,6 +117,10 @@ def classify_error(exc: BaseException, default: str = EARTH_ENGINE_UNAVAILABLE) 
 
 def _iso_day(epoch_ms) -> str | None:
     return datetime.fromtimestamp(epoch_ms / 1000, tz=timezone.utc).date().isoformat() if epoch_ms else None
+
+
+def _round(v, digits: int = 3):
+    return round(v, digits) if v is not None else None
 
 
 def _first(values):
@@ -136,6 +166,7 @@ class EarthEngineService:
         self.error: str | None = None
         self.project: str | None = None
         self.checked_at: str | None = None
+        self.sar_available = False  # Sentinel-1 answered its metadata check
         self._next_attempt = 0.0
         self._lock = threading.Lock()
         self._initialize()
@@ -194,6 +225,13 @@ class EarthEngineService:
             return
         self.initialized, self.status, self.error = True, "available", None
         logger.info("Earth Engine ready (project %s, dataset %s).", self.project, DATASET)
+        try:
+            # Radar is optional on top of Sentinel-2: without it, crop health still works and radar says "unavailable".
+            ee.data.getAsset(S1_DATASET)
+            self.sar_available = True
+        except Exception as e:
+            self.sar_available = False
+            logger.warning("Sentinel-1 dataset check failed (%s); radar signals are unavailable: %s", classify_error(e, DATASET_QUERY_FAILED), e)
 
     def ensure_initialized(self) -> bool:
         """Retry a failed start-up after a cool-down, so a transient outage does not disable the source for good."""
@@ -206,7 +244,8 @@ class EarthEngineService:
         return {
             "status": self.status, "error": self.error,
             "configured": self.configured, "authenticated": self.authenticated, "available": self.initialized,
-            "dataset": DATASET, "project": self.project if self.authenticated else None, "checked_at": self.checked_at,
+            "dataset": DATASET, "radar_available": self.sar_available,
+            "project": self.project if self.authenticated else None, "checked_at": self.checked_at,
         }
 
     @staticmethod
@@ -276,24 +315,115 @@ class EarthEngineService:
             "provider": "google-earth-engine",
         }
 
+    @staticmethod
+    def _sar_stats(geometry, start: str, end: str):
+        """Mean VV/VH backscatter (dB) per orbit direction; ascending and descending passes see the field at different
+        angles, so only like with like is compared."""
+        collection = (ee.ImageCollection(S1_DATASET).filterBounds(geometry).filterDate(start, end)
+                      .filter(ee.Filter.eq("instrumentMode", "IW"))
+                      .filter(ee.Filter.listContains("transmitterReceiverPolarisation", "VV"))
+                      .filter(ee.Filter.listContains("transmitterReceiverPolarisation", "VH")))
+        empty = ee.Image.constant([0, 0]).toFloat().rename(["VV", "VH"]).updateMask(0)
+
+        def per_pass(orbit_pass):
+            c = collection.filter(ee.Filter.eq("orbitProperties_pass", orbit_pass))
+            mean = c.select(["VV", "VH"]).map(lambda i: i.toFloat()).merge(ee.ImageCollection([empty])).mean()
+            stats = mean.reduceRegion(reducer=ee.Reducer.mean(), geometry=geometry, scale=10, maxPixels=1e9)
+            return ee.Dictionary({"vv_db": stats.get("VV"), "vh_db": stats.get("VH"), "count": c.size(),
+                                  "latest_ms": c.aggregate_max("system:time_start")})
+
+        return ee.Dictionary({"ASCENDING": per_pass("ASCENDING"), "DESCENDING": per_pass("DESCENDING")})
+
+    @staticmethod
+    def _sar_summary(current: dict | None, previous: dict | None, window: dict, previous_window: dict) -> dict:
+        """Picks the orbit pass seen in both windows (else the one seen now) and reports levels and change."""
+        current, previous = current or {}, previous or {}
+
+        def usable(d):
+            return bool(d) and d.get("count") and isinstance(d.get("vh_db"), (int, float)) and isinstance(d.get("vv_db"), (int, float))
+
+        both = [p for p in ("ASCENDING", "DESCENDING") if usable(current.get(p)) and usable(previous.get(p))]
+        now_only = [p for p in ("ASCENDING", "DESCENDING") if usable(current.get(p))]
+        candidates = both or now_only
+        if not candidates:
+            return {"status": "no_data", "reason": "no_radar_scene", "window": window, "provenance": S1_PROVENANCE}
+        orbit = max(candidates, key=lambda p: current[p].get("latest_ms") or 0)
+        cur = current[orbit]
+        out = {"status": "available", "orbit_pass": orbit, "window": window, "image_count": cur["count"],
+               "latest_image_date": _iso_day(cur.get("latest_ms")),
+               "vv_db": round(cur["vv_db"], 2), "vh_db": round(cur["vh_db"], 2),
+               "previous_window": None, "vv_db_previous": None, "vh_db_previous": None, "vh_change_db": None, "water_signal": None,
+               "provenance": S1_PROVENANCE}
+        if orbit in both:
+            prev = previous[orbit]
+            out.update(previous_window=previous_window, vv_db_previous=round(prev["vv_db"], 2), vh_db_previous=round(prev["vh_db"], 2),
+                       vh_change_db=round(cur["vh_db"] - prev["vh_db"], 2),
+                       water_signal=prev["vh_db"] < 0 and cur["vh_db"] / prev["vh_db"] > S1_WATER_RATIO)
+        return out
+
+    def _baseline(self, stats: dict, value: float | None, today: date) -> dict:
+        years = []
+        for y in range(1, BASELINE_YEARS + 1):
+            w = stats.get(f"baseline_{y}") or {}
+            years.append({"year": (today - timedelta(days=365 * y)).year, "ndvi": _round(self._usable_ndvi(w)),
+                          "clear_pixel_fraction": round(self._clear_fraction(w), 2), "image_count": w.get("count")})
+        values = [y["ndvi"] for y in years if y["ndvi"] is not None]
+        if len(values) < MIN_BASELINE_YEARS:
+            return {"status": "insufficient_data", "years": years, "minimum_years": MIN_BASELINE_YEARS}
+        lo, hi = min(values), max(values)
+        position = None if value is None else "below_range" if value < lo else "above_range" if value > hi else "within_range"
+        return {"status": "available", "years": years, "mean": round(sum(values) / len(values), 3), "min": lo, "max": hi,
+                "position": position, "minimum_years": MIN_BASELINE_YEARS,
+                "method": "Same 30-day window in each previous year; range of the usable years"}
+
+    def _point_series(self, lat: float, lng: float, today: date) -> dict:
+        geometry = ee.Geometry.Point([lng, lat]).buffer(BUFFER_M)
+        windows = [(today - timedelta(days=WINDOW_DAYS * (i + 1)), today - timedelta(days=WINDOW_DAYS * i)) for i in range(HISTORY_WINDOWS)]
+        stats = ee.Dictionary({str(i): self._window_stats(geometry, s.isoformat(), e.isoformat()) for i, (s, e) in enumerate(windows)}).getInfo()
+        series = []
+        for i, (start, end) in reversed(list(enumerate(windows))):
+            w = stats.get(str(i)) or {}
+            series.append({"start": start.isoformat(), "end": end.isoformat(), "ndvi": _round(self._usable_ndvi(w)),
+                           "clear_pixel_fraction": round(self._clear_fraction(w), 2), "image_count": w.get("count"),
+                           "latest_image_date": _iso_day(w.get("latest_ms"))})
+        usable = sum(p["ndvi"] is not None for p in series)
+        return {"status": "available" if usable >= 2 else "insufficient_data", "series": series, "usable_windows": usable,
+                "window_days": WINDOW_DAYS, "roi": {"lat": lat, "lng": lng, "radius_m": BUFFER_M}}
+
     def _point_ndvi(self, lat: float, lng: float, today: date) -> dict:
         geometry = ee.Geometry.Point([lng, lat]).buffer(BUFFER_M)
         cur_start = today - timedelta(days=WINDOW_DAYS)
         prev_start = cur_start - timedelta(days=WINDOW_DAYS)
-        # Both windows in one request: halves latency against the Earth Engine API.
-        stats = ee.Dictionary({
+        sar_start = today - timedelta(days=S1_WINDOW_DAYS)
+        sar_prev_start = sar_start - timedelta(days=S1_WINDOW_DAYS)
+        # Every window in one request: one round trip to the Earth Engine API.
+        windows = {
             "current": self._window_stats(geometry, cur_start.isoformat(), today.isoformat()),
             "previous": self._window_stats(geometry, prev_start.isoformat(), cur_start.isoformat()),
-        }).getInfo()
+        }
+        sar_enabled = getattr(self, "sar_available", False)
+        if sar_enabled:
+            windows["sar_current"] = self._sar_stats(geometry, sar_start.isoformat(), today.isoformat())
+            windows["sar_previous"] = self._sar_stats(geometry, sar_prev_start.isoformat(), sar_start.isoformat())
+        for y in range(1, BASELINE_YEARS + 1):
+            shift = timedelta(days=365 * y)
+            windows[f"baseline_{y}"] = self._window_stats(geometry, (cur_start - shift).isoformat(), (today - shift).isoformat())
+        stats = ee.Dictionary(windows).getInfo()
         current, previous = stats["current"], stats["previous"]
+        value, prev_value = self._usable_ndvi(current), self._usable_ndvi(previous)
         common = {
             "window": {"start": cur_start.isoformat(), "end": today.isoformat()},
             "image_count": current.get("count"),
             "clear_pixel_fraction": round(self._clear_fraction(current), 2),
             "observation": self._observation(current),
             "roi": {"lat": lat, "lng": lng, "radius_m": BUFFER_M},
+            "baseline": self._baseline(stats, value, today),
+            # Radar is reported even when clouds hide the field from Sentinel-2.
+            "sar": self._sar_summary(stats.get("sar_current"), stats.get("sar_previous"),
+                                     {"start": sar_start.isoformat(), "end": today.isoformat()},
+                                     {"start": sar_prev_start.isoformat(), "end": sar_start.isoformat()})
+            if sar_enabled else {"status": "unavailable", "reason": "radar_dataset_unavailable", "provenance": S1_PROVENANCE},
         }
-        value, prev_value = self._usable_ndvi(current), self._usable_ndvi(previous)
         if value is None:
             return {"status": "no_data", "reason": NO_SUITABLE_OBSERVATION, **common}
         return {
@@ -307,36 +437,44 @@ class EarthEngineService:
         }
 
     async def get_point_crop_health(self, lat: float, lng: float) -> dict:
-        """Crop health at a point. Successful and no-imagery answers are cached for POINT_CACHE_TTL_S (a new
-        Sentinel-2 pass is at most every few days), and concurrent callers for the same point share one query,
-        so a caller that stops waiting (see farm intelligence time budgets) still warms the cache."""
+        """Crop health at a point: NDVI now and 30 days earlier, the same-season baseline and Sentinel-1 radar."""
+        return await self._cached("health", lat, lng, self._point_ndvi)
+
+    async def get_point_history(self, lat: float, lng: float) -> dict:
+        """NDVI for the last HISTORY_WINDOWS consecutive 30-day windows (null where no clear observation)."""
+        return await self._cached("history", lat, lng, self._point_series)
+
+    async def _cached(self, kind: str, lat: float, lng: float, query) -> dict:
+        """Successful and no-imagery answers are cached for POINT_CACHE_TTL_S (a new pass is at most every few days),
+        and concurrent callers for the same point share one query, so a caller that stops waiting (see farm
+        intelligence time budgets) still warms the cache."""
         if not (-90 <= lat <= 90 and -180 <= lng <= 180):
             raise ValueError("coordinates out of range")
-        key = (round(lat, 3), round(lng, 3), date.today().isoformat())
+        key = (kind, round(lat, 3), round(lng, 3), date.today().isoformat())
         cached = _point_cache.get(key)
         if cached and time.monotonic() < cached[0]:
             return cached[1]
         pending = _point_inflight.get(key)
         if pending is None:
-            pending = asyncio.ensure_future(self._query_point(lat, lng))
+            pending = asyncio.ensure_future(self._query(query, lat, lng))
             _point_inflight[key] = pending
             pending.add_done_callback(lambda _f, k=key: _point_inflight.pop(k, None))
         result = await asyncio.shield(pending)
-        if result["status"] in ("available", "no_data"):
+        if result["status"] in ("available", "no_data", "insufficient_data"):
             if len(_point_cache) > 2000:
                 _point_cache.clear()
             _point_cache[key] = (time.monotonic() + POINT_CACHE_TTL_S, result)
         return result
 
-    async def _query_point(self, lat: float, lng: float) -> dict:
+    async def _query(self, query, lat: float, lng: float) -> dict:
         if not await asyncio.to_thread(self.ensure_initialized):
             reason = "not_configured" if self.status == "not_configured" else self.error
             return {"status": "unavailable", "reason": reason, "retryable": reason in RETRYABLE, "provenance": PROVENANCE}
         try:
-            result = await asyncio.wait_for(asyncio.to_thread(self._point_ndvi, lat, lng, date.today()), timeout=TIMEOUT_S)
+            result = await asyncio.wait_for(asyncio.to_thread(query, lat, lng, date.today()), timeout=TIMEOUT_S)
         except Exception as e:
             code = classify_error(e, DATASET_QUERY_FAILED)
-            logger.error("Sentinel-2 point query failed (%s): %s", code, e)
+            logger.error("Sentinel point query failed (%s): %s", code, e)
             if code in (AUTH_FAILED, PROJECT_CONFIGURATION_ERROR):
                 self._fail(code)  # the key or project broke after start-up: report it in /api/sources too
             result = {"status": "unavailable", "reason": code, "retryable": code in RETRYABLE}
