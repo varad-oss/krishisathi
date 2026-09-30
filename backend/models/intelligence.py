@@ -19,7 +19,12 @@ RiskCategory = Literal[
     "waterlogging", "water_stress", "heat_stress", "cold_stress", "disease", "pest",
     "spray_window", "harvest_weather", "crop_health",
 ]
-SourceStatus = Literal["available", "unavailable", "not_configured", "no_data", "not_provided", "pending"]
+SourceStatus = Literal["available", "unavailable", "not_configured", "no_data", "insufficient_data", "not_provided", "pending"]
+# How a piece of evidence bears on a risk's stated level (see services/risk_engine.py, "Evidence confidence"):
+# required   - a condition the stated risk level depends on; confidence is the weakest required item
+# supporting - an alternative or corroborating signal; confidence is the strongest one
+# context    - shown for transparency, does not raise the risk (stale, distant, low-certainty or background data)
+EvidenceRole = Literal["required", "supporting", "context"]
 
 
 class Evidence(BaseModel):
@@ -30,6 +35,9 @@ class Evidence(BaseModel):
     basis: Basis
     source: str                           # source id: weather | soil | soil_water | satellite | crop_stage | outbreaks | farm_history
     params: dict[str, Any] = Field(default_factory=dict)
+    role: EvidenceRole = "supporting"
+    group: Optional[str] = None           # independence group: evidence in one group shares an upstream source
+    reliability: Optional[Confidence] = None
 
 
 class RuleRef(BaseModel):
@@ -39,9 +47,13 @@ class RuleRef(BaseModel):
 
 
 class Risk(BaseModel):
+    """`severity` is the risk level: how concerning the condition would be if the signals are right.
+    `confidence` is evidence confidence: how strong and reliable those signals are. They are independent axes."""
     category: RiskCategory
     severity: Severity
     confidence: Optional[Confidence] = None
+    confidence_basis: list[str] = Field(default_factory=list)  # ids explaining the confidence level
+    independent_sources: int = 0                                # distinct independence groups among non-context evidence
     drivers: list[str] = Field(default_factory=list)   # why this severity, as ids the UI can explain
     evidence: list[Evidence] = Field(default_factory=list)
     action: Optional[str] = None                       # recommended action id, None when nothing to do
@@ -58,10 +70,14 @@ class TopAction(BaseModel):
     category: Optional[RiskCategory] = None
     severity: Optional[Severity] = None
     confidence: Optional[Confidence] = None
+    confidence_basis: list[str] = Field(default_factory=list)
     drivers: list[str] = Field(default_factory=list)
     evidence: list[Evidence] = Field(default_factory=list)
+    rules: list[RuleRef] = Field(default_factory=list)
     date: Optional[str] = None
     reason: Optional[str] = None
+    # Why this comes first: highest_severity | soonest | stronger_evidence | less_reversible | only_action
+    priority_reason: Optional[str] = None
 
 
 class DataQuality(BaseModel):

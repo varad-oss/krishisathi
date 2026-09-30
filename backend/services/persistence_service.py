@@ -82,7 +82,8 @@ class PersistenceService:
                              farm_id: str | None = None) -> str:
         """Records a diagnosis, updates outbreak clusters and returns the diagnosis id.
 
-        diagnosis_data keys: disease_name (canonical English), diagnosis_status, certainty, severity, spread_risk.
+        diagnosis_data keys: disease_name (canonical English), diagnosis_status, certainty, severity, spread_risk,
+        and optionally the evaluation context: image_quality, guidance_level, differential, model_version.
         """
         try:
             status = diagnosis_data.get("diagnosis_status")
@@ -102,6 +103,10 @@ class PersistenceService:
                     lng=lng,
                     language=language,
                     farm_id=farm_id,
+                    image_quality=diagnosis_data.get("image_quality"),
+                    guidance_level=diagnosis_data.get("guidance_level"),
+                    differential=diagnosis_data.get("differential"),
+                    model_version=diagnosis_data.get("model_version"),
                 )
                 session.add(record)
                 await session.commit()

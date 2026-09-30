@@ -3463,5 +3463,1615 @@
    "insufficient_data": true,
    "min_observations": 20
   }
+ },
+ "farm_intelligence_field": {
+  "schema_version": "1.0",
+  "generated_at": "2026-09-30T13:23:00.212594+00:00",
+  "farm": {
+   "crop": "Tomato",
+   "sowing_date": null,
+   "location": {
+    "lat": 18.52,
+    "lng": 73.856
+   },
+   "crop_stage": {
+    "method": "sowing_date_calendar",
+    "crop": "Tomato",
+    "stage": null,
+    "days_since_sowing": null,
+    "season_length_days": null,
+    "confidence": null,
+    "calendar": null,
+    "reference": {
+     "source": "FAO Irrigation and Drainage Paper 56, Table 11 (Allen et al., 1998)",
+     "url": "https://www.fao.org/4/x0490e/x0490e0b.htm",
+     "notes": "Typical stage lengths for one climate and planting period; your variety and season may differ."
+    },
+    "status": "not_provided"
+   },
+   "field": {
+    "mode": "polygon",
+    "area_ha": 2.559
+   }
+  },
+  "top_action": {
+   "status": "action",
+   "action": "scout_for_disease",
+   "category": "disease",
+   "severity": "high",
+   "confidence": "low",
+   "confidence_basis": [
+    "weakest_required_condition",
+    "ai_classified_reports",
+    "independent_sources_agree"
+   ],
+   "drivers": [
+    "fungal_weather",
+    "nearby_outbreak"
+   ],
+   "evidence": [
+    {
+     "id": "humid_forecast",
+     "value": 90.0,
+     "unit": "%",
+     "date": "2026-09-27",
+     "basis": "forecast",
+     "source": "weather",
+     "params": {
+      "temp_mean_c": 25.5,
+      "reliability_basis": "forecast_within_2_days"
+     },
+     "role": "required",
+     "group": "weather_model",
+     "reliability": "moderate"
+    },
+    {
+     "id": "nearby_outbreak",
+     "value": "Late Blight",
+     "unit": null,
+     "date": "2026-09-29",
+     "basis": "ai_classified_reports",
+     "source": "outbreaks",
+     "params": {
+      "report_count": 4,
+      "distance_km": 10,
+      "severity": "high",
+      "reliability_basis": "ai_classified_reports"
+     },
+     "role": "required",
+     "group": "ai_photo_reports",
+     "reliability": "low"
+    }
+   ],
+   "rules": [
+    {
+     "id": "fungal_risk",
+     "source": "General agronomic guidance (KrishiSathi rule)",
+     "url": null
+    },
+    {
+     "id": "disease_signal_count",
+     "source": "General agronomic guidance (KrishiSathi rule); high only when independent sources agree",
+     "url": null
+    }
+   ],
+   "date": "2026-09-27",
+   "reason": null,
+   "priority_reason": "highest_severity"
+  },
+  "risks": [
+   {
+    "category": "disease",
+    "severity": "high",
+    "confidence": "low",
+    "confidence_basis": [
+     "weakest_required_condition",
+     "ai_classified_reports",
+     "independent_sources_agree"
+    ],
+    "independent_sources": 2,
+    "drivers": [
+     "fungal_weather",
+     "nearby_outbreak"
+    ],
+    "evidence": [
+     {
+      "id": "humid_forecast",
+      "value": 90.0,
+      "unit": "%",
+      "date": "2026-09-27",
+      "basis": "forecast",
+      "source": "weather",
+      "params": {
+       "temp_mean_c": 25.5,
+       "reliability_basis": "forecast_within_2_days"
+      },
+      "role": "required",
+      "group": "weather_model",
+      "reliability": "moderate"
+     },
+     {
+      "id": "nearby_outbreak",
+      "value": "Late Blight",
+      "unit": null,
+      "date": "2026-09-29",
+      "basis": "ai_classified_reports",
+      "source": "outbreaks",
+      "params": {
+       "report_count": 4,
+       "distance_km": 10,
+       "severity": "high",
+       "reliability_basis": "ai_classified_reports"
+      },
+      "role": "required",
+      "group": "ai_photo_reports",
+      "reliability": "low"
+     }
+    ],
+    "action": "scout_for_disease",
+    "reason": null,
+    "date": "2026-09-27",
+    "crop": "Tomato",
+    "crop_stage": null,
+    "rules": [
+     {
+      "id": "fungal_risk",
+      "source": "General agronomic guidance (KrishiSathi rule)",
+      "url": null
+     },
+     {
+      "id": "disease_signal_count",
+      "source": "General agronomic guidance (KrishiSathi rule); high only when independent sources agree",
+      "url": null
+     }
+    ]
+   },
+   {
+    "category": "spray_window",
+    "severity": "moderate",
+    "confidence": "moderate",
+    "confidence_basis": [
+     "forecast_within_2_days",
+     "single_source"
+    ],
+    "independent_sources": 1,
+    "drivers": [
+     "rain_soon"
+    ],
+    "evidence": [
+     {
+      "id": "rain_forecast",
+      "value": 12.0,
+      "unit": "mm",
+      "date": "2026-09-27",
+      "basis": "forecast",
+      "source": "weather",
+      "params": {
+       "probability_pct": 80.0,
+       "reliability_basis": "forecast_within_2_days"
+      },
+      "role": "supporting",
+      "group": "weather_model",
+      "reliability": "moderate"
+     }
+    ],
+    "action": "postpone_spraying",
+    "reason": null,
+    "date": "2026-09-27",
+    "crop": "Tomato",
+    "crop_stage": null,
+    "rules": [
+     {
+      "id": "rain_expected",
+      "source": "General agronomic guidance (KrishiSathi rule)",
+      "url": null
+     }
+    ]
+   },
+   {
+    "category": "crop_health",
+    "severity": "moderate",
+    "confidence": "moderate",
+    "confidence_basis": [
+     "satellite_quality_good",
+     "single_source",
+     "correlated_signals_counted_once"
+    ],
+    "independent_sources": 1,
+    "drivers": [
+     "ndvi_decline",
+     "ndvi_below_baseline"
+    ],
+    "evidence": [
+     {
+      "id": "ndvi_change",
+      "value": -0.14,
+      "unit": null,
+      "date": "2026-10-03",
+      "basis": "satellite_observation",
+      "source": "satellite",
+      "params": {
+       "ndvi": 0.52,
+       "ndvi_previous": 0.66,
+       "clear_pixel_fraction": 0.94,
+       "field_mode": "polygon",
+       "reliability_basis": "satellite_quality_good"
+      },
+      "role": "supporting",
+      "group": "sentinel2",
+      "reliability": "moderate"
+     },
+     {
+      "id": "ndvi_baseline",
+      "value": "below_range",
+      "unit": null,
+      "date": "2026-10-03",
+      "basis": "satellite_observation",
+      "source": "satellite",
+      "params": {
+       "ndvi": 0.52,
+       "min": 0.6,
+       "max": 0.63,
+       "years": 2,
+       "reliability_basis": "satellite_quality_good"
+      },
+      "role": "supporting",
+      "group": "sentinel2",
+      "reliability": "moderate"
+     }
+    ],
+    "action": "inspect_field",
+    "reason": null,
+    "date": "2026-10-03",
+    "crop": "Tomato",
+    "crop_stage": null,
+    "rules": [
+     {
+      "id": "ndvi_decline",
+      "source": "General agronomic guidance (KrishiSathi rule); screening threshold, not a validated crop-loss indicator",
+      "url": null
+     },
+     {
+      "id": "ndvi_baseline_range",
+      "source": "KrishiSathi rule: current NDVI outside the range of the same weeks in previous years",
+      "url": null
+     }
+    ]
+   },
+   {
+    "category": "waterlogging",
+    "severity": "low",
+    "confidence": "moderate",
+    "confidence_basis": [
+     "forecast_within_2_days",
+     "single_source"
+    ],
+    "independent_sources": 1,
+    "drivers": [
+     "rain_expected"
+    ],
+    "evidence": [
+     {
+      "id": "rain_forecast",
+      "value": 12.0,
+      "unit": "mm",
+      "date": "2026-09-27",
+      "basis": "forecast",
+      "source": "weather",
+      "params": {
+       "probability_pct": 80.0,
+       "reliability_basis": "forecast_within_2_days"
+      },
+      "role": "supporting",
+      "group": "weather_model",
+      "reliability": "moderate"
+     },
+     {
+      "id": "soil_moisture",
+      "value": 0.27,
+      "unit": "m³/m³",
+      "date": "2026-09-26T10:15",
+      "basis": "model_estimate",
+      "source": "weather",
+      "params": {
+       "depth": "3-9 cm",
+       "reliability_basis": "modelled_soil_water"
+      },
+      "role": "context",
+      "group": "weather_model",
+      "reliability": "low"
+     }
+    ],
+    "action": "delay_irrigation",
+    "reason": null,
+    "date": "2026-09-27",
+    "crop": "Tomato",
+    "crop_stage": null,
+    "rules": [
+     {
+      "id": "rain_expected",
+      "source": "General agronomic guidance (KrishiSathi rule)",
+      "url": null
+     }
+    ]
+   },
+   {
+    "category": "heat_stress",
+    "severity": "low",
+    "confidence": "moderate",
+    "confidence_basis": [
+     "no_rule_triggered"
+    ],
+    "independent_sources": 0,
+    "drivers": [
+     "no_heat_stress"
+    ],
+    "evidence": [],
+    "action": null,
+    "reason": null,
+    "date": null,
+    "crop": "Tomato",
+    "crop_stage": null,
+    "rules": []
+   },
+   {
+    "category": "cold_stress",
+    "severity": "low",
+    "confidence": "moderate",
+    "confidence_basis": [
+     "no_rule_triggered"
+    ],
+    "independent_sources": 0,
+    "drivers": [
+     "no_cold_stress"
+    ],
+    "evidence": [],
+    "action": null,
+    "reason": null,
+    "date": null,
+    "crop": "Tomato",
+    "crop_stage": null,
+    "rules": []
+   },
+   {
+    "category": "water_stress",
+    "severity": "low",
+    "confidence": "low",
+    "confidence_basis": [
+     "no_rule_triggered"
+    ],
+    "independent_sources": 0,
+    "drivers": [
+     "rain_expected"
+    ],
+    "evidence": [
+     {
+      "id": "soil_moisture",
+      "value": 0.27,
+      "unit": "m³/m³",
+      "date": "2026-09-26T10:15",
+      "basis": "model_estimate",
+      "source": "weather",
+      "params": {
+       "depth": "3-9 cm",
+       "reliability_basis": "modelled_soil_water"
+      },
+      "role": "context",
+      "group": "weather_model",
+      "reliability": "low"
+     }
+    ],
+    "action": null,
+    "reason": null,
+    "date": null,
+    "crop": "Tomato",
+    "crop_stage": null,
+    "rules": []
+   },
+   {
+    "category": "harvest_weather",
+    "severity": "unavailable",
+    "confidence": null,
+    "confidence_basis": [],
+    "independent_sources": 0,
+    "drivers": [],
+    "evidence": [],
+    "action": null,
+    "reason": "crop_stage_unknown",
+    "date": null,
+    "crop": "Tomato",
+    "crop_stage": null,
+    "rules": []
+   },
+   {
+    "category": "pest",
+    "severity": "unavailable",
+    "confidence": null,
+    "confidence_basis": [],
+    "independent_sources": 0,
+    "drivers": [],
+    "evidence": [],
+    "action": null,
+    "reason": "no_pest_data_source",
+    "date": null,
+    "crop": "Tomato",
+    "crop_stage": null,
+    "rules": []
+   }
+  ],
+  "weather": {
+   "current": {
+    "valid_at": "2026-09-26T10:15",
+    "temperature_c": 29.4,
+    "humidity_pct": 64,
+    "wind_kmh": 8.5,
+    "condition": "mainly_clear",
+    "soil_moisture_3_9cm": 0.27
+   },
+   "next_days": [
+    {
+     "date": "2026-09-26",
+     "condition": "mainly_clear",
+     "temp_max_c": 32.0,
+     "temp_min_c": 22.0,
+     "precipitation_mm": 0.0,
+     "precipitation_probability_pct": 10
+    },
+    {
+     "date": "2026-09-27",
+     "condition": "rain",
+     "temp_max_c": 30.0,
+     "temp_min_c": 21.0,
+     "precipitation_mm": 12.0,
+     "precipitation_probability_pct": 80
+    },
+    {
+     "date": "2026-09-28",
+     "condition": "overcast",
+     "temp_max_c": 31.0,
+     "temp_min_c": 21.5,
+     "precipitation_mm": 1.0,
+     "precipitation_probability_pct": 30
+    }
+   ],
+   "provenance": {
+    "source": "Open-Meteo",
+    "source_url": "https://open-meteo.com/",
+    "kind": "model",
+    "notes": "Current values are numerical weather model estimates (15-minute resolution), not ground-station observations. Daily values are forecasts.",
+    "retrieved_at": "2026-09-30T13:23:00.115612+00:00",
+    "valid_at": "2026-09-26T10:15",
+    "timezone": "Asia/Kolkata"
+   }
+  },
+  "soil": null,
+  "soil_water": {
+   "status": "unavailable",
+   "reason": "soil_texture_unavailable"
+  },
+  "crop_health": {
+   "status": "available",
+   "ndvi": 0.52,
+   "ndvi_previous": 0.66,
+   "change": -0.14,
+   "previous_window": {
+    "start": "2026-08-01",
+    "end": "2026-08-31"
+   },
+   "latest_image_date": "2026-10-03",
+   "window": {
+    "start": "2026-08-31",
+    "end": "2026-09-30"
+   },
+   "image_count": 4,
+   "clear_pixel_fraction": 0.94,
+   "observation": {
+    "image_id": "COPERNICUS/S2_SR_HARMONIZED/20260920T053901_20260920T054440_T43QCU",
+    "sensed_at": "2026-10-03T00:00:00+00:00",
+    "scene_cloud_pct": 18.2
+   },
+   "roi": {
+    "mode": "polygon",
+    "area_ha": 2.559,
+    "pixel_count": 256
+   },
+   "quality": {
+    "mode": "polygon",
+    "level": "good",
+    "flags": [],
+    "pixel_count": 256,
+    "clear_pixel_count": 240,
+    "clear_pixel_fraction": 0.94,
+    "valid_pixel_fraction": 0.96,
+    "land_cover": {
+     "status": "available",
+     "cropland_fraction": 0.9,
+     "tree_cover_fraction": 0.06,
+     "grass_shrub_fraction": 0.0,
+     "built_up_fraction": 0.04,
+     "water_fraction": 0.0,
+     "other_fraction": 0.0,
+     "provenance": {
+      "source": "ESA WorldCover 10 m 2021 v200 via Google Earth Engine",
+      "source_url": "https://developers.google.com/earth-engine/datasets/catalog/ESA_WorldCover_v200",
+      "kind": "satellite_derived_map",
+      "notes": "A 2021 land-cover map; the field may have changed since. Used only to flag mixed land inside the region."
+     }
+    },
+    "resolution_m": 10,
+    "method": "Mean of the cloud-masked median NDVI over pixels whose centre falls inside the drawn outline"
+   },
+   "baseline": {
+    "status": "available",
+    "years": [
+     {
+      "year": 2025,
+      "ndvi": 0.63,
+      "clear_pixel_fraction": 0.98,
+      "image_count": 4
+     },
+     {
+      "year": 2024,
+      "ndvi": 0.6,
+      "clear_pixel_fraction": 0.96,
+      "image_count": 4
+     },
+     {
+      "year": 2023,
+      "ndvi": null,
+      "clear_pixel_fraction": 0.0,
+      "image_count": 2
+     }
+    ],
+    "mean": 0.615,
+    "min": 0.6,
+    "max": 0.63,
+    "position": "below_range",
+    "minimum_years": 2,
+    "method": "Same 30-day window in each previous year; range of the usable years"
+   },
+   "sar": {
+    "status": "available",
+    "orbit_pass": "ASCENDING",
+    "window": {
+     "start": "2026-09-18",
+     "end": "2026-09-30"
+    },
+    "image_count": 2,
+    "latest_image_date": "2026-10-02",
+    "vv_db": -9.1,
+    "vh_db": -15.8,
+    "previous_window": {
+     "start": "2026-09-06",
+     "end": "2026-09-18"
+    },
+    "vv_db_previous": -9.4,
+    "vh_db_previous": -15.2,
+    "vh_change_db": -0.6,
+    "water_signal": false,
+    "provenance": {
+     "source": "Sentinel-1 via Google Earth Engine (COPERNICUS/S1_GRD)",
+     "source_url": "https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S1_GRD",
+     "dataset": "COPERNICUS/S1_GRD",
+     "provider": "Copernicus / ESA",
+     "processing": "Ground Range Detected, IW mode, calibrated and terrain-corrected backscatter (dB)",
+     "signal": "Radar backscatter (VV, VH), not a measurement of soil moisture or crop health",
+     "kind": "satellite_observation",
+     "resolution": "10 m (averaged over the drawn field, or a 250 m radius around the farm point)",
+     "notes": "Radar works through clouds. A strong drop in VH backscatter can indicate standing water; VH also changes with canopy growth, harvest and tillage, so changes are shown, not interpreted as crop condition.",
+     "references": [
+      {
+       "source": "UN-SPIDER Recommended Practice: flood mapping and damage assessment using Sentinel-1 SAR data in GEE",
+       "url": "https://www.un-spider.org/advisory-support/recommended-practices/recommended-practice-google-earth-engine-flood-mapping"
+      }
+     ]
+    }
+   },
+   "provenance": {
+    "source": "Sentinel-2 via Google Earth Engine (COPERNICUS/S2_SR_HARMONIZED)",
+    "source_url": "https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR_HARMONIZED",
+    "dataset": "COPERNICUS/S2_SR_HARMONIZED",
+    "provider": "Copernicus / ESA",
+    "processing": "Level-2A surface reflectance (harmonized)",
+    "signal": "Satellite-derived vegetation signal (NDVI), not ground-truth crop health",
+    "kind": "satellite_observation",
+    "resolution": "10 m (averaged over the drawn field, or a 250 m radius around the farm point)",
+    "notes": "Median NDVI of cloud-masked pixels. NDVI depends on crop type and growth stage; compare it with your own field over time, not with other crops."
+   }
+  },
+  "nearby_outbreaks": [
+   {
+    "id": "o1",
+    "disease": "Late Blight",
+    "distance_km": 10,
+    "location": "18.6, 73.9",
+    "severity": "high",
+    "report_count": 4,
+    "crop_targets": [
+     "Tomato"
+    ],
+    "last_report_at": "2026-09-29T10:00:00+00:00"
+   }
+  ],
+  "data_quality": [
+   {
+    "source": "weather",
+    "status": "available",
+    "kind": "model",
+    "as_of": "2026-09-26T10:15",
+    "reason": null,
+    "provider": "Open-Meteo"
+   },
+   {
+    "source": "soil",
+    "status": "unavailable",
+    "kind": "model",
+    "as_of": null,
+    "reason": "timeout",
+    "provider": "ISRIC SoilGrids 2.0"
+   },
+   {
+    "source": "satellite",
+    "status": "available",
+    "kind": "satellite_observation",
+    "as_of": "2026-10-03",
+    "reason": null,
+    "provider": "Sentinel-2 (Copernicus)"
+   },
+   {
+    "source": "radar",
+    "status": "available",
+    "kind": "satellite_observation",
+    "as_of": "2026-10-02",
+    "reason": null,
+    "provider": "Sentinel-1 (Copernicus)"
+   },
+   {
+    "source": "crop_stage",
+    "status": "not_provided",
+    "kind": "rule",
+    "as_of": null,
+    "reason": "not_provided",
+    "provider": "FAO-56 Table 11"
+   },
+   {
+    "source": "outbreaks",
+    "status": "available",
+    "kind": "ai_classified_user_reports",
+    "as_of": null,
+    "reason": null,
+    "provider": "KrishiSathi community reports"
+   }
+  ],
+  "engine": {
+   "id": "krishisathi-farm-risk-engine",
+   "version": "1.1",
+   "kind": "rule_based",
+   "ai_used": false
+  },
+  "twin": {
+   "snapshot_id": "c87c8fbd-7ded-457d-b539-074c409726fa",
+   "action": {
+    "action_id": "904591a2-22e9-4348-aecd-d8de9af03e3f",
+    "created_at": "2026-09-30T13:23:00.212727+00:00",
+    "source_type": "intelligence",
+    "source_ref": "c87c8fbd-7ded-457d-b539-074c409726fa",
+    "action": "scout_for_disease",
+    "category": "disease",
+    "severity": "high",
+    "confidence": "low",
+    "crop": "Tomato",
+    "followed": null,
+    "followed_at": null,
+    "outcome": null,
+    "outcome_at": null
+   }
+  }
+ },
+ "field_crop_health_point": {
+  "status": "available",
+  "ndvi": 0.55,
+  "ndvi_previous": 0.61,
+  "change": -0.06,
+  "previous_window": {
+   "start": "2026-08-01",
+   "end": "2026-08-31"
+  },
+  "latest_image_date": "2026-10-03",
+  "window": {
+   "start": "2026-08-31",
+   "end": "2026-09-30"
+  },
+  "image_count": 4,
+  "clear_pixel_fraction": 0.92,
+  "observation": {
+   "image_id": "COPERNICUS/S2_SR_HARMONIZED/20260920T053901_20260920T054440_T43QCU",
+   "sensed_at": "2026-10-03T00:00:00+00:00",
+   "scene_cloud_pct": 18.2
+  },
+  "roi": {
+   "lat": 18.52,
+   "lng": 73.856,
+   "radius_m": 250,
+   "mode": "point"
+  },
+  "quality": {
+   "mode": "point",
+   "level": "limited",
+   "flags": [
+    "contains_trees",
+    "contains_built_up",
+    "point_circle_not_field_boundary"
+   ],
+   "pixel_count": 1963,
+   "clear_pixel_count": 1800,
+   "clear_pixel_fraction": 0.92,
+   "valid_pixel_fraction": 0.92,
+   "land_cover": {
+    "status": "available",
+    "cropland_fraction": 0.66,
+    "tree_cover_fraction": 0.2,
+    "grass_shrub_fraction": 0.0,
+    "built_up_fraction": 0.13,
+    "water_fraction": 0.0,
+    "other_fraction": 0.0,
+    "provenance": {
+     "source": "ESA WorldCover 10 m 2021 v200 via Google Earth Engine",
+     "source_url": "https://developers.google.com/earth-engine/datasets/catalog/ESA_WorldCover_v200",
+     "kind": "satellite_derived_map",
+     "notes": "A 2021 land-cover map; the field may have changed since. Used only to flag mixed land inside the region."
+    }
+   },
+   "resolution_m": 10,
+   "method": "Mean of the cloud-masked median NDVI within 250 m of the farm point"
+  },
+  "baseline": {
+   "status": "available",
+   "years": [
+    {
+     "year": 2025,
+     "ndvi": 0.6,
+     "clear_pixel_fraction": 0.97,
+     "image_count": 4
+    },
+    {
+     "year": 2024,
+     "ndvi": 0.62,
+     "clear_pixel_fraction": 0.94,
+     "image_count": 4
+    },
+    {
+     "year": 2023,
+     "ndvi": null,
+     "clear_pixel_fraction": 0.0,
+     "image_count": null
+    }
+   ],
+   "mean": 0.61,
+   "min": 0.6,
+   "max": 0.62,
+   "position": "below_range",
+   "minimum_years": 2,
+   "method": "Same 30-day window in each previous year; range of the usable years"
+  },
+  "sar": {
+   "status": "available",
+   "orbit_pass": "ASCENDING",
+   "window": {
+    "start": "2026-09-18",
+    "end": "2026-09-30"
+   },
+   "image_count": 2,
+   "latest_image_date": "2026-10-02",
+   "vv_db": -9.1,
+   "vh_db": -15.8,
+   "previous_window": {
+    "start": "2026-09-06",
+    "end": "2026-09-18"
+   },
+   "vv_db_previous": -9.4,
+   "vh_db_previous": -15.2,
+   "vh_change_db": -0.6,
+   "water_signal": false,
+   "provenance": {
+    "source": "Sentinel-1 via Google Earth Engine (COPERNICUS/S1_GRD)",
+    "source_url": "https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S1_GRD",
+    "dataset": "COPERNICUS/S1_GRD",
+    "provider": "Copernicus / ESA",
+    "processing": "Ground Range Detected, IW mode, calibrated and terrain-corrected backscatter (dB)",
+    "signal": "Radar backscatter (VV, VH), not a measurement of soil moisture or crop health",
+    "kind": "satellite_observation",
+    "resolution": "10 m (averaged over the drawn field, or a 250 m radius around the farm point)",
+    "notes": "Radar works through clouds. A strong drop in VH backscatter can indicate standing water; VH also changes with canopy growth, harvest and tillage, so changes are shown, not interpreted as crop condition.",
+    "references": [
+     {
+      "source": "UN-SPIDER Recommended Practice: flood mapping and damage assessment using Sentinel-1 SAR data in GEE",
+      "url": "https://www.un-spider.org/advisory-support/recommended-practices/recommended-practice-google-earth-engine-flood-mapping"
+     }
+    ]
+   }
+  },
+  "provenance": {
+   "source": "Sentinel-2 via Google Earth Engine (COPERNICUS/S2_SR_HARMONIZED)",
+   "source_url": "https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR_HARMONIZED",
+   "dataset": "COPERNICUS/S2_SR_HARMONIZED",
+   "provider": "Copernicus / ESA",
+   "processing": "Level-2A surface reflectance (harmonized)",
+   "signal": "Satellite-derived vegetation signal (NDVI), not ground-truth crop health",
+   "kind": "satellite_observation",
+   "resolution": "10 m (averaged over the drawn field, or a 250 m radius around the farm point)",
+   "notes": "Median NDVI of cloud-masked pixels. NDVI depends on crop type and growth stage; compare it with your own field over time, not with other crops."
+  }
+ },
+ "field_crop_health_polygon": {
+  "status": "available",
+  "ndvi": 0.52,
+  "ndvi_previous": 0.66,
+  "change": -0.14,
+  "previous_window": {
+   "start": "2026-08-01",
+   "end": "2026-08-31"
+  },
+  "latest_image_date": "2026-10-03",
+  "window": {
+   "start": "2026-08-31",
+   "end": "2026-09-30"
+  },
+  "image_count": 4,
+  "clear_pixel_fraction": 0.94,
+  "observation": {
+   "image_id": "COPERNICUS/S2_SR_HARMONIZED/20260920T053901_20260920T054440_T43QCU",
+   "sensed_at": "2026-10-03T00:00:00+00:00",
+   "scene_cloud_pct": 18.2
+  },
+  "roi": {
+   "mode": "polygon",
+   "area_ha": 2.559,
+   "pixel_count": 256
+  },
+  "quality": {
+   "mode": "polygon",
+   "level": "good",
+   "flags": [],
+   "pixel_count": 256,
+   "clear_pixel_count": 240,
+   "clear_pixel_fraction": 0.94,
+   "valid_pixel_fraction": 0.96,
+   "land_cover": {
+    "status": "available",
+    "cropland_fraction": 0.9,
+    "tree_cover_fraction": 0.06,
+    "grass_shrub_fraction": 0.0,
+    "built_up_fraction": 0.04,
+    "water_fraction": 0.0,
+    "other_fraction": 0.0,
+    "provenance": {
+     "source": "ESA WorldCover 10 m 2021 v200 via Google Earth Engine",
+     "source_url": "https://developers.google.com/earth-engine/datasets/catalog/ESA_WorldCover_v200",
+     "kind": "satellite_derived_map",
+     "notes": "A 2021 land-cover map; the field may have changed since. Used only to flag mixed land inside the region."
+    }
+   },
+   "resolution_m": 10,
+   "method": "Mean of the cloud-masked median NDVI over pixels whose centre falls inside the drawn outline"
+  },
+  "baseline": {
+   "status": "available",
+   "years": [
+    {
+     "year": 2025,
+     "ndvi": 0.63,
+     "clear_pixel_fraction": 0.98,
+     "image_count": 4
+    },
+    {
+     "year": 2024,
+     "ndvi": 0.6,
+     "clear_pixel_fraction": 0.96,
+     "image_count": 4
+    },
+    {
+     "year": 2023,
+     "ndvi": null,
+     "clear_pixel_fraction": 0.0,
+     "image_count": 2
+    }
+   ],
+   "mean": 0.615,
+   "min": 0.6,
+   "max": 0.63,
+   "position": "below_range",
+   "minimum_years": 2,
+   "method": "Same 30-day window in each previous year; range of the usable years"
+  },
+  "sar": {
+   "status": "available",
+   "orbit_pass": "ASCENDING",
+   "window": {
+    "start": "2026-09-18",
+    "end": "2026-09-30"
+   },
+   "image_count": 2,
+   "latest_image_date": "2026-10-02",
+   "vv_db": -9.1,
+   "vh_db": -15.8,
+   "previous_window": {
+    "start": "2026-09-06",
+    "end": "2026-09-18"
+   },
+   "vv_db_previous": -9.4,
+   "vh_db_previous": -15.2,
+   "vh_change_db": -0.6,
+   "water_signal": false,
+   "provenance": {
+    "source": "Sentinel-1 via Google Earth Engine (COPERNICUS/S1_GRD)",
+    "source_url": "https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S1_GRD",
+    "dataset": "COPERNICUS/S1_GRD",
+    "provider": "Copernicus / ESA",
+    "processing": "Ground Range Detected, IW mode, calibrated and terrain-corrected backscatter (dB)",
+    "signal": "Radar backscatter (VV, VH), not a measurement of soil moisture or crop health",
+    "kind": "satellite_observation",
+    "resolution": "10 m (averaged over the drawn field, or a 250 m radius around the farm point)",
+    "notes": "Radar works through clouds. A strong drop in VH backscatter can indicate standing water; VH also changes with canopy growth, harvest and tillage, so changes are shown, not interpreted as crop condition.",
+    "references": [
+     {
+      "source": "UN-SPIDER Recommended Practice: flood mapping and damage assessment using Sentinel-1 SAR data in GEE",
+      "url": "https://www.un-spider.org/advisory-support/recommended-practices/recommended-practice-google-earth-engine-flood-mapping"
+     }
+    ]
+   }
+  },
+  "provenance": {
+   "source": "Sentinel-2 via Google Earth Engine (COPERNICUS/S2_SR_HARMONIZED)",
+   "source_url": "https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR_HARMONIZED",
+   "dataset": "COPERNICUS/S2_SR_HARMONIZED",
+   "provider": "Copernicus / ESA",
+   "processing": "Level-2A surface reflectance (harmonized)",
+   "signal": "Satellite-derived vegetation signal (NDVI), not ground-truth crop health",
+   "kind": "satellite_observation",
+   "resolution": "10 m (averaged over the drawn field, or a 250 m radius around the farm point)",
+   "notes": "Median NDVI of cloud-masked pixels. NDVI depends on crop type and growth stage; compare it with your own field over time, not with other crops."
+  }
+ },
+ "field_crop_health_insufficient": {
+  "status": "insufficient_data",
+  "reason": "too_few_clear_pixels",
+  "window": {
+   "start": "2026-08-31",
+   "end": "2026-09-30"
+  },
+  "image_count": 4,
+  "clear_pixel_fraction": 0.12,
+  "observation": {
+   "image_id": "COPERNICUS/S2_SR_HARMONIZED/20260920T053901_20260920T054440_T43QCU",
+   "sensed_at": "2026-10-03T00:00:00+00:00",
+   "scene_cloud_pct": 18.2
+  },
+  "roi": {
+   "mode": "polygon",
+   "area_ha": 2.559,
+   "pixel_count": 256
+  },
+  "quality": {
+   "mode": "polygon",
+   "level": "insufficient",
+   "flags": [
+    "too_few_clear_pixels"
+   ],
+   "pixel_count": 256,
+   "clear_pixel_count": 30,
+   "clear_pixel_fraction": 0.12,
+   "valid_pixel_fraction": 0.14,
+   "land_cover": {
+    "status": "available",
+    "cropland_fraction": 1.0,
+    "tree_cover_fraction": 0.0,
+    "grass_shrub_fraction": 0.0,
+    "built_up_fraction": 0.0,
+    "water_fraction": 0.0,
+    "other_fraction": 0.0,
+    "provenance": {
+     "source": "ESA WorldCover 10 m 2021 v200 via Google Earth Engine",
+     "source_url": "https://developers.google.com/earth-engine/datasets/catalog/ESA_WorldCover_v200",
+     "kind": "satellite_derived_map",
+     "notes": "A 2021 land-cover map; the field may have changed since. Used only to flag mixed land inside the region."
+    }
+   },
+   "resolution_m": 10,
+   "method": "Mean of the cloud-masked median NDVI over pixels whose centre falls inside the drawn outline"
+  },
+  "baseline": {
+   "status": "insufficient_data",
+   "years": [
+    {
+     "year": 2025,
+     "ndvi": null,
+     "clear_pixel_fraction": 0.0,
+     "image_count": null
+    },
+    {
+     "year": 2024,
+     "ndvi": null,
+     "clear_pixel_fraction": 0.0,
+     "image_count": null
+    },
+    {
+     "year": 2023,
+     "ndvi": null,
+     "clear_pixel_fraction": 0.0,
+     "image_count": null
+    }
+   ],
+   "minimum_years": 2
+  },
+  "sar": {
+   "status": "no_data",
+   "reason": "no_radar_scene",
+   "window": {
+    "start": "2026-09-18",
+    "end": "2026-09-30"
+   },
+   "provenance": {
+    "source": "Sentinel-1 via Google Earth Engine (COPERNICUS/S1_GRD)",
+    "source_url": "https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S1_GRD",
+    "dataset": "COPERNICUS/S1_GRD",
+    "provider": "Copernicus / ESA",
+    "processing": "Ground Range Detected, IW mode, calibrated and terrain-corrected backscatter (dB)",
+    "signal": "Radar backscatter (VV, VH), not a measurement of soil moisture or crop health",
+    "kind": "satellite_observation",
+    "resolution": "10 m (averaged over the drawn field, or a 250 m radius around the farm point)",
+    "notes": "Radar works through clouds. A strong drop in VH backscatter can indicate standing water; VH also changes with canopy growth, harvest and tillage, so changes are shown, not interpreted as crop condition.",
+    "references": [
+     {
+      "source": "UN-SPIDER Recommended Practice: flood mapping and damage assessment using Sentinel-1 SAR data in GEE",
+      "url": "https://www.un-spider.org/advisory-support/recommended-practices/recommended-practice-google-earth-engine-flood-mapping"
+     }
+    ]
+   }
+  },
+  "provenance": {
+   "source": "Sentinel-2 via Google Earth Engine (COPERNICUS/S2_SR_HARMONIZED)",
+   "source_url": "https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR_HARMONIZED",
+   "dataset": "COPERNICUS/S2_SR_HARMONIZED",
+   "provider": "Copernicus / ESA",
+   "processing": "Level-2A surface reflectance (harmonized)",
+   "signal": "Satellite-derived vegetation signal (NDVI), not ground-truth crop health",
+   "kind": "satellite_observation",
+   "resolution": "10 m (averaged over the drawn field, or a 250 m radius around the farm point)",
+   "notes": "Median NDVI of cloud-masked pixels. NDVI depends on crop type and growth stage; compare it with your own field over time, not with other crops."
+  }
+ },
+ "plot_geometry": {
+  "type": "Polygon",
+  "coordinates": [
+   [
+    [
+     73.855241,
+     18.519281
+    ],
+    [
+     73.856759,
+     18.519281
+    ],
+    [
+     73.856759,
+     18.520719
+    ],
+    [
+     73.855241,
+     18.520719
+    ],
+    [
+     73.855241,
+     18.519281
+    ]
+   ]
+  ]
+ },
+ "plot": {
+  "plot_id": "7d0b0f6e-2a8e-4d0a-9d8c-1f7a3f0b5e21",
+  "area_ha": 2.559,
+  "crop": "Tomato",
+  "sowing_date": null,
+  "created_at": "2026-09-30T05:00:00+00:00",
+  "updated_at": "2026-09-30T05:00:00+00:00",
+  "geometry": {
+   "type": "Polygon",
+   "coordinates": [
+    [
+     [
+      73.855241,
+      18.519281
+     ],
+     [
+      73.856759,
+      18.519281
+     ],
+     [
+      73.856759,
+      18.520719
+     ],
+     [
+      73.855241,
+      18.520719
+     ],
+     [
+      73.855241,
+      18.519281
+     ]
+    ]
+   ]
+  }
+ },
+ "interop_compare": {
+  "schema_version": "1.0",
+  "crop_code": "soybean",
+  "generated_at": "2026-09-30T13:23:00.323227+00:00",
+  "countries": [
+   {
+    "country_code": "IN",
+    "name": "India (KrishiSathi)",
+    "categories": {
+     "crops": "available",
+     "diseases": "available",
+     "weather_signals": "available",
+     "observations": "available",
+     "risk_signals": "available"
+    },
+    "publishes": {
+     "crops": {
+      "types": [
+       "crop_catalogue"
+      ],
+      "geography": "national",
+      "period": "reference list",
+      "provenance_kind": "curated_reference",
+      "confidence": null,
+      "access": "public"
+     },
+     "diseases": {
+      "types": [
+       "disease_catalogue"
+      ],
+      "geography": "national",
+      "period": "reference list",
+      "provenance_kind": "curated_reference",
+      "confidence": null,
+      "access": "public"
+     },
+     "weather_signals": {
+      "types": [
+       "weather_risk"
+      ],
+      "geography": "state reference point (ISO 3166-2)",
+      "period": "forecast day",
+      "provenance_kind": "forecast",
+      "confidence": "moderate",
+      "access": "partner"
+     },
+     "observations": {
+      "types": [
+       "disease_observation"
+      ],
+      "geography": "0.5° grid cell",
+      "period": "requested window to today",
+      "provenance_kind": "ai_classified_reports",
+      "confidence": "low",
+      "access": "partner"
+     },
+     "risk_signals": {
+      "types": [
+       "disease_cluster",
+       "authenticated state signals"
+      ],
+      "geography": "0.5° grid cell or state",
+      "period": "7-day cluster window or submission day",
+      "provenance_kind": "ai_classified_reports / authenticated_submission",
+      "confidence": "low-moderate",
+      "access": "partner"
+     }
+    },
+    "sources": [
+     {
+      "id": "weather",
+      "name": "Open-Meteo forecast at one reference point per state",
+      "kind": "forecast"
+     },
+     {
+      "id": "diagnoses",
+      "name": "KrishiSathi photo diagnoses",
+      "kind": "ai_classified_reports"
+     },
+     {
+      "id": "federation",
+      "name": "Authenticated state federation submissions",
+      "kind": "authenticated_submission"
+     },
+     {
+      "id": "disease_reference",
+      "name": "Curated ICAR disease reference",
+      "kind": "curated_reference"
+     }
+    ],
+    "limitations": [
+     "Weather signals are rule evaluations at one point per state, not statewide.",
+     "Disease observations are AI-classified app reports, not surveillance statistics.",
+     "Satellite crop-health aggregation is not published."
+    ],
+    "samples": {
+     "crops": {
+      "status": "available",
+      "total": 16,
+      "matching_crop": 1,
+      "items": [
+       {
+        "schema_version": "1.0",
+        "crop_code": "soybean",
+        "name_en": "Soybean",
+        "group": "legume",
+        "aliases": []
+       }
+      ]
+     },
+     "diseases": {
+      "status": "available",
+      "total": 5,
+      "matching_crop": 0,
+      "items": []
+     },
+     "weather_signals": {
+      "status": "partner_only"
+     },
+     "observations": {
+      "status": "partner_only"
+     },
+     "risk_signals": {
+      "status": "partner_only"
+     }
+    }
+   },
+   {
+    "country_code": "BR",
+    "name": "Brazil (IBGE official crop statistics)",
+    "categories": {
+     "crops": "available",
+     "observations": "available",
+     "diseases": "unsupported",
+     "weather_signals": "unsupported",
+     "risk_signals": "unsupported"
+    },
+    "publishes": {
+     "crops": {
+      "types": [
+       "crop_catalogue"
+      ],
+      "geography": "national",
+      "period": "reference list (IBGE PAM product list)",
+      "provenance_kind": "official_statistic",
+      "confidence": null,
+      "access": "public"
+     },
+     "observations": {
+      "types": [
+       "production_statistic"
+      ],
+      "geography": "state (ISO 3166-2)",
+      "period": "calendar year (latest published)",
+      "provenance_kind": "official_statistic",
+      "confidence": null,
+      "access": "public"
+     }
+    },
+    "sources": [
+     {
+      "id": "ibge_pam",
+      "name": "IBGE Produção Agrícola Municipal (PAM), SIDRA table 5457",
+      "kind": "official_statistic",
+      "url": "https://sidra.ibge.gov.br/tabela/5457",
+      "api": "https://apisidra.ibge.gov.br/values",
+      "license": "Public official statistics; cite IBGE (SIDRA) as the source"
+     }
+    ],
+    "limitations": [
+     "Annual state-level official statistics with about a one-year publication lag; not current-season conditions.",
+     "Only PAM products with a clear English crop equivalent are mapped (see crops); others are not published.",
+     "The 'since' filter does not apply: the latest published reference year is always returned.",
+     "No disease, weather or risk signals: those categories are reported as unsupported, never simulated."
+    ],
+    "samples": {
+     "crops": {
+      "status": "available",
+      "total": 14,
+      "matching_crop": 1,
+      "items": [
+       {
+        "schema_version": "1.0",
+        "crop_code": "soybean",
+        "name_en": "Soybean",
+        "group": "legume",
+        "aliases": [
+         "Soja (em grão)"
+        ]
+       }
+      ]
+     },
+     "observations": {
+      "status": "available",
+      "total": 4,
+      "matching_crop": 3,
+      "items": [
+       {
+        "schema_version": "1.0",
+        "observation_type": "production_statistic",
+        "geo": {
+         "country_code": "BR",
+         "region_code": "BR-MT",
+         "grid": null,
+         "basis": "region"
+        },
+        "period": {
+         "start": "2024-01-01",
+         "end": "2024-12-31"
+        },
+        "crop_code": "soybean",
+        "crop_stage": null,
+        "subject": "Soja (em grão)",
+        "variable": "harvested_area",
+        "value": 1000.0,
+        "unit": "ha",
+        "sample_size": null,
+        "confidence": null,
+        "provenance": {
+         "source": "IBGE - Produção Agrícola Municipal (PAM), SIDRA table 5457",
+         "kind": "official_statistic",
+         "method": "IBGE annual municipal crop survey, state totals for reference year 2024, copied as published (SIDRA variable 216: Área colhida)",
+         "url": "https://sidra.ibge.gov.br/tabela/5457",
+         "retrieved_at": "2026-09-30T13:23:00.321429Z",
+         "notes": "Official statistic for the whole state and year, not a farm or field value. Cells IBGE marks as zero, not applicable, not available or confidential are omitted, not filled."
+        }
+       },
+       {
+        "schema_version": "1.0",
+        "observation_type": "production_statistic",
+        "geo": {
+         "country_code": "BR",
+         "region_code": "BR-MT",
+         "grid": null,
+         "basis": "region"
+        },
+        "period": {
+         "start": "2024-01-01",
+         "end": "2024-12-31"
+        },
+        "crop_code": "soybean",
+        "crop_stage": null,
+        "subject": "Soja (em grão)",
+        "variable": "production",
+        "value": 3500.0,
+        "unit": "t",
+        "sample_size": null,
+        "confidence": null,
+        "provenance": {
+         "source": "IBGE - Produção Agrícola Municipal (PAM), SIDRA table 5457",
+         "kind": "official_statistic",
+         "method": "IBGE annual municipal crop survey, state totals for reference year 2024, copied as published (SIDRA variable 214: Quantidade produzida)",
+         "url": "https://sidra.ibge.gov.br/tabela/5457",
+         "retrieved_at": "2026-09-30T13:23:00.321429Z",
+         "notes": "Official statistic for the whole state and year, not a farm or field value. Cells IBGE marks as zero, not applicable, not available or confidential are omitted, not filled."
+        }
+       },
+       {
+        "schema_version": "1.0",
+        "observation_type": "production_statistic",
+        "geo": {
+         "country_code": "BR",
+         "region_code": "BR-MT",
+         "grid": null,
+         "basis": "region"
+        },
+        "period": {
+         "start": "2024-01-01",
+         "end": "2024-12-31"
+        },
+        "crop_code": "soybean",
+        "crop_stage": null,
+        "subject": "Soja (em grão)",
+        "variable": "yield",
+        "value": 3500.0,
+        "unit": "kg/ha",
+        "sample_size": null,
+        "confidence": null,
+        "provenance": {
+         "source": "IBGE - Produção Agrícola Municipal (PAM), SIDRA table 5457",
+         "kind": "official_statistic",
+         "method": "IBGE annual municipal crop survey, state totals for reference year 2024, copied as published (SIDRA variable 112: Rendimento médio da produção)",
+         "url": "https://sidra.ibge.gov.br/tabela/5457",
+         "retrieved_at": "2026-09-30T13:23:00.321429Z",
+         "notes": "Official statistic for the whole state and year, not a farm or field value. Cells IBGE marks as zero, not applicable, not available or confidential are omitted, not filled."
+        }
+       }
+      ]
+     }
+    }
+   }
+  ],
+  "notes": "Same schema, different national sources: India publishes AI-classified app reports and forecasts; Brazil publishes official annual statistics. Values are not directly comparable across countries.",
+  "_fixture_note": "Brazil sample values are TEST VALUES (SIDRA HTTP call stubbed), not IBGE data."
+ },
+ "evaluation": {
+  "generated_at": "2026-09-30T13:23:00.394149Z",
+  "label": "KrishiSathi self-reported feedback",
+  "window_days": 90,
+  "minimum_group_size": 5,
+  "diagnosis": {
+   "diagnoses": 16,
+   "diagnosis_feedback_count": 16,
+   "diagnosis_wrong": 4,
+   "diagnosis_wrong_rate": 0.25,
+   "outcomes": {
+    "diagnosis_wrong": 4,
+    "improved": 12
+   },
+   "uncertainty_distribution": [
+    {
+     "status": "disease_detected",
+     "certainty": "high",
+     "count": 8
+    },
+    {
+     "status": "disease_detected",
+     "certainty": "moderate",
+     "count": 6
+    }
+   ],
+   "uncertainty_cells_suppressed": 1,
+   "observed_feedback_by_model_confidence": {
+    "label": "Observed app feedback by model confidence (not a calibration curve)",
+    "tiers": {
+     "low": {
+      "status": "suppressed",
+      "minimum": 5
+     },
+     "moderate": {
+      "feedback_count": 6,
+      "diagnosis_wrong": 2,
+      "diagnosis_wrong_rate": 0.33,
+      "outcomes": {
+       "diagnosis_wrong": 2,
+       "improved": 4
+      }
+     },
+     "high": {
+      "feedback_count": 8,
+      "diagnosis_wrong": 1,
+      "diagnosis_wrong_rate": 0.12,
+      "outcomes": {
+       "diagnosis_wrong": 1,
+       "improved": 7
+      }
+     }
+    }
+   },
+   "by_crop": {
+    "groups": {
+     "Wheat": {
+      "feedback_count": 16,
+      "diagnosis_wrong": 4,
+      "diagnosis_wrong_rate": 0.25,
+      "outcomes": {
+       "diagnosis_wrong": 4,
+       "improved": 12
+      }
+     }
+    },
+    "suppressed_groups": 0
+   },
+   "by_image_quality": {
+    "groups": {
+     "good": {
+      "feedback_count": 16,
+      "diagnosis_wrong": 4,
+      "diagnosis_wrong_rate": 0.25,
+      "outcomes": {
+       "diagnosis_wrong": 4,
+       "improved": 12
+      }
+     }
+    },
+    "suppressed_groups": 0
+   },
+   "by_guidance_level": {
+    "groups": {
+     "supported": {
+      "feedback_count": 14,
+      "diagnosis_wrong": 3,
+      "diagnosis_wrong_rate": 0.21,
+      "outcomes": {
+       "diagnosis_wrong": 3,
+       "improved": 11
+      }
+     }
+    },
+    "suppressed_groups": 1
+   }
+  },
+  "advisory": {
+   "overall": {
+    "recommendations": 8,
+    "follow_through_answers": 6,
+    "followed_rate": 0.67,
+    "partial_rate": 0.17,
+    "not_followed_rate": 0.17,
+    "not_applicable": 1,
+    "outcome_answers": 4,
+    "outcome_distribution": {
+     "same": 4
+    }
+   },
+   "by_category": {
+    "groups": {
+     "waterlogging": {
+      "recommendations": 7,
+      "follow_through_answers": 6,
+      "followed_rate": 0.67,
+      "partial_rate": 0.17,
+      "not_followed_rate": 0.17,
+      "not_applicable": 1,
+      "outcome_answers": 4,
+      "outcome_distribution": {
+       "same": 4
+      }
+     }
+    },
+    "suppressed_groups": 1
+   },
+   "by_crop": {
+    "groups": {
+     "Rice": {
+      "recommendations": 7,
+      "follow_through_answers": 6,
+      "followed_rate": 0.67,
+      "partial_rate": 0.17,
+      "not_followed_rate": 0.17,
+      "not_applicable": 1,
+      "outcome_answers": 4,
+      "outcome_distribution": {
+       "same": 4
+      }
+     }
+    },
+    "suppressed_groups": 1
+   },
+   "by_region": {
+    "groups": {
+     "18,73": {
+      "recommendations": 8,
+      "follow_through_answers": 6,
+      "followed_rate": 0.67,
+      "partial_rate": 0.17,
+      "not_followed_rate": 0.17,
+      "not_applicable": 1,
+      "outcome_answers": 4,
+      "outcome_distribution": {
+       "same": 4
+      }
+     }
+    },
+    "suppressed_groups": 0,
+    "region": "1° grid cell (south-west corner lat,lng)"
+   }
+  },
+  "provenance": {
+   "source": "KrishiSathi farm records",
+   "kind": "farmer_reported",
+   "label": "KrishiSathi self-reported feedback",
+   "does_not_show": [
+    "causal effect of a recommendation",
+    "yield change",
+    "farm success",
+    "laboratory-confirmed accuracy"
+   ],
+   "notes": "Farmers who answer are not a random sample; a 'diagnosis_wrong' report is the farmer's judgement, not a confirmed error. Groups smaller than the minimum size are suppressed."
+  }
  }
 }

@@ -76,6 +76,7 @@ def assemble(ctx: FarmContext) -> FarmIntelligence:
             "sowing_date": ctx.sowing_date.isoformat() if ctx.sowing_date else None,
             "location": {"lat": round(ctx.lat, LOCATION_DECIMALS), "lng": round(ctx.lng, LOCATION_DECIMALS)},
             "crop_stage": ctx.crop_stage,
+            "field": ctx.field_geometry,
         },
         top_action=top,
         risks=risks,
@@ -90,15 +91,16 @@ def assemble(ctx: FarmContext) -> FarmIntelligence:
 
 
 async def farm_intelligence(lat: float, lng: float, crop: str | None, sowing_date: date | None, history: dict | None = None,
-                            farm_id: str | None = None) -> FarmIntelligence:
+                            farm_id: str | None = None, plot: dict | None = None) -> FarmIntelligence:
     start = time.perf_counter()
-    ctx = await build_farm_context(lat, lng, crop, sowing_date, history)
+    ctx = await build_farm_context(lat, lng, crop, sowing_date, history, plot=plot)
     result = assemble(ctx)
     log_event(
         "farm_intelligence_generated",
         farm_id=farm_id,
         crop=ctx.crop,
         crop_stage=ctx.crop_stage.get("stage"),
+        field_mode=ctx.field_geometry["mode"],
         top_action=result.top_action.action,
         top_severity=result.top_action.severity,
         risks={r.category: r.severity for r in result.risks},

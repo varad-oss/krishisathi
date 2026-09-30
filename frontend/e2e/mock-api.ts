@@ -32,6 +32,8 @@ export async function mockApi(page: Page, overrides: Overrides = {}) {
     cropHealth: { match: /\/api\/farm\/crop-health/, body: f.crop_health },
     intelligence: { match: /\/api\/farm\/intelligence/, body: f.intelligence },
     cropOptions: { match: /\/api\/farm\/crop-options/, body: f.crop_options },
+    evaluation: { match: /\/api\/dashboard\/evaluation$/, body: f.evaluation },
+    interopCompare: { match: /\/api\/interoperability\/compare/, body: f.interop_compare },
     farmPractice: { match: /\/api\/farms\/[^/]+\/practices$/, body: f.practice },
     farmFeedback: { match: /\/api\/farms\/[^/]+\/actions\/[^/]+\/feedback$/, body: f.feedback },
     farmIntelligence: { match: /\/api\/farms\/[^/]+\/intelligence$/, body: f.farm_intelligence },
@@ -52,10 +54,44 @@ export async function mockApi(page: Page, overrides: Overrides = {}) {
     voices: { match: /\/api\/advisory\/tts\/voices$/, body: { languages: { en: 'gemini', hi: 'gemini', mr: 'gemini', ta: 'gemini', te: 'gemini', bn: 'gemini', kn: 'gtts', gu: 'gtts', pa: 'gtts', ml: 'gtts' } } },
   };
   const remaining: Record<string, number> = {};
+  // The farm's field outline is stateful so a journey can create, edit and remove it.
+  let plot: unknown = null;
+  const plotted = () => plot !== null;
 
   await page.route(`${API}/**`, async (route) => {
     const url = new URL(route.request().url());
-    if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*' } });
+    const method = route.request().method();
+    if (method === 'OPTIONS')
+      return route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'GET,POST,PUT,DELETE,OPTIONS' } });
+    if (/\/api\/farms\/[^/]+\/plot$/.test(url.pathname)) {
+      const o = overrides.plot;
+      if (o?.status && o.status >= 400 && method !== 'GET') return json(route, o.status, o.body);
+      if (method === 'PUT') {
+        const geometry = (route.request().postDataJSON() as { geometry: unknown }).geometry;
+        plot = { ...f.plot, geometry, updated_at: new Date().toISOString() };
+        return json(route, 200, { plot });
+      }
+      if (method === 'DELETE') {
+        const removed = plotted();
+        plot = null;
+        return json(route, 200, { plot: null, removed });
+      }
+      return json(route, 200, { plot });
+    }
+    if (/\/api\/farms\/[^/]+\/crop-health$/.test(url.pathname)) {
+      // Like the backend: the drawn field when there is one, otherwise the same answer as the point endpoint.
+      const o = overrides.fieldCropHealth;
+      if (o) return json(route, o.status ?? 200, o.body);
+      if (plotted()) return json(route, 200, f.field_crop_health_polygon);
+      const point = overrides.cropHealth;
+      return json(route, point?.status ?? 200, point?.body ?? f.crop_health);
+    }
+    if (/\/api\/farms\/[^/]+\/crop-health\/history$/.test(url.pathname)) {
+      const o = overrides.fieldCropHistory ?? overrides.cropHistory;
+      return json(route, o?.status ?? 200, o?.body ?? { status: 'unavailable', reason: 'not_configured' });
+    }
+    if (/\/api\/farms\/[^/]+\/intelligence$/.test(url.pathname) && !overrides.farmIntelligence)
+      return json(route, 200, plotted() ? f.farm_intelligence_field : f.farm_intelligence);
     if (/\/api\/advisory\/tts$/.test(url.pathname)) {
       // A short silent WAV so read-aloud can be exercised without a speech service.
       const o = overrides.tts;

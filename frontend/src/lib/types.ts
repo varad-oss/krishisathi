@@ -160,7 +160,7 @@ export interface CropOptions {
 }
 
 export interface SarSummary {
-  status: 'available' | 'no_data' | 'unavailable';
+  status: 'available' | 'no_data' | 'unavailable' | 'insufficient_data';
   reason?: string;
   orbit_pass?: 'ASCENDING' | 'DESCENDING';
   latest_image_date?: string | null;
@@ -181,9 +181,40 @@ export interface NdviBaseline {
   position?: 'below_range' | 'within_range' | 'above_range' | null;
 }
 
+export interface LandCover {
+  status: 'available' | 'unavailable';
+  cropland_fraction?: number;
+  tree_cover_fraction?: number;
+  grass_shrub_fraction?: number;
+  built_up_fraction?: number;
+  water_fraction?: number;
+  other_fraction?: number;
+  provenance: { source: string; source_url: string; notes: string };
+}
+
+export type SatelliteQualityFlag =
+  | 'field_too_small' | 'too_few_clear_pixels' | 'mixed_land_cover' | 'contains_water' | 'contains_trees' | 'contains_built_up'
+  | 'point_circle_not_field_boundary';
+
+/** What the satellite numbers describe and how much to trust them (backend: earth_engine_service._quality). */
+export interface SatelliteQuality {
+  mode: 'polygon' | 'point';
+  level: 'good' | 'limited' | 'insufficient';
+  flags: SatelliteQualityFlag[];
+  pixel_count: number;
+  clear_pixel_count: number;
+  clear_pixel_fraction: number;
+  valid_pixel_fraction: number | null;
+  land_cover: LandCover;
+  resolution_m: number;
+  method: string;
+}
+
 export interface CropHealth {
-  status: 'available' | 'unavailable' | 'no_data';
+  status: 'available' | 'unavailable' | 'no_data' | 'insufficient_data';
   reason?: string;
+  roi?: { mode: 'polygon'; area_ha: number; pixel_count: number | null } | { mode: 'point'; lat?: number; lng?: number; radius_m?: number };
+  quality?: SatelliteQuality;
   ndvi?: number;
   ndvi_previous?: number | null;
   change?: number | null;
@@ -419,6 +450,11 @@ export interface Evidence {
   basis: EvidenceBasis;
   source: string;
   params: Record<string, number | string | null>;
+  /** required: the stated risk level depends on it; supporting: alternative or corroborating; context: shown only. */
+  role?: 'required' | 'supporting' | 'context';
+  /** Independence group: evidence in one group shares an upstream source. */
+  group?: string | null;
+  reliability?: Level | null;
 }
 
 export interface RuleRef {
@@ -430,7 +466,10 @@ export interface RuleRef {
 export interface Risk {
   category: RiskCategory;
   severity: RiskSeverity;
+  /** Evidence confidence: how reliable the signals are. Independent of severity (the risk level). */
   confidence: Level | null;
+  confidence_basis?: string[];
+  independent_sources?: number;
   drivers: string[];
   evidence: Evidence[];
   action: string | null;
@@ -447,13 +486,16 @@ export interface TopAction {
   category: RiskCategory | null;
   severity: RiskSeverity | null;
   confidence: Level | null;
+  confidence_basis?: string[];
   drivers: string[];
   evidence: Evidence[];
+  rules?: RuleRef[];
   date: string | null;
   reason: string | null;
+  priority_reason?: 'highest_severity' | 'soonest' | 'stronger_evidence' | 'less_reversible' | 'only_action' | null;
 }
 
-export type DataStatus = 'available' | 'unavailable' | 'not_configured' | 'no_data' | 'not_provided' | 'pending';
+export type DataStatus = 'available' | 'unavailable' | 'not_configured' | 'no_data' | 'insufficient_data' | 'not_provided' | 'pending';
 
 export interface DataQualityItem {
   source: 'weather' | 'soil' | 'satellite' | 'crop_stage' | 'outbreaks' | string;
@@ -477,7 +519,14 @@ export interface CropStageEstimate {
 export interface FarmIntelligence {
   schema_version: string;
   generated_at: string;
-  farm: { crop: string | null; sowing_date: string | null; location: { lat: number; lng: number }; crop_stage: CropStageEstimate };
+  farm: {
+    crop: string | null;
+    sowing_date: string | null;
+    location: { lat: number; lng: number };
+    crop_stage: CropStageEstimate;
+    /** What satellite values describe: the drawn field (polygon) or the circle around the farm point. */
+    field?: { mode: 'polygon'; area_ha: number } | { mode: 'point' };
+  };
   top_action: TopAction;
   risks: Risk[];
   data_quality: DataQualityItem[];
@@ -520,8 +569,25 @@ export interface FarmSnapshot {
   data_quality: Record<string, DataStatus>;
 }
 
+/** GeoJSON Polygon, [lng, lat] positions, closed exterior ring. */
+export interface PolygonGeometry {
+  type: 'Polygon';
+  coordinates: [number, number][][];
+}
+
+export interface FarmPlot {
+  plot_id: string;
+  area_ha: number;
+  crop: string | null;
+  sowing_date: string | null;
+  created_at: string;
+  updated_at: string;
+  geometry?: PolygonGeometry;
+}
+
 export interface FarmHistory {
   farm: { farm_id: string; crop: string | null; sowing_date: string | null };
+  plot?: FarmPlot | null;
   snapshots: FarmSnapshot[];
   actions: TwinAction[];
   diagnoses: { diagnosis_id: string; status: string; disease: string | null; certainty: Level | null; date: string }[];
@@ -530,4 +596,90 @@ export interface FarmHistory {
 export interface FarmTwin {
   farmId: string;
   token: string;
+}
+
+// --- Evaluation (GET /api/dashboard/evaluation): KrishiSathi self-reported feedback -------------------------
+
+type Suppressed = { status: 'suppressed' | 'no_data' | 'insufficient_data'; minimum?: number };
+
+export interface DiagnosisFeedback {
+  feedback_count: number;
+  diagnosis_wrong: number;
+  diagnosis_wrong_rate: number | null;
+  outcomes: Record<string, number>;
+}
+
+export interface AdvisoryFeedback {
+  recommendations: number;
+  follow_through_answers: number;
+  followed_rate: number | null;
+  partial_rate: number | null;
+  not_followed_rate: number | null;
+  not_applicable: number;
+  outcome_answers: number;
+  outcome_distribution: Record<string, number>;
+}
+
+export interface GroupedMetrics<T> {
+  groups: Record<string, T>;
+  suppressed_groups: number;
+}
+
+export interface EvaluationMetrics {
+  generated_at: string;
+  label: string;
+  window_days: number;
+  minimum_group_size: number;
+  diagnosis: {
+    diagnoses: number;
+    diagnosis_feedback_count: number;
+    diagnosis_wrong?: number;
+    diagnosis_wrong_rate?: number | null;
+    status?: 'insufficient_data';
+    observed_feedback_by_model_confidence: { label: string; tiers: Record<Level, DiagnosisFeedback | Suppressed> };
+    by_crop: GroupedMetrics<DiagnosisFeedback>;
+  };
+  advisory: {
+    overall: AdvisoryFeedback | (Suppressed & { recommendations: number });
+    by_category: GroupedMetrics<AdvisoryFeedback>;
+    by_crop: GroupedMetrics<AdvisoryFeedback>;
+  };
+  provenance: { source: string; kind: string; label: string; does_not_show: string[]; notes: string };
+}
+
+// --- Interoperability comparison (GET /api/interoperability/compare) --------------------------------------
+
+export interface PublishMeta {
+  types: string[];
+  geography: string;
+  period: string;
+  provenance_kind: string;
+  confidence: string | null;
+  access: 'public' | 'partner';
+}
+
+export interface CompareSample {
+  status: 'available' | 'partner_only' | 'unsupported' | 'unavailable' | string;
+  reason?: string;
+  total?: number;
+  matching_crop?: number;
+  items?: Record<string, unknown>[];
+}
+
+export interface CountryComparison {
+  country_code: string;
+  name: string;
+  categories: Record<string, 'available' | 'unsupported'>;
+  publishes: Record<string, PublishMeta>;
+  sources: { id: string; name: string; kind: string; url?: string }[];
+  limitations: string[];
+  samples: Record<string, CompareSample>;
+}
+
+export interface InteropComparison {
+  schema_version: string;
+  crop_code: string;
+  generated_at: string;
+  countries: CountryComparison[];
+  notes: string;
 }

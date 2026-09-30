@@ -21,6 +21,10 @@ import type {
   RegenerativeResponse,
   CropOptions,
   EarlyWarning,
+  EvaluationMetrics,
+  FarmPlot,
+  InteropComparison,
+  PolygonGeometry,
   PracticeStatus,
   SoilData,
   SourceStatus,
@@ -122,7 +126,7 @@ export async function classifyNetworkFailure(): Promise<ApiError> {
 }
 
 interface RequestOptions {
-  method?: 'GET' | 'POST';
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   body?: BodyInit | null;
   json?: unknown;
   headers?: Record<string, string>;
@@ -244,6 +248,23 @@ export const getFarmHistory = (twin: FarmTwin, signal?: AbortSignal) =>
 export const recordPractice = (twin: FarmTwin, practice: string, status: PracticeStatus) =>
   request<TwinAction>(`/api/farms/${twin.farmId}/practices`, { json: { practice, status }, headers: twinHeaders(twin) });
 
+/** The farm's drawn field; `{ plot: null }` when the farm uses its location point. */
+export const getPlot = (twin: FarmTwin, signal?: AbortSignal) =>
+  request<{ plot: FarmPlot | null }>(`/api/farms/${twin.farmId}/plot`, { headers: twinHeaders(twin), signal });
+
+export const savePlot = (twin: FarmTwin, geometry: PolygonGeometry) =>
+  request<{ plot: FarmPlot }>(`/api/farms/${twin.farmId}/plot`, { method: 'PUT', json: { geometry }, headers: twinHeaders(twin) });
+
+export const deletePlot = (twin: FarmTwin) =>
+  request<{ plot: null; removed: boolean }>(`/api/farms/${twin.farmId}/plot`, { method: 'DELETE', headers: twinHeaders(twin) });
+
+/** Satellite statistics over the drawn field when there is one, else around the farm point. */
+export const getFieldCropHealth = (twin: FarmTwin, signal?: AbortSignal) =>
+  request<CropHealth>(`/api/farms/${twin.farmId}/crop-health`, { headers: twinHeaders(twin), signal, timeoutMs: 40_000 });
+
+export const getFieldCropHealthHistory = (twin: FarmTwin, signal?: AbortSignal) =>
+  request<CropHealthHistory>(`/api/farms/${twin.farmId}/crop-health/history`, { headers: twinHeaders(twin), signal, timeoutMs: 40_000 });
+
 export const sendFeedback = (twin: FarmTwin, actionId: string, feedback: { followed?: Followed; outcome?: Outcome }) =>
   request<TwinAction>(`/api/farms/${twin.farmId}/actions/${actionId}/feedback`, { json: feedback, headers: twinHeaders(twin) });
 
@@ -326,6 +347,13 @@ export const getSpeechVoices = (signal?: AbortSignal) =>
 
 export const getDashboardStats = (signal?: AbortSignal) => request<DashboardStats>('/api/dashboard/stats', { signal });
 export const getOutbreaks = (signal?: AbortSignal) => request<Outbreak[]>('/api/dashboard/outbreaks', { signal });
+/** KrishiSathi self-reported feedback, aggregated (small groups suppressed). */
+export const getEvaluation = (signal?: AbortSignal) => request<EvaluationMetrics>('/api/dashboard/evaluation', { signal });
+
+/** India and Brazil through the same v1.0 interoperability contract (developer view). */
+export const getInteropComparison = (crop: string, signal?: AbortSignal) =>
+  request<InteropComparison>(`/api/interoperability/compare?${q({ crop })}`, { signal, timeoutMs: 30_000 });
+
 export const getEarlyWarning = (signal?: AbortSignal) => request<EarlyWarning>('/api/dashboard/early-warning', { signal, timeoutMs: 30_000 });
 export const getWeatherRisk = (signal?: AbortSignal) => request<WeatherRisk>('/api/dashboard/weather-risk', { signal, timeoutMs: 30_000 });
 export const getDashboardReport = (language: LanguageCode, signal?: AbortSignal) =>

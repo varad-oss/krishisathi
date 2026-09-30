@@ -60,6 +60,23 @@ class IndiaAdapter:
                 {"id": "federation", "name": "Authenticated state federation submissions", "kind": "authenticated_submission"},
                 {"id": "disease_reference", "name": "Curated ICAR disease reference", "kind": "curated_reference"},
             ],
+            "categories": {"crops": "available", "diseases": "available", "weather_signals": "available",
+                           "observations": "available", "risk_signals": "available"},
+            # What each category publishes, so partners (and /compare) can see the contract without a token.
+            "publishes": {
+                "crops": {"types": ["crop_catalogue"], "geography": "national", "period": "reference list",
+                          "provenance_kind": "curated_reference", "confidence": None, "access": "public"},
+                "diseases": {"types": ["disease_catalogue"], "geography": "national", "period": "reference list",
+                             "provenance_kind": "curated_reference", "confidence": None, "access": "public"},
+                "weather_signals": {"types": ["weather_risk"], "geography": "state reference point (ISO 3166-2)", "period": "forecast day",
+                                    "provenance_kind": "forecast", "confidence": "moderate", "access": "partner"},
+                "observations": {"types": ["disease_observation"], "geography": f"{CELL_DEG}° grid cell", "period": "requested window to today",
+                                 "provenance_kind": "ai_classified_reports", "confidence": "low", "access": "partner"},
+                "risk_signals": {"types": ["disease_cluster", "authenticated state signals"], "geography": f"{CELL_DEG}° grid cell or state",
+                                 "period": f"{OUTBREAK_WINDOW_DAYS}-day cluster window or submission day",
+                                 "provenance_kind": "ai_classified_reports / authenticated_submission", "confidence": "low-moderate",
+                                 "access": "partner"},
+            },
             "coverage": {"states": [iso_region(s["code"]) for s in INDIAN_STATES]},
             "privacy": self.privacy.model_dump(),
             "limitations": [

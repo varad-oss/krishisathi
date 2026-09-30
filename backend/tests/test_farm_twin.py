@@ -181,3 +181,8 @@ async def test_diagnosis_linked_to_farm_supports_diagnosis_feedback_and_feeds_th
 
         history = (await c.get(f"/api/farms/{farm_id}", headers=headers)).json()
     assert len(history["diagnoses"]) == 1 and history["diagnoses"][0]["status"] == "disease_detected"
+    # The evaluation context is stored with the diagnosis so feedback can be compared with what the model said.
+    async with AsyncSessionLocal() as session:
+        rec = await session.get(DiagnosisRecord, history["diagnoses"][0]["diagnosis_id"])
+    assert (rec.image_quality, rec.guidance_level, rec.certainty) == ("good", "escalate", "low")
+    assert rec.model_version and isinstance(rec.differential, list)

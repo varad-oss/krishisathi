@@ -23,6 +23,11 @@ class DiagnosisRecord(Base):
     lng = Column(Float, nullable=True)
     language = Column(String, default="en")
     farm_id = Column(String, ForeignKey("farms.id"), nullable=True, index=True)
+    # Evaluation context: what the model saw and said, so farmer feedback can later be compared with it.
+    image_quality = Column(String, nullable=True)     # good | poor (model's own assessment of the photo)
+    guidance_level = Column(String, nullable=True)    # supported | cautious | escalate | none (after safety rules)
+    differential = Column(JSON, nullable=True)        # [{"name", "likelihood"}] alternative causes the model listed
+    model_version = Column(String, nullable=True)
 
 class AdvisoryRecord(Base):
     __tablename__ = "advisories"
@@ -139,3 +144,18 @@ class AdvisoryActionRecord(Base):
     outcome_at = Column(DateTime, nullable=True)
 
     __table_args__ = (Index("ix_advisory_actions_farm_time", "farm_id", "created_at"),)
+
+
+class FarmPlotRecord(Base):
+    """The farmer's optional field outline (one per farm). GeoJSON Polygon, private to the farm-token holder:
+    never published, logged or used in cache keys. Farms without a plot keep using their location point."""
+    __tablename__ = "farm_plots"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    farm_id = Column(String, ForeignKey("farms.id", ondelete="CASCADE"), nullable=False, unique=True)
+    geometry = Column(JSON, nullable=False)
+    area_ha = Column(Float, nullable=False)
+    crop = Column(String, nullable=True)
+    sowing_date = Column(Date, nullable=True)   # optional crop-cycle association
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)

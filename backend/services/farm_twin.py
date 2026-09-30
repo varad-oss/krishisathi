@@ -15,8 +15,9 @@ from sqlalchemy import select
 from core.database import AsyncSessionLocal
 from core.errors import ApiError
 from models.intelligence import FarmIntelligence
-from models.schema import AdvisoryActionRecord, DiagnosisRecord, FarmRecord, FarmSnapshotRecord
+from models.schema import AdvisoryActionRecord, DiagnosisRecord, FarmPlotRecord, FarmRecord, FarmSnapshotRecord
 from services.crops import normalize_crop
+from services.plots import MAX_DISTANCE_FROM_FARM_KM, PlotError, centroid, haversine_km, validate_polygon
 
 LOCATION_DECIMALS = 3          # ~110 m
 SNAPSHOT_MIN_INTERVAL = timedelta(hours=1)
@@ -69,6 +70,59 @@ async def authorize(farm_id: str, token: Optional[str]) -> FarmRecord:
     return farm
 
 
+def plot_view(p: FarmPlotRecord, geometry: bool = True) -> dict:
+    """The farmer's own view of their plot. `geometry=False` for summaries that do not need the outline."""
+    view = {"plot_id": p.id, "area_ha": p.area_ha, "crop": p.crop, "sowing_date": p.sowing_date.isoformat() if p.sowing_date else None,
+            "created_at": _iso(p.created_at), "updated_at": _iso(p.updated_at)}
+    return {**view, "geometry": p.geometry} if geometry else view
+
+
+async def get_plot(farm_id: str) -> Optional[FarmPlotRecord]:
+    async with AsyncSessionLocal() as session:
+        return (await session.execute(select(FarmPlotRecord).where(FarmPlotRecord.farm_id == farm_id))).scalar_one_or_none()
+
+
+async def save_plot(farm: FarmRecord, geometry: dict, crop: Optional[str], sowing_date: Optional[date]) -> dict:
+    """Creates or replaces the farm's plot after validating the polygon against the farm location."""
+    try:
+        valid = validate_polygon(geometry, farm.lat, farm.lng)
+    except PlotError as e:
+        raise ApiError(422, "INVALID_GEOMETRY", e.message) from None
+    now = datetime.utcnow()
+    async with AsyncSessionLocal() as session:
+        plot = (await session.execute(select(FarmPlotRecord).where(FarmPlotRecord.farm_id == farm.id))).scalar_one_or_none()
+        if not plot:
+            plot = FarmPlotRecord(farm_id=farm.id, created_at=now)
+            session.add(plot)
+        plot.geometry, plot.area_ha = valid["geometry"], valid["area_ha"]
+        plot.crop = normalize_crop(crop) or farm.crop
+        plot.sowing_date = sowing_date or farm.sowing_date
+        plot.updated_at = now
+        await session.commit()
+        return plot_view(plot)
+
+
+async def satellite_plot(farm: FarmRecord) -> Optional[dict]:
+    """The plot for satellite queries, or None to use the farm point (no plot, or the farm has since moved away from it)."""
+    plot = await get_plot(farm.id)
+    if not plot:
+        return None
+    c_lat, c_lng = centroid(plot.geometry["coordinates"][0])
+    if haversine_km(farm.lat, farm.lng, c_lat, c_lng) > MAX_DISTANCE_FROM_FARM_KM:
+        return None
+    return {"geometry": plot.geometry, "area_ha": plot.area_ha}
+
+
+async def delete_plot(farm_id: str) -> bool:
+    async with AsyncSessionLocal() as session:
+        plot = (await session.execute(select(FarmPlotRecord).where(FarmPlotRecord.farm_id == farm_id))).scalar_one_or_none()
+        if not plot:
+            return False
+        await session.delete(plot)
+        await session.commit()
+        return True
+
+
 async def update_farm(farm_id: str, lat: float, lng: float, crop: Optional[str], sowing_date: Optional[date], area_ha: Optional[float]) -> dict:
     async with AsyncSessionLocal() as session:
         farm = await session.get(FarmRecord, farm_id)
@@ -100,6 +154,8 @@ def _observations(intel: FarmIntelligence) -> dict:
         "soil_water_status": sw.get("status"),
         "ndvi": h.get("ndvi") if h.get("status") == "available" else None,
         "ndvi_image_date": h.get("latest_image_date"),
+        "field_mode": (intel.farm.get("field") or {}).get("mode"),
+        "satellite_quality": (h.get("quality") or {}).get("level"),
     }
 
 
@@ -177,8 +233,10 @@ async def history(farm: FarmRecord) -> dict:
             select(AdvisoryActionRecord).where(AdvisoryActionRecord.farm_id == farm.id)
             .order_by(AdvisoryActionRecord.created_at.desc()).limit(HISTORY_LIMIT)
         )).scalars().all()
+    plot = await get_plot(farm.id)
     return {
         "farm": farm_view(farm),
+        "plot": plot_view(plot, geometry=False) if plot else None,
         "snapshots": [{"snapshot_id": s.id, "created_at": _iso(s.created_at), "crop": s.crop, "crop_stage": s.crop_stage,
                        "top_action": s.top_action, "top_severity": s.top_severity, "risks": s.risks,
                        "data_quality": s.data_quality, "observations": s.observations} for s in snaps],

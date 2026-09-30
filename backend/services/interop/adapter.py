@@ -5,11 +5,34 @@
 A BRICS member joins by implementing CountryAdapter over its own sources (weather service, disease surveillance,
 advisory records) and registering it. Domain services and the API stay unchanged. Adapters must publish only
 aggregates that satisfy `privacy` and must label every value with its provenance kind.
+
+A category the country has no real source for raises UnsupportedCategory (served as status "unsupported"), and
+a source that cannot be reached raises SourceUnavailable (served as HTTP 503). An adapter never fills either
+case with placeholder records, and an empty list always means "the source answered and had nothing".
 """
 from datetime import date
 from typing import Protocol, runtime_checkable
 
 from models.interop_v1 import CropV1, DiseaseV1, ObservationV1, PrivacyV1, RiskSignalV1
+
+
+CATEGORIES = ("crops", "diseases", "weather_signals", "observations", "risk_signals")
+
+
+class UnsupportedCategory(Exception):
+    """The country has no legitimate source for this category."""
+
+    def __init__(self, category: str, reason: str):
+        super().__init__(reason)
+        self.category, self.reason = category, reason
+
+
+class SourceUnavailable(Exception):
+    """The national source exists but could not be read now. `code` is safe to show."""
+
+    def __init__(self, code: str):
+        super().__init__(code)
+        self.code = code
 
 
 @runtime_checkable

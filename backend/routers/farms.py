@@ -1,7 +1,7 @@
 """Farm digital twin API. A farm is created without any personal data and accessed with the X-Farm-Token
 returned once at creation. Responses never include other farms' data."""
 from datetime import date
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, Depends, Header, Path, Request
 from pydantic import BaseModel, Field, model_validator
@@ -10,6 +10,7 @@ from core.events import log_event
 from core.rate_limit import rate_limit
 from models.intelligence import FarmIntelligence
 from services import farm_twin
+from services.earth_engine_service import earth_engine_service
 from services.intelligence_service import farm_intelligence
 from services.regenerative_service import TIMING
 
@@ -41,6 +42,19 @@ class FeedbackIn(BaseModel):
     def _something(self):
         if not self.followed and not self.outcome:
             raise ValueError("followed or outcome is required")
+        return self
+
+
+class PlotIn(BaseModel):
+    """GeoJSON Polygon ([lng, lat] positions). Validated in services/plots.py (closed, simple, 0.01-200 ha, near the farm)."""
+    geometry: dict[str, Any]
+    crop: Optional[str] = Field(None, max_length=40)
+    sowing_date: Optional[date] = None
+
+    @model_validator(mode="after")
+    def _sowing_not_future(self):
+        if self.sowing_date and self.sowing_date > date.today():
+            raise ValueError("sowing_date cannot be in the future")
         return self
 
 
@@ -88,7 +102,8 @@ async def get_farm_intelligence(farm=Depends(farm_access)):
     """Farm intelligence for the stored profile, using the farm's own recent diagnoses. Records a snapshot and
     the recommended action so the farmer can report what they did and what happened."""
     history = {"recent_diagnoses": await farm_twin.recent_diagnoses(farm.id, days=14)}
-    intel = await farm_intelligence(farm.lat, farm.lng, farm.crop, farm.sowing_date, history, farm_id=farm.id)
+    intel = await farm_intelligence(farm.lat, farm.lng, farm.crop, farm.sowing_date, history, farm_id=farm.id,
+                                    plot=await farm_twin.satellite_plot(farm))
     try:
         twin = await farm_twin.record_intelligence(farm, intel)
     except Exception:  # the farmer still gets the advice; feedback is unavailable for this view
@@ -112,3 +127,37 @@ async def record_practice(body: PracticeIn, farm=Depends(farm_access)):
     result = await farm_twin.submit_feedback(farm.id, action["action_id"], ADOPTION[body.status], None)
     log_event("practice_reported", farm_id=farm.id, practice=body.practice, status=body.status)
     return result
+
+
+@router.get("/{farm_id}/plot")
+async def get_plot(farm=Depends(farm_access)):
+    """The farm's field outline, or {"plot": null} when the farm uses its location point."""
+    plot = await farm_twin.get_plot(farm.id)
+    return {"plot": farm_twin.plot_view(plot) if plot else None}
+
+
+@router.put("/{farm_id}/plot")
+async def save_plot(body: PlotIn, farm=Depends(farm_access)):
+    """Creates or replaces the field outline. Used only to make satellite statistics specific to the field."""
+    plot = await farm_twin.save_plot(farm, body.geometry, body.crop, body.sowing_date)
+    log_event("plot_saved", farm_id=farm.id, area_ha=plot["area_ha"])  # never the geometry
+    return {"plot": plot}
+
+
+@router.delete("/{farm_id}/plot")
+async def delete_plot(farm=Depends(farm_access)):
+    """Removes the outline; satellite statistics go back to the circle around the farm point."""
+    removed = await farm_twin.delete_plot(farm.id)
+    log_event("plot_removed", farm_id=farm.id, removed=removed)
+    return {"plot": None, "removed": removed}
+
+
+@router.get("/{farm_id}/crop-health")
+async def get_field_crop_health(farm=Depends(farm_access)):
+    """Sentinel-2/Sentinel-1 statistics over the drawn field when there is one, else around the farm point."""
+    return await earth_engine_service.get_crop_health(farm.lat, farm.lng, await farm_twin.satellite_plot(farm))
+
+
+@router.get("/{farm_id}/crop-health/history")
+async def get_field_crop_health_history(farm=Depends(farm_access)):
+    return await earth_engine_service.get_history(farm.lat, farm.lng, await farm_twin.satellite_plot(farm))

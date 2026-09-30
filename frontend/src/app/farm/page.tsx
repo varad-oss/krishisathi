@@ -9,7 +9,7 @@ import { TodayCard, WeatherCard } from '@/components/farm/TodayAlertsWeather';
 import { CropOptionsCard } from '@/components/farm/Regenerative';
 import { CropHealthCard, KvkCard, SoilRegenCard } from '@/components/farm/SoilCropKvk';
 import { buttonClass, Card, LoadingBlock } from '@/components/ui';
-import { getCropHealth, getFarmConditions, getFarmHistory, getFarmIntelligence, getFarmTwinIntelligence, getCropOptions, getNearestKvk, getRegenerative } from '@/lib/api';
+import { getCropHealth, getFieldCropHealth, getPlot, getFarmConditions, getFarmHistory, getFarmIntelligence, getFarmTwinIntelligence, getCropOptions, getNearestKvk, getRegenerative } from '@/lib/api';
 import type { FarmTwinIntelligence } from '@/lib/types';
 import { useFarmProfile } from '@/lib/farm-profile';
 import { useI18n } from '@/lib/i18n';
@@ -32,6 +32,8 @@ export default function FarmPage() {
   const { t } = useI18n();
   const { profile, ready, twin, twinRevision, forgetTwin } = useFarmProfile();
   const [editing, setEditing] = useState(false);
+  // Bumped when the field outline is saved or removed, so satellite values and risks are reloaded for it.
+  const [plotRevision, setPlotRevision] = useState(0);
   const locationLabel = useLocationLabel();
   const loc = profile.location;
   const crop = profile.crop;
@@ -53,13 +55,19 @@ export default function FarmPage() {
               })
             : getFarmIntelligence(loc.lat, loc.lng, crop, sowing, s)
       : null,
-    [...key, sowing, twin?.farmId, twinRevision],
+    [...key, sowing, twin?.farmId, twinRevision, plotRevision],
     saved(`intelligence:${sowing ?? '-'}`),
   );
   const history = useResource(twin ? (s) => getFarmHistory(twin, s) : null, [twin?.farmId, twinRevision, intel.updatedAt]);
   const regen = useResource(loc ? (s) => getRegenerative(loc.lat, loc.lng, crop, sowing, s) : null, [...key, sowing], saved(`regenerative:${sowing ?? '-'}`));
   const options = useResource(loc ? (s) => getCropOptions(loc.lat, loc.lng, crop, s) : null, key, saved('crop-options'));
-  const health = useResource(loc ? (s) => getCropHealth(loc.lat, loc.lng, s) : null, key, saved('crop-health'));
+  const plot = useResource(twin ? (s) => getPlot(twin, s) : null, [twin?.farmId, plotRevision]);
+  // With a farm record, satellite values follow the drawn field (or the farm point when there is none).
+  const health = useResource(
+    loc ? (s) => (twin ? getFieldCropHealth(twin, s) : getCropHealth(loc.lat, loc.lng, s)) : null,
+    [...key, twin?.farmId, twinRevision, plotRevision],
+    saved(`crop-health:${twin ? 'field' : 'point'}`),
+  );
   const kvk = useResource(loc ? (s) => getNearestKvk(loc.lat, loc.lng, s) : null, key, saved('kvk'));
   const cropLabel = crop ? t(`crop.${crop}` as MessageKey) : null;
 
@@ -114,7 +122,7 @@ export default function FarmPage() {
         <div className="grid items-start gap-6 lg:grid-cols-[1.6fr_1fr] [&>*]:min-w-0">
           <RiskRadar intel={intel} cropLabel={cropLabel} />
           <div className="space-y-6">
-            <CropHealthCard health={health} location={loc} />
+            <CropHealthCard health={health} location={loc} twin={twin} plot={plot} onPlotChanged={() => setPlotRevision((r) => r + 1)} />
             <KvkCard kvk={kvk} />
           </div>
         </div>

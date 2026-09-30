@@ -1,8 +1,8 @@
-# Sentinel-2 crop health via Google Earth Engine
+# Sentinel-2 / Sentinel-1 field signals via Google Earth Engine
 
 KrishiSathi reads **real Sentinel-2 surface reflectance** from
 [`COPERNICUS/S2_SR_HARMONIZED`](https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR_HARMONIZED)
-to show a farm's NDVI on **My farm → Crop health**. There is no fallback data: without working
+to show a field's NDVI on **My farm → Satellite vegetation signal** (drawn field, or a circle around the farm). There is no fallback data: without working
 credentials, the endpoint returns `"status": "unavailable"` with a reason code, and no value.
 
 | Provenance | |
@@ -38,16 +38,48 @@ source switches to `unavailable`. Earth Engine is optional: it never blocks `/he
 
 ## What is computed
 
-`GET /api/farm/crop-health?lat=&lng=` (`backend/services/earth_engine_service.py`):
+Two region modes, one method (`backend/services/earth_engine_service.py`):
+
+| Mode | Endpoint | Region | When |
+|---|---|---|---|
+| **Polygon** (preferred) | `GET /api/farms/{id}/crop-health` (+ `/history`), farm token | the farmer's drawn field outline | the farm has a plot within 5 km of its location |
+| **Point** (fallback) | same endpoints without a plot, or `GET /api/farm/crop-health?lat=&lng=` | a 250 m circle around the point | no plot drawn |
+
+Every response has `roi.mode` (`polygon` with `area_ha` and `pixel_count`, or `point` with the circle) so the
+UI can say what the numbers describe. A polygon's coordinates are never echoed back, logged or used in cache
+keys (the key is a SHA-256 of the coordinates).
 
 Latitude must be within −90…90 and longitude within −180…180; other values return HTTP 422 `INVALID_INPUT`.
 
-1. It selects Sentinel-2 scenes intersecting a **250 m radius** around the point in two windows: the last 30 days, and the 30 days before.
+1. It selects Sentinel-2 scenes intersecting the region (field outline or **250 m radius**) in two windows: the last 30 days, and the 30 days before.
 2. It drops scenes with more than 60 % cloud (`CLOUDY_PIXEL_PERCENTAGE`), then masks each remaining pixel with the Scene Classification Layer. Only vegetation, bare soil, water and unclassified pixels are kept; cloud, cloud shadow, cirrus, snow, saturated and no-data pixels are removed.
-3. For each pixel it computes NDVI = (B8 − B4) / (B8 + B4), takes the median across scenes, and averages it over the circle at 10 m scale.
-4. A window counts only if at least 10 % of the circle had clear pixels; otherwise a mean would describe a few scattered pixels, not the field.
+3. For each pixel it computes NDVI = (B8 − B4) / (B8 + B4), takes the median across scenes, and averages it over the region at 10 m scale (pixels whose centre falls inside the outline).
+4. A window counts only if enough of the region had clear pixels; otherwise a mean would describe a few scattered pixels, not the field. Point: at least 10 % of the circle. Polygon (a small area, so stricter): at least 30 % of the field's pixels **and** at least 10 clear pixels.
 5. It returns `ndvi`, `ndvi_previous`, `change`, `image_count`, `latest_image_date`, `clear_pixel_fraction`, `observation` (newest scene: `image_id`, `sensed_at`, `scene_cloud_pct`), `roi`, both windows and provenance. Both windows come back in a single Earth Engine request.
 6. If no usable observation exists (for example during the monsoon), it returns `"status": "no_data", "reason": "no_suitable_observation"`, never a number. `observation` still names the newest scene, if any, so you can see it was cloudy.
+
+### Field outline, pixels and mixed land (data quality)
+
+A drawn outline can include a road, a pond, trees or a neighbour's land, and a 250 m circle almost always does.
+Every answer therefore carries a `quality` block instead of implying the number is "the crop":
+
+| Field | Meaning |
+|---|---|
+| `pixel_count` | 10 m pixels in the region (polygon: counted by Earth Engine; point: the circle, ≈ 1963) |
+| `clear_pixel_count`, `clear_pixel_fraction` | pixels with at least one cloud-free observation in the current window |
+| `valid_pixel_fraction` | pixels with any Sentinel-2 observation at all (clouds included) |
+| `land_cover` | shares of cropland, trees, grass/shrub, built-up, water and other inside the region from **ESA WorldCover 10 m 2021 (v200)**; `unavailable` if it could not be read |
+| `flags` | `field_too_small` (< 10 pixels, i.e. < 0.1 ha), `too_few_clear_pixels`, `mixed_land_cover` (< 50 % mapped cropland), `contains_water` (≥ 10 %), `contains_trees` (≥ 20 %), `contains_built_up` (≥ 10 %), `point_circle_not_field_boundary` |
+| `level` | `good` (usable, ≥ 60 % clear, none of the limiting flags), `limited`, or `insufficient` |
+
+WorldCover is a 2021 map and is used only to flag mixed regions; it never changes the NDVI value. The
+point circle is always at most `limited`, because it is not the field.
+
+When a polygon has some clear pixels but too few to stand for the field, the answer is
+`"status": "insufficient_data", "reason": "too_few_clear_pixels"`; below 10 pixels it is
+`"reason": "field_too_small"` (radar and baseline are then not computed either). Neither returns a number.
+The risk engine turns `good` into moderate evidence confidence and anything else into low (see
+`docs/INTELLIGENCE.md`).
 
 ### Same-season baseline (temporal context)
 
@@ -140,6 +172,8 @@ To run the live test in CI, add the key as the GitHub Actions secret `EE_SERVICE
 | `earth_engine_unavailable` | Network error or Earth Engine server error | None; retried automatically (`retryable: true`) |
 | `timeout` | Earth Engine did not answer within 25 s | None; retried automatically (`retryable: true`) |
 | `no_suitable_observation` | Not an error: no scene in 30 days had enough clear pixels over the field (`status: "no_data"`) | None |
+| `too_few_clear_pixels` | Not an error: a drawn field had some clear pixels but too few to describe it (`status: "insufficient_data"`) | None |
+| `field_too_small` | Not an error: the drawn field covers fewer than 10 pixels (`status: "insufficient_data"`) | Draw the whole field |
 
 Start-up failures with the codes `auth_failed`, `project_configuration_error`, `dataset_query_failed`,
 `earth_engine_unavailable` and `timeout` are retried every 5 minutes.
@@ -147,6 +181,13 @@ Start-up failures with the codes `auth_failed`, `project_configuration_error`, `
 ## Limits
 
 * NDVI depends on crop and growth stage. Compare a field with itself over time, not with other crops.
-* The 250 m circle can include neighbouring fields, roads or water.
+* The 250 m circle can include neighbouring fields, roads or water; draw the field to avoid this. Even a
+  drawn field can contain mixed land, which `quality.land_cover` and `flags` report.
+* NDVI is a satellite vegetation signal, not crop health, not yield. VV/VH backscatter is not soil moisture.
 * Regional (state-level) NDVI aggregation is not implemented. The policy dashboard says so and shows no values.
-* Each request makes one synchronous Earth Engine call, bounded at 25 s. Results are not cached.
+* Plots are limited to 0.01–200 ha (≤ 20 000 pixels at 10 m); `maxPixels` is capped at 1 000 000 so an
+  oversized request fails instead of quietly computing over a huge area. Processing resolution is 10 m.
+* Each request makes one Earth Engine call (all windows, baseline years, radar and land cover in one
+  round trip), bounded at 25 s. Successful and no-data answers are cached for 6 hours per region per day
+  (point: rounded coordinates; polygon: hash of the outline), and concurrent requests for the same region
+  share one query. The farm view waits at most 8 s and shows "still loading" rather than blocking.

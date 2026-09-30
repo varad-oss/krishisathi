@@ -2,9 +2,10 @@
 
 import { useId, useState } from 'react';
 import { EarlyWarningPanel } from '@/components/policy/EarlyWarning';
+import { EvaluationPanel } from '@/components/policy/Evaluation';
 import { CropHealthPanel, KpiRow, LimitationsPanel, OutbreaksPanel, ReportPanel, SignalsPanel, TrendAndDistribution, WeatherRiskPanel } from '@/components/policy/Panels';
 import { inputClass, PageHeader } from '@/components/ui';
-import { getDashboardStats, getEarlyWarning, getExchangeSignals, getOutbreaks, getStates, getWeatherRisk } from '@/lib/api';
+import { getDashboardStats, getEarlyWarning, getEvaluation, getExchangeSignals, getOutbreaks, getStates, getWeatherRisk } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
 import { useResource } from '@/lib/use-resource';
 import type { MessageKey } from '@/locales/en';
@@ -21,6 +22,7 @@ export default function PolicyDashboardPage() {
   const risk = useResource((s) => getWeatherRisk(s), []);
   const signals = useResource((s) => getExchangeSignals(s), []);
   const states = useResource((s) => getStates(s), []);
+  const evaluation = useResource((s) => getEvaluation(s), []);
   const stateList = states.data ?? [];
 
   return (
@@ -60,6 +62,7 @@ export default function PolicyDashboardPage() {
           <ReportPanel />
           <SignalsPanel signals={signals} states={stateList} stateFilter={stateFilter} />
         </div>
+        <EvaluationPanel evaluation={evaluation} />
         <div className="grid items-start gap-6 lg:grid-cols-2 [&>*]:min-w-0">
           <CropHealthPanel />
           <LimitationsPanel />

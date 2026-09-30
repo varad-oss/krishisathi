@@ -87,11 +87,30 @@ def models_in_use() -> list[ModelVersion]:
     ]
 
 
+# Interfaces a country could implement to take part in a future federation. None of them trains or exchanges a model
+# today; "contract_only" means code and schemas exist, nothing runs.
+FEDERATED_READY = [
+    {"id": "model_update_contract", "status": "contract_only", "module": "services/federation.py (ModelUpdate)",
+     "what": "Parameters and example counts a country would share after local training; never raw records."},
+    {"id": "fedavg_aggregator", "status": "contract_only", "module": "services/federation.py (FedAvg)",
+     "what": "Reference example-weighted aggregation with validation; exercised only by tests."},
+    {"id": "country_adapter", "status": "running", "module": "services/interop (IndiaAdapter, BrazilAdapter)",
+     "what": "Country-neutral v1.0 data exchange. Running for data exchange, not for model training."},
+    {"id": "evaluation_contract", "status": "contract_only", "module": "services/measurement.py (evaluation_records)",
+     "what": "Prediction vs farmer feedback vs later observation, a shape a country could use to evaluate a shared model locally."},
+]
+
+
 def registry(now: Optional[datetime] = None) -> dict:
+    running = [m.__dict__ | {"country_codes": list(m.country_codes), "status": "running"} for m in models_in_use()]
     return {
         "schema_version": "1.0",
         "generated_at": (now or datetime.now(timezone.utc)).isoformat(),
-        "models": [m.__dict__ | {"country_codes": list(m.country_codes)} for m in models_in_use()],
+        # Actually deployed models and services. None is federated.
+        "models": running,
+        "currently_running": [m["model_id"] for m in running],
+        # Interfaces that could participate in a future federation; they do not run a federation now.
+        "federated_ready": FEDERATED_READY,
         "federation": {
             "status": "not_running",
             "reason": "No country-local model training exists in this deployment; only interfaces and metadata are defined.",

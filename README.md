@@ -12,13 +12,16 @@
 
 | Farmers ask | KrishiSathi answers with | Based on |
 |---|---|---|
-| What should I do today? | Ranked risks and the one action that matters now | Open-Meteo forecast + published IMD thresholds |
+| What should I do today? | Ranked risks and the one action that matters now, each with a **risk level** and a separate **evidence confidence** (and why) | Open-Meteo forecast + published IMD thresholds + the sources below |
+| How is my field doing from space? | A *satellite vegetation signal* (NDVI, change, same weeks in past years, radar) for the field the farmer drew, or a circle around the farm; data quality (clear pixels, land cover mix) shown next to it; "a monitoring indicator, not a diagnosis" | Sentinel-2 + Sentinel-1 via Earth Engine, ESA WorldCover |
 | What will the weather do? | 7-day forecast translated into farming meaning (rain, heat, cold, fungal conditions, dry spells, spray wind) | Open-Meteo (model estimates, labelled as such) |
 | What is wrong with my crop? | Diagnosis with **status** (disease / healthy / uncertain / not a plant), **certainty** (low / moderate / high), symptoms seen, alternatives and safe next steps | Gemini vision + curated ICAR disease reference |
 | Something is wrong, where do I start? | One screen with seven plain choices (photo, pests, weather, water, slow growth, soil, "I don't know"), each routed to the right tool | Existing tools; no separate logic |
 | How can I improve my soil? | Regenerative practices placed on the crop cycle (this season, next season, long-term), with why, what, when, benefit and the data behind them; the farmer can record adoption | ISRIC SoilGrids + Soil Health Card rating classes + forecast + FAO-56 crop stage |
 | Which crops suit my area? | Water need, season length, verified disease guides and nearby clusters for the farm's crop and the state's crops. Not a ranking; prices shown as unavailable | FAO water-need and FAO-56 tables, ICAR reference, community reports |
 | Is there a risk nearby? | Weather alerts and disease clusters reported within ~100 km | Forecast rules + anonymised, AI-classified farmer reports |
+| Did the advice help? (policymakers, developers) | KrishiSathi self-reported feedback: follow-through, reported outcomes, "diagnosis wrong" reports by model confidence. Never called success or yield | Farmers' answers in the app, groups < 5 hidden |
+| How does this work with another BRICS country? | India and Brazil through the same v1.0 interoperability contract | KrishiSathi aggregates (India), IBGE official crop statistics (Brazil) |
 | Where are risks rising? (policymakers) | Early warning: disease signals per 0.5° area (new / rising / falling, confidence from the number of reports), per-state weather threats and an explicit "unavailable" for regional satellite anomalies. Every chart states period, geography, observations, source and limits, and flags thin data | Aggregated diagnoses (≥ 0.5° for signals, ~11 km for clusters) + forecast |
 
 Ask by voice and the answer comes back short and spoken, grounded in the farm risk engine, with the text kept on screen. Offline, the app shows the last saved data clearly marked with its date, and queues farmer answers until the connection returns.
@@ -32,7 +35,10 @@ KrishiSathi never fills a gap with invented numbers.
 * If a source fails or is not configured, the UI shows an explicit **unavailable** state and the API returns an error or `{"status": "unavailable"}`. There is no demo mode and no mock fallback.
 * Every panel shows its **provenance**: source, kind (model estimate, forecast, satellite observation, AI-generated, verified reference, rule-based) and time.
 * AI output is always labelled and kept separate from verified data. Chemical treatments are shown only when the diagnosis matches the curated reference and certainty is not low. Everything else directs the farmer to their KVK.
-* Satellite crop health is shown only when Earth Engine is configured. Regional crop-health aggregation is not implemented, so the policy dashboard says so.
+* Satellite values are shown only when Earth Engine is configured, and only as a satellite vegetation signal with its data quality; too few clear pixels over a drawn field is "not enough data", never a number. Regional crop-health aggregation is not implemented, so the policy dashboard says so.
+* No probabilities are invented: risk level and evidence confidence are qualitative and derived from documented rules (`docs/INTELLIGENCE.md`).
+* Farmer feedback is labelled *self-reported*; it is never used to retrain a model automatically.
+* The Brazil adapter publishes only what IBGE publishes; categories without a Brazilian source are `unsupported`, never simulated.
 * Diagnosis accuracy has **not** been measured on an Indian field dataset. `backend/scripts/validate_plantvillage.py` can measure it.
 
 ## Architecture
@@ -47,7 +53,8 @@ graph TD
     API -->|image + grounded context| Gemini[Google Gemini]
     API --> OM[Open-Meteo forecast]
     API --> SG[ISRIC SoilGrids]
-    API -.optional.-> EE[Earth Engine Sentinel-2 NDVI]
+    API -.optional.-> EE[Earth Engine: Sentinel-2 NDVI, Sentinel-1 radar, field polygon]
+    API -.BR adapter.-> IBGE[IBGE SIDRA: Brazil crop statistics]
     API --> DB[(SQLite / Postgres)]
     API -.optional.-> Redis[(Redis: rate limit, idempotency, cache)]
     API --> TTS[Read aloud: Gemini voice, gTTS fallback, same language]
@@ -58,8 +65,9 @@ graph TD
 * `core/`: error envelope `{"error": {"code", "message", "request_id", "retryable"}}`, request-ID and security-header middleware, rate limiting (Redis with an in-process fallback), JWT auth that fails closed.
 * `services/`: weather, agro rules, soil, regenerative practices, Earth Engine, Gemini (timeouts, schema validation, prompt-injection fencing), grounding context, persistence.
 * `routers/`:
-  * farmer: `/api/farm/*`, `/api/diagnose`, `/api/advisory/*`, `/api/alerts`, `/api/kvk`
-  * policymaker: `/api/dashboard/*`, `/api/states/*`
+  * farmer: `/api/farm/*`, `/api/farms/*` (farm record, field outline, history, feedback), `/api/diagnose`, `/api/advisory/*`, `/api/alerts`, `/api/kvk`
+  * interoperability: `/api/interoperability/*` (India and Brazil adapters, v1.0 schemas, model registry)
+  * policymaker: `/api/dashboard/*` (incl. `/evaluation`), `/api/states/*`
   * metadata: `/api/sources`, `/health/live`, `/health/ready`
 
 **Frontend** (`frontend/`): Next.js 16 App Router, React 19, Tailwind v4.
@@ -132,7 +140,8 @@ After changing a locale, run `node scripts/localize-digits.mjs` to convert ASCII
 | [ISRIC SoilGrids 2.0](https://soilgrids.org) | pH, organic carbon, clay, sand (0–15 cm) | 250 m predictions; not a field test |
 | India Meteorological Department | Heavy-rain, heat and cold thresholds | Used in `services/agro_rules.py` |
 | Soil Health Card scheme | pH and organic-carbon rating classes | Used in `services/soil_service.py` |
-| Google Earth Engine (optional) | Sentinel-2 NDVI around the farm | Unavailable unless a service account is configured |
+| Google Earth Engine (optional) | Sentinel-2 NDVI and Sentinel-1 radar over the drawn field (or a 250 m circle); ESA WorldCover land-cover mix | Unavailable unless a service account is configured; see `docs/EARTH_ENGINE.md` |
+| [IBGE SIDRA](https://apisidra.ibge.gov.br) (Brazil) | Official state crop area, production and yield (PAM, table 5457) for the Brazil interoperability adapter | Annual, ~1 year lag; see `docs/INTEROPERABILITY.md` |
 | Google Gemini | Photo diagnosis, advisory, transcription, policy briefing | Always labelled AI-generated |
 | `backend/data/disease_reference.json` | Curated disease symptoms and management (ICAR institutes) | Small and growing |
 | `backend/data/kvk_locations.json` | Krishi Vigyan Kendra for the nearest listed district (23 districts) | Coordinates are district headquarters, not KVK campuses, so no distance is shown; outside 60 km no KVK is claimed |
@@ -155,6 +164,8 @@ Voice order: the Gemini speech model (natural, locale-pinned) for `GEMINI_TTS_LA
 * KVK data covers 23 districts with district-HQ coordinates. A verified national KVK dataset with campus coordinates is needed before distances can be shown.
 * SoilGrids is a fair-use service (about 5 queries per minute per client). Answers are cached for 7 days (Redis) and rate-limit answers are backed off, but a cold, busy deployment can still see "service busy".
 * District and disease names from the data sources are proper nouns and stay in their source spelling.
+* Evidence-confidence levels are reasoned, not calibrated: no field-outcome dataset exists yet. The evaluation export is the first step towards one.
+* The field-drawing map uses Esri World Imagery tiles (attribution shown); a deployment with commercial use should confirm the imagery terms.
 * Gemini speech language coverage should be confirmed against the current model documentation before adding languages to `GEMINI_TTS_LANGUAGES`.
 
 ## License
