@@ -3,11 +3,15 @@
 Each endpoint degrades independently: a failure in soil data never hides weather,
 and every block reports its own availability and provenance.
 """
+from datetime import date
+
 from fastapi import APIRouter, Query
 
+from models.intelligence import FarmIntelligence
 from services import agro_rules
 from services.crops import normalize_crop
 from services.earth_engine_service import earth_engine_service
+from services.intelligence_service import farm_intelligence
 from services.regenerative_service import recommend
 from services.soil_service import soil_service
 from services.weather_service import weather_service
@@ -17,6 +21,15 @@ router = APIRouter(prefix="/api/farm", tags=["Farm intelligence"])
 
 Lat = Query(..., ge=-90, le=90)
 Lng = Query(..., ge=-180, le=180)
+Crop = Query(None, max_length=40)
+SowingDate = Query(None, description="ISO date the crop was sown; enables crop-stage-aware risks")
+
+
+@router.get("/intelligence", response_model=FarmIntelligence)
+async def get_farm_intelligence(lat: float = Lat, lng: float = Lng, crop: str | None = Crop, sowing_date: date | None = SowingDate):
+    """What matters for this farm right now: weather, soil, satellite, crop stage and nearby reports fused into
+    explainable risks and one prioritized action. Each input reports its own status; none is estimated when missing."""
+    return await farm_intelligence(lat, lng, crop, sowing_date)
 
 
 @router.get("/conditions")
@@ -37,7 +50,7 @@ async def get_crop_health(lat: float = Lat, lng: float = Lng):
 
 
 @router.get("/regenerative")
-async def get_regenerative(lat: float = Lat, lng: float = Lng, crop: str | None = Query(None, max_length=40)):
+async def get_regenerative(lat: float = Lat, lng: float = Lng, crop: str | None = Crop):
     canonical_crop = normalize_crop(crop)
     soil = await soil_service.get_soil(lat, lng)
     try:

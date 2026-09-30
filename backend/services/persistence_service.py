@@ -51,6 +51,32 @@ def _public_coord(v: float) -> float:
     return round(v, PUBLIC_COORD_DECIMALS)
 
 
+NEARBY_MARGIN = 1.5  # a location within 1.5x the clustering radius counts as "nearby"
+
+
+def nearby_outbreaks(outbreaks: list[dict], lat: float, lng: float, crop: str | None) -> list[dict]:
+    """Active clusters near a farm that can affect its crop (clusters without crop targets apply to any crop)."""
+    found = []
+    for outbreak in outbreaks:
+        dist = _haversine(lat, lng, outbreak["lat"], outbreak["lng"])
+        if dist > outbreak["radius_km"] * NEARBY_MARGIN:
+            continue
+        targets = outbreak["crop_targets"]
+        if crop and targets and not any(t.lower() in crop.lower() or crop.lower() in t.lower() for t in targets):
+            continue
+        found.append({
+            "id": outbreak["id"],
+            "disease": outbreak["disease"],
+            "distance_km": round(dist),
+            "location": outbreak["location"],
+            "severity": outbreak["severity"],
+            "report_count": outbreak["report_count"],
+            "crop_targets": targets,
+            "last_report_at": outbreak["timestamp"],
+        })
+    return found
+
+
 class PersistenceService:
     async def save_diagnosis(self, diagnosis_data: dict, crop: str, lat: float | None, lng: float | None, language: str) -> None:
         """Records a diagnosis and updates outbreak clusters.

@@ -56,6 +56,10 @@ ROI_PIXELS = math.pi * BUFFER_M ** 2 / 100
 MIN_CLEAR_FRACTION = 0.1
 RETRY_AFTER_S = 300
 REQUIRED_KEY_FIELDS = ("client_email", "private_key", "project_id")
+POINT_CACHE_TTL_S = 6 * 3600
+# (lat, lng, day) -> (expires_at monotonic, result); in-flight queries shared by concurrent callers
+_point_cache: dict[tuple, tuple[float, dict]] = {}
+_point_inflight: dict[tuple, asyncio.Future] = {}
 
 # Failure codes, safe to show to operators and clients.
 AUTH_FAILED = "auth_failed"                                   # Google rejected the service-account key
@@ -303,8 +307,28 @@ class EarthEngineService:
         }
 
     async def get_point_crop_health(self, lat: float, lng: float) -> dict:
+        """Crop health at a point. Successful and no-imagery answers are cached for POINT_CACHE_TTL_S (a new
+        Sentinel-2 pass is at most every few days), and concurrent callers for the same point share one query,
+        so a caller that stops waiting (see farm intelligence time budgets) still warms the cache."""
         if not (-90 <= lat <= 90 and -180 <= lng <= 180):
             raise ValueError("coordinates out of range")
+        key = (round(lat, 3), round(lng, 3), date.today().isoformat())
+        cached = _point_cache.get(key)
+        if cached and time.monotonic() < cached[0]:
+            return cached[1]
+        pending = _point_inflight.get(key)
+        if pending is None:
+            pending = asyncio.ensure_future(self._query_point(lat, lng))
+            _point_inflight[key] = pending
+            pending.add_done_callback(lambda _f, k=key: _point_inflight.pop(k, None))
+        result = await asyncio.shield(pending)
+        if result["status"] in ("available", "no_data"):
+            if len(_point_cache) > 2000:
+                _point_cache.clear()
+            _point_cache[key] = (time.monotonic() + POINT_CACHE_TTL_S, result)
+        return result
+
+    async def _query_point(self, lat: float, lng: float) -> dict:
         if not await asyncio.to_thread(self.ensure_initialized):
             reason = "not_configured" if self.status == "not_configured" else self.error
             return {"status": "unavailable", "reason": reason, "retryable": reason in RETRYABLE, "provenance": PROVENANCE}
