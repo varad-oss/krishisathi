@@ -288,6 +288,9 @@ export interface AdvisoryInput {
   image_base64?: string;
   disease_name?: string | null;
   severity?: string | null;
+  /** "speech" asks for a short spoken-style answer (the question was asked by voice). */
+  mode?: 'text' | 'speech';
+  sowing_date?: string | null;
 }
 
 export const getAdvisory = (input: AdvisoryInput, signal?: AbortSignal) =>

@@ -14,6 +14,7 @@ import type { FarmTwinIntelligence } from '@/lib/types';
 import { useFarmProfile } from '@/lib/farm-profile';
 import { useI18n } from '@/lib/i18n';
 import { useResource } from '@/lib/use-resource';
+import { cacheKey } from '@/lib/offline';
 import type { MessageKey } from '@/locales/en';
 import { cn } from '@/lib/utils';
 
@@ -36,9 +37,11 @@ export default function FarmPage() {
   const crop = profile.crop;
   const sowing = profile.sowingDate;
   const key = [loc?.lat, loc?.lng, crop];
+  // Last good copy of each panel is kept on the device and shown, labelled with its time, only when offline.
+  const saved = (panel: string) => (loc ? cacheKey(panel, loc.lat, loc.lng, crop) : null);
 
   // Each panel loads independently so one failing source never blanks the page.
-  const conditions = useResource(loc ? (s) => getFarmConditions(loc.lat, loc.lng, s) : null, key);
+  const conditions = useResource(loc ? (s) => getFarmConditions(loc.lat, loc.lng, s) : null, key, saved('conditions'));
   // With a farm record the engine also uses the farm's own diagnoses and records what it advised.
   const intel = useResource<FarmTwinIntelligence>(
     loc
@@ -51,12 +54,13 @@ export default function FarmPage() {
             : getFarmIntelligence(loc.lat, loc.lng, crop, sowing, s)
       : null,
     [...key, sowing, twin?.farmId, twinRevision],
+    saved(`intelligence:${sowing ?? '-'}`),
   );
   const history = useResource(twin ? (s) => getFarmHistory(twin, s) : null, [twin?.farmId, twinRevision, intel.updatedAt]);
-  const regen = useResource(loc ? (s) => getRegenerative(loc.lat, loc.lng, crop, sowing, s) : null, [...key, sowing]);
-  const options = useResource(loc ? (s) => getCropOptions(loc.lat, loc.lng, crop, s) : null, key);
-  const health = useResource(loc ? (s) => getCropHealth(loc.lat, loc.lng, s) : null, key);
-  const kvk = useResource(loc ? (s) => getNearestKvk(loc.lat, loc.lng, s) : null, key);
+  const regen = useResource(loc ? (s) => getRegenerative(loc.lat, loc.lng, crop, sowing, s) : null, [...key, sowing], saved(`regenerative:${sowing ?? '-'}`));
+  const options = useResource(loc ? (s) => getCropOptions(loc.lat, loc.lng, crop, s) : null, key, saved('crop-options'));
+  const health = useResource(loc ? (s) => getCropHealth(loc.lat, loc.lng, s) : null, key, saved('crop-health'));
+  const kvk = useResource(loc ? (s) => getNearestKvk(loc.lat, loc.lng, s) : null, key, saved('kvk'));
   const cropLabel = crop ? t(`crop.${crop}` as MessageKey) : null;
 
   if (!ready) {

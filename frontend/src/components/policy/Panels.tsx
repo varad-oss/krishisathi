@@ -20,7 +20,7 @@ const TrendChart = dynamic(() => import('./TrendChart'), { ssr: false, loading: 
 function Kpi({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="p-4 sm:p-6">
-      <dt className="text-sm text-ink-soft">{label}</dt>
+      <dt className="text-sm text-ink-soft [overflow-wrap:anywhere]">{label}</dt>
       <dd className="mt-1 font-display text-[2.4rem] font-medium leading-none tabular-nums">{value}</dd>
       {sub && <dd className="mt-2 text-xs text-ink-faint">{sub}</dd>}
     </div>

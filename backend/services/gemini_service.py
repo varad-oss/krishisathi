@@ -144,7 +144,15 @@ Return only JSON with this structure:
 
     async def generate_advisory(self, query: str, context_block: str, language: str, crop: str | None,
                                 image_bytes: bytes | None = None, image_mime: str | None = None,
-                                diagnosis_context: str | None = None) -> str:
+                                diagnosis_context: str | None = None, mode: str = "text") -> str:
+        if mode == "speech":
+            style = """- This answer will be spoken aloud. Use at most 3 short sentences and under 60 words.
+- Start with what to do. Then give the one reason from the DATA that matters most. No lists, headings,
+  markdown, symbols, abbreviations or technical jargon; say numbers the way a person would say them.
+- If the farm risk engine gives a top action, base the answer on it unless the question is about something else."""
+        else:
+            style = """- Use simple words and stay under 220 words. Keep units and codes such as pH or NPK as is.
+- Structure: what to do now, why (cite which data), what to watch for."""
         system_instruction = f"""You are KrishiSathi, an agricultural advisor for small and marginal farmers in India.
 - Use ONLY the facts in the DATA blocks for any number, date, weather, soil or outbreak statement.
 - If a data source is marked UNAVAILABLE, say briefly that it was not available; do not guess it.
@@ -152,8 +160,7 @@ Return only JSON with this structure:
 - Prefer low-cost and regenerative practices. For chemical control, advise confirming products and doses with
   the local agriculture officer or Krishi Vigyan Kendra.
 - {language_rule(language)}
-  Use simple words and stay under 220 words. Keep units and codes such as pH or NPK as is.
-- Structure: what to do now, why (cite which data), what to watch for.
+{style}
 {UNTRUSTED_NOTE}"""
         parts = [f"Crop: {crop or 'not stated'}"]
         if diagnosis_context:

@@ -19,9 +19,10 @@ export default function Header() {
         {t('nav.skip')}
       </a>
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-        <Link href="/" className="flex items-center gap-2.5 rounded-lg" aria-label={t('app.name')}>
+        {/* min-w-0 + truncate: long native-script names must never push the language menu off small screens. */}
+        <Link href="/" className="flex min-w-0 items-center gap-2.5 rounded-lg" aria-label={t('app.name')}>
           <Logo />
-          <span className="font-display text-xl font-medium text-ink">{t('app.name')}</span>
+          <span className="truncate font-display text-xl font-medium text-ink">{t('app.name')}</span>
         </Link>
 
         <nav aria-label={t('nav.menu')} className="hidden h-full items-stretch gap-1 md:flex">

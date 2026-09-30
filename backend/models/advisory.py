@@ -1,4 +1,5 @@
 import base64
+from datetime import date
 from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
@@ -27,6 +28,9 @@ class AdvisoryRequest(BaseModel):
     crop_type: Optional[str] = Field(None, max_length=40)
     image_base64: Optional[str] = Field(None, max_length=10_000_000)
     language: Language = "en"
+    # "speech": a short spoken-style answer (voice questions), grounded additionally in the farm risk engine.
+    mode: Literal["text", "speech"] = "text"
+    sowing_date: Optional[date] = None
 
     @field_validator("image_base64")
     @classmethod
@@ -51,6 +55,7 @@ class AdvisoryResponse(BaseModel):
     language: str
     generated_at: str
     recorded: bool = True
+    mode: Literal["text", "speech"] = "text"
 
 
 class TtsRequest(BaseModel):

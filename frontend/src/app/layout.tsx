@@ -15,6 +15,7 @@ import './globals.css';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import MobileNav from '@/components/layout/MobileNav';
+import OfflineStatus from '@/components/layout/OfflineStatus';
 import Providers from './providers';
 
 // Latin text: Figtree (body) and Fraunces (display). Indic scripts use Noto Sans for consistent matras and
@@ -51,6 +52,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className="flex min-h-screen flex-col font-sans antialiased">
         <Providers>
           <Header />
+          <OfflineStatus />
           <main id="main" className="flex flex-1 flex-col pb-20 md:pb-0">
             {children}
           </main>

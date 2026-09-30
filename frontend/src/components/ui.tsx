@@ -53,7 +53,8 @@ export function CardTitle({
             <Icon className="h-[1.1rem] w-[1.1rem]" />
           </span>
         )}
-        <div className="min-w-0">
+        {/* Long single words in Indic scripts must wrap rather than widen the card on small phones. */}
+        <div className="min-w-0 [overflow-wrap:anywhere]">
           <h2 id={id} className="font-display text-[1.3rem] font-medium leading-tight text-ink">
             {children}
           </h2>

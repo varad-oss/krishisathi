@@ -270,7 +270,7 @@ export interface Escalation {
 }
 
 export interface DataSourceUse {
-  id: 'weather' | 'soil' | 'outbreaks' | 'disease_reference' | 'kvk';
+  id: 'weather' | 'soil' | 'outbreaks' | 'disease_reference' | 'kvk' | 'farm_intelligence';
   status: 'used' | 'unavailable' | 'not_provided' | 'none_found';
 }
 
@@ -281,6 +281,7 @@ export interface AdvisoryResponse {
   language: LanguageCode;
   generated_at: string;
   recorded: boolean;
+  mode?: 'text' | 'speech';
 }
 
 export interface DashboardStats {

@@ -175,3 +175,43 @@ every state reference point), with:
 
 It never ranks crops (`ranking: null`). Market prices, input costs and profit have no verified connected source,
 so they are returned as `unavailable` and the UI says so and points to the mandi or eNAM.
+
+## Voice, offline use and the "something is wrong" entry point
+
+**Voice-first answers.** `POST /api/advisory` and `/followup` accept `mode: "text" | "speech"` (default text,
+unchanged) and an optional `sowing_date`. Speech mode:
+
+1. adds the farm risk engine's output (top action, severity, confidence, drivers, crop stage) to the DATA blocks,
+   listed as the `farm_intelligence` source;
+2. asks for at most 3 short sentences under 60 words: the action first, then the one reason that matters, with
+   no lists, markdown, symbols or jargon. The language rule is the same as for text.
+
+The response echoes `mode`. `POST /api/advisory/voice` (audio in, audio out) always uses speech mode. In the
+advisor, a question dictated with the microphone and sent unedited gets a speech-mode answer. It is read out
+automatically, since the farmer just spoke, and the text stays on screen with the usual sources and a "Read
+aloud" button.
+
+**Offline** (`frontend/src/lib/offline.ts`). Nothing pretends live services work offline.
+
+- Farm panels (conditions, risks, crop health, soil and practices, crop options, KVK) save their last good
+  response on the device. The copy is keyed by location, crop and sowing date, and dropped after 7 days.
+- A saved copy is shown only when the device cannot reach the server (`OFFLINE` / `NETWORK_ERROR`) and nothing
+  fresher is loaded. It appears with the offline reason and "Last successfully updated …", never as current.
+  The panel reloads when the connection returns.
+- The profile, language and farm record are stored on the device as before. The last advisor answer is saved
+  and shown as "Your last answer, saved …".
+- Follow-through, outcome and practice answers given while offline are queued (`krishi_outbox`) and sent on
+  reconnect. An item is dropped only when delivered or rejected by the server (4xx).
+- A banner says when the device is offline and how many answers are waiting.
+
+**Something is wrong with my crop** (`/problem`) offers seven plain choices, each routed to an existing tool:
+
+| Choice | Goes to |
+|---|---|
+| Take a photo / Insects or pest damage | `/diagnose` |
+| Weather problem | `/farm#weather` |
+| Too much or too little water | `/farm#risks` |
+| Soil concern | `/farm#soil` |
+| Crop is not growing well / I don't know | `/advisor?topic=…`, with a starting question the farmer can edit (never sent automatically) |
+
+It is the landing page's main farmer action and is linked from the farm page's *Today* card.

@@ -82,8 +82,8 @@ export default function Home() {
             <Link href="/farm" className={cn(buttonClass.primary, 'bg-white text-leaf-900 hover:bg-leaf-50')}>
               <Sprout className="h-4 w-4" aria-hidden /> {t('landing.ctaFarm')}
             </Link>
-            <Link href="/diagnose" className={cn(buttonClass.secondary, 'border-leaf-500 bg-transparent text-white hover:border-white hover:text-white')}>
-              <Camera className="h-4 w-4" aria-hidden /> {t('landing.ctaDiagnose')}
+            <Link href="/problem" className={cn(buttonClass.secondary, 'border-leaf-500 bg-transparent text-white hover:border-white hover:text-white')}>
+              <Camera className="h-4 w-4" aria-hidden /> {t('problem.cta')}
             </Link>
             <Link href="/dashboard" className={cn(buttonClass.ghost, 'text-leaf-100 hover:bg-leaf-700/60')}>
               {t('landing.ctaPolicy')} <ArrowRight className="h-4 w-4" aria-hidden />

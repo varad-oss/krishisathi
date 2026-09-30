@@ -56,10 +56,12 @@ def _decode_image(image_base64: str | None) -> tuple[bytes | None, str | None]:
 async def _answer(request: AdvisoryRequest, advisory_type: str, diagnosis_context: str | None = None) -> AdvisoryResponse:
     crop = normalize_crop(request.crop_type)
     image_bytes, image_mime = _decode_image(request.image_base64)
-    context_block, sources = await build_context(request.latitude, request.longitude, crop)
+    speech = request.mode == "speech"
+    context_block, sources = await build_context(request.latitude, request.longitude, crop,
+                                                 sowing_date=request.sowing_date, include_intelligence=speech)
     text = await gemini_service.generate_advisory(
         request.query, context_block, request.language, crop,
-        image_bytes=image_bytes, image_mime=image_mime, diagnosis_context=diagnosis_context,
+        image_bytes=image_bytes, image_mime=image_mime, diagnosis_context=diagnosis_context, mode=request.mode,
     )
 
     recorded = True
@@ -75,6 +77,7 @@ async def _answer(request: AdvisoryRequest, advisory_type: str, diagnosis_contex
     return AdvisoryResponse(
         advisory_text=text,
         advisory_type=advisory_type,
+        mode=request.mode,
         data_sources=sources,
         language=request.language,
         generated_at=datetime.now(timezone.utc).isoformat(),
@@ -127,7 +130,7 @@ async def get_voice_advisory(request: VoiceAdvisoryRequest):
         raise ApiError(422, "NO_SPEECH", "No speech was detected in the recording.")
     advisory = await _answer(
         AdvisoryRequest(query=transcribed[:2000], latitude=request.latitude, longitude=request.longitude,
-                        crop_type=request.crop_type, language=request.language),
+                        crop_type=request.crop_type, language=request.language, mode="speech"),
         "voice",
     )
     audio = await _speak(advisory.advisory_text[:TTS_MAX_CHARS], request.language)

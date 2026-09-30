@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { CheckCircle2, History } from 'lucide-react';
 import { ApiError, sendFeedback } from '@/lib/api';
+import { enqueue, isConnectivityError } from '@/lib/offline';
 import { useI18n } from '@/lib/i18n';
 import type { Resource } from '@/lib/use-resource';
 import type { FarmHistory, FarmTwin, Followed, Outcome, TwinAction } from '@/lib/types';
@@ -37,6 +38,7 @@ export function ActionFeedback({ twin, action, onSaved, compact }: { twin: FarmT
   const [current, setCurrent] = useState(action);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
+  const [queued, setQueued] = useState(false);
 
   const save = async (feedback: { followed?: Followed; outcome?: Outcome }) => {
     setBusy(true);
@@ -46,6 +48,13 @@ export function ActionFeedback({ twin, action, onSaved, compact }: { twin: FarmT
       setCurrent(updated);
       onSaved?.(updated);
     } catch (e) {
+      if (e instanceof ApiError && isConnectivityError(e.code)) {
+        // Offline: keep the answer on the device and send it when the connection returns.
+        enqueue({ id: `feedback:${current.action_id}:${Object.keys(feedback).join()}`, kind: 'feedback', farmId: twin.farmId, token: twin.token, actionId: current.action_id, body: feedback as Record<string, string> });
+        setCurrent({ ...current, ...feedback });
+        setQueued(true);
+        return;
+      }
       setError(e instanceof ApiError ? e : new ApiError('error', 'INTERNAL_ERROR', null, true));
     } finally {
       setBusy(false);
@@ -69,6 +78,7 @@ export function ActionFeedback({ twin, action, onSaved, compact }: { twin: FarmT
           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-leaf-600" aria-hidden /> {t('feedback.thanks')}
         </p>
       )}
+      {queued && <p className="text-xs font-medium text-sky-700">{t('offline.queued')}</p>}
       {error && <ErrorState compact error={error} title={t('feedback.failed')} />}
       {!compact && <p className="text-xs text-ink-faint">{t('feedback.note')}</p>}
     </div>

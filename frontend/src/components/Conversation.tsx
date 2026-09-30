@@ -15,7 +15,7 @@ import { ErrorState, errorMessage } from './ui';
 
 export type ChatMessage =
   | { id: string; role: 'user'; text: string; imageUrl?: string }
-  | { id: string; role: 'assistant'; text: string; language: LanguageCode; sources: DataSourceUse[]; generatedAt: string }
+  | { id: string; role: 'assistant'; text: string; language: LanguageCode; sources: DataSourceUse[]; generatedAt: string; spoken?: boolean }
   | { id: string; role: 'error'; error: ApiError; retryText: string };
 
 export function SourceList({ sources, className }: { sources: DataSourceUse[]; className?: string }) {
@@ -53,7 +53,9 @@ function AssistantMessage({ m }: { m: Extract<ChatMessage, { role: 'assistant' }
         </ReactMarkdown>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-3">
-        <ReadAloud text={m.text} language={m.language} />
+        {/* A voice question gets its short answer read out straight away; the text stays on screen. */}
+        <ReadAloud text={m.text} language={m.language} autoPlay={m.spoken} />
+        {m.spoken && <span className="text-xs font-medium text-leaf-700">{t('advisor.spokenAnswer')}</span>}
         <span className="text-xs text-ink-faint">{t('advisor.aiLabel')}</span>
       </div>
       {m.sources.length > 0 && <SourceList sources={m.sources} className="mt-3" />}
@@ -70,20 +72,25 @@ export default function Conversation({
   intro,
   attachment,
   disabled,
+  initialText = '',
 }: {
   messages: ChatMessage[];
-  onSend: (text: string) => void;
+  /** `spoken` is true when the text came from the microphone and was sent unedited. */
+  onSend: (text: string, opts: { spoken: boolean }) => void;
   busy: boolean;
   suggestions?: string[];
   placeholder: string;
   intro?: React.ReactNode;
   attachment?: React.ReactNode;
   disabled?: boolean;
+  /** Starting text the farmer can edit before sending (e.g. from the problem page). Never sent automatically. */
+  initialText?: string;
 }) {
   const { t, language } = useI18n();
-  const [text, setText] = useState('');
+  const [text, setText] = useState(initialText);
   const [listening, setListening] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [fromVoice, setFromVoice] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -93,8 +100,9 @@ export default function Conversation({
   const submit = (value: string) => {
     const v = value.trim();
     if (!v || busy || disabled) return;
-    onSend(v);
+    onSend(v, { spoken: fromVoice && v === text.trim() });
     setText('');
+    setFromVoice(false);
   };
 
   const toggleVoice = () => {
@@ -104,7 +112,10 @@ export default function Conversation({
     setListening(true);
     startRecording(
       language,
-      (heard) => setText(heard),
+      (heard) => {
+        setText(heard);
+        setFromVoice(true);
+      },
       (err) => {
         if (err instanceof ApiError) setVoiceError(errorMessage(t, err));
         else if (err instanceof DOMException && err.name === 'NotAllowedError') setVoiceError(t('advisor.micDenied'));
@@ -185,7 +196,10 @@ export default function Conversation({
             rows={1}
             value={text}
             maxLength={2000}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => {
+              setText(e.target.value);
+              setFromVoice(false);
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();

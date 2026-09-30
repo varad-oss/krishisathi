@@ -1,5 +1,6 @@
 import path from 'node:path';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Route } from '@playwright/test';
+import { MOCK_API } from '../playwright.config';
 import { fixtureData, mockApi, unavailable, withFarmProfile } from './mock-api';
 
 const leaf = path.join(__dirname, 'fixtures', 'leaf.jpg');
@@ -161,12 +162,70 @@ test.describe('Regenerative plan and crop options', () => {
   });
 });
 
+test.describe('Something is wrong with my crop', () => {
+  test('each problem goes to the right existing tool; the advisor starts with an editable question', async ({ page }) => {
+    await withFarmProfile(page);
+    await mockApi(page);
+    await page.goto('/problem');
+    await expect(page.getByRole('heading', { name: 'Something is wrong with my crop' })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Take a photo/ })).toHaveAttribute('href', '/diagnose');
+    await expect(page.getByRole('link', { name: /Weather problem/ })).toHaveAttribute('href', '/farm#weather');
+    await expect(page.getByRole('link', { name: /Soil concern/ })).toHaveAttribute('href', '/farm#soil');
+
+    let asked = false;
+    page.on('request', (r) => {
+      if (/\/api\/advisory$/.test(r.url())) asked = true;
+    });
+    await page.getByRole('link', { name: /Crop is not growing well/ }).click();
+    await expect(page.getByRole('heading', { name: 'Ask the advisor' })).toBeVisible();
+    await expect(page.getByRole('textbox')).toHaveValue(/My crop is not growing well/);
+    expect(asked).toBe(false); // prefilled, never sent on the farmer's behalf
+  });
+});
+
+test.describe('Offline', () => {
+  test('saved copies are shown only as dated, labelled copies, and answers are queued until reconnecting', async ({ page, context }) => {
+    await withFarmProfile(page);
+    await mockApi(page);
+    await page.goto('/farm');
+    await expect(page.locator('#options').getByText('400–800 mm')).toBeVisible(); // loaded and saved online
+    // Client-side navigation (top menu on desktop, bottom bar or footer on phones).
+    await page.locator('a[href="/about"]:visible').first().click();
+    await expect(page).toHaveURL(/\/about/);
+
+    // Mocked routes answer before the network, so drop API calls explicitly while offline.
+    const dropped = (route: Route) => route.abort('internetdisconnected');
+    await page.route(`${MOCK_API}/**`, dropped);
+    await context.setOffline(true);
+    await expect(page.getByRole('status').filter({ hasText: 'You are offline' })).toBeVisible();
+    await page.locator('a[href="/farm"]:visible').first().click();
+    const options = page.locator('#options');
+    await expect(options.getByText('400–800 mm')).toBeVisible(); // the saved copy…
+    await expect(options.getByText(/You are offline/)).toBeVisible(); // …with why it is not current
+    await expect(options.getByText(/Last successfully updated/)).toBeVisible();
+
+    const coverCrop = page.locator('#soil details', { hasText: 'Grow a cover crop' });
+    await coverCrop.locator('summary').click();
+    await coverCrop.getByRole('button', { name: 'Yes', exact: true }).click();
+    await expect(coverCrop.getByText(/will be sent when you are back online/)).toBeVisible();
+
+    const sent = page.waitForRequest((r) => /\/practices$/.test(r.url()) && r.method() === 'POST');
+    await page.unroute(`${MOCK_API}/**`, dropped);
+    await context.setOffline(false);
+    expect((await sent).postDataJSON()).toEqual({ practice: 'cover_crop', status: 'adopted' });
+    await expect(page.getByRole('status').filter({ hasText: 'You are offline' })).toHaveCount(0);
+  });
+});
+
 test.describe('Landing → Diagnose → Result', () => {
   test('uploads a photo and shows diagnosis, certainty, verified reference and disclaimer', async ({ page }) => {
     await withFarmProfile(page);
     await mockApi(page);
     await page.goto('/');
-    await page.getByRole('link', { name: 'Diagnose a crop' }).first().click();
+    // The farmer starts from "something is wrong", not from a module name.
+    await page.getByRole('link', { name: 'Something is wrong with my crop' }).first().click();
+    await expect(page.getByRole('heading', { name: 'Something is wrong with my crop' })).toBeVisible();
+    await page.getByRole('link', { name: /Take a photo/ }).click();
     await expect(page.getByRole('heading', { name: 'Crop disease check' })).toBeVisible();
 
     await page.getByRole('main').getByTestId('file-input').setInputFiles(leaf);

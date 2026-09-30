@@ -12,9 +12,16 @@ import { cn } from '@/lib/utils';
  * Read aloud → Preparing audio… → Stop. `language` is the language the text is written in (not the
  * current UI language), so an earlier English answer is never read with a Hindi voice or vice versa.
  */
-export default function ReadAloud({ text, language, className }: { text: string; language: LanguageCode; className?: string }) {
+export default function ReadAloud({ text, language, className, autoPlay }: { text: string; language: LanguageCode; className?: string; autoPlay?: boolean }) {
   const { t } = useI18n();
   const { status, error, play, stop } = useSpeech();
+  // Plays once when the message appears (only for answers to voice questions, right after the user spoke).
+  const autoPlayed = useRef(false);
+  useEffect(() => {
+    if (!autoPlay || autoPlayed.current) return;
+    autoPlayed.current = true;
+    play(text, language);
+  }, [autoPlay, play, text, language]);
   const busy = status === 'loading' || status === 'playing' || status === 'paused';
 
   // Announce transitions, including "Stopped", for screen-reader users.

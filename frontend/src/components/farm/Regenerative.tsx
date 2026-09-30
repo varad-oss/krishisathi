@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { CheckCircle2, Sprout } from 'lucide-react';
 import { ApiError, recordPractice } from '@/lib/api';
+import { enqueue, isConnectivityError } from '@/lib/offline';
 import { useI18n } from '@/lib/i18n';
 import type { Resource } from '@/lib/use-resource';
 import type { CropOptions, FarmTwin, PracticeStatus, RegenerativeResponse, RegenHorizon, RegenPlanItem, RegenTrigger } from '@/lib/types';
@@ -22,6 +23,7 @@ function PracticeAdoption({ twin, practice, onSaved }: { twin: FarmTwin; practic
   const [saved, setSaved] = useState<PracticeStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
+  const [queued, setQueued] = useState(false);
 
   const save = async (status: PracticeStatus) => {
     setBusy(true);
@@ -31,6 +33,13 @@ function PracticeAdoption({ twin, practice, onSaved }: { twin: FarmTwin; practic
       setSaved(status);
       onSaved?.();
     } catch (e) {
+      if (e instanceof ApiError && isConnectivityError(e.code)) {
+        // Offline: kept on the device and sent when the connection returns.
+        enqueue({ id: `practice:${practice}`, kind: 'practice', farmId: twin.farmId, token: twin.token, body: { practice, status } });
+        setSaved(status);
+        setQueued(true);
+        return;
+      }
       setError(e instanceof ApiError ? e : new ApiError('error', 'INTERNAL_ERROR', null, true));
     } finally {
       setBusy(false);
@@ -39,6 +48,7 @@ function PracticeAdoption({ twin, practice, onSaved }: { twin: FarmTwin; practic
 
   return (
     <div className="sm:col-span-2" aria-live="polite">
+      {queued && <p className="mb-1 text-xs font-medium text-sky-700">{t('offline.queued')}</p>}
       {saved ? (
         <p className="flex items-start gap-2 text-sm text-ink-soft">
           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-leaf-600" aria-hidden />

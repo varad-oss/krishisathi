@@ -9,6 +9,7 @@ import asyncio
 from models.exceptions import ServiceUnavailableException
 from services import agro_rules
 from services.disease_reference_service import disease_reference_service
+from services.intelligence_service import farm_intelligence
 from services.kvk_service import haversine_km, kvk_service
 from services.persistence_service import persistence_service
 from services.soil_service import soil_service
@@ -60,7 +61,24 @@ def _soil_text(s: dict) -> str:
     )
 
 
-async def build_context(lat: float, lng: float, crop: str | None) -> tuple[str, list[dict]]:
+def _intelligence_text(intel) -> str:
+    top = intel.top_action
+    stage = (intel.farm.get("crop_stage") or {}).get("stage") or "unknown"
+    lines = [f"[DATA: KrishiSathi farm risk engine — rule-based, from the data above; crop stage {stage}]"]
+    if top.status == "action":
+        lines.append(f"Top action: {top.action} (severity {top.severity}, confidence {top.confidence}, drivers: {', '.join(top.drivers) or 'none'})")
+    elif top.status == "routine":
+        lines.append("Top action: routine field checks; no risk crosses an alert threshold")
+    else:
+        lines.append("Top action: unavailable because weather data could not be retrieved")
+    for r in intel.risks:
+        if r.severity not in ("none", "unknown"):
+            lines.append(f"- {r.category}: {r.severity}" + (f" ({', '.join(r.drivers)})" if r.drivers else ""))
+    return "\n".join(lines)
+
+
+async def build_context(lat: float, lng: float, crop: str | None, sowing_date=None,
+                        include_intelligence: bool = False) -> tuple[str, list[dict]]:
     weather, soil, outbreaks = await asyncio.gather(_weather(lat, lng), soil_service.get_soil(lat, lng), _outbreaks(lat, lng))
     kvk = kvk_service.get_nearest_kvk(lat, lng)
     blocks, sources = [], []
@@ -99,6 +117,14 @@ async def build_context(lat: float, lng: float, crop: str | None) -> tuple[str, 
         where = f"about {kvk['distance_km']} km away" if kvk["distance_km"] is not None else "exact address and distance not verified"
         blocks.append(f"[DATA: Krishi Vigyan Kendra for the nearest listed district] {kvk['name']}, {kvk.get('district')} district ({where})")
         sources.append({"id": "kvk", "status": "used"})
+
+    if include_intelligence:
+        try:
+            blocks.append(_intelligence_text(await farm_intelligence(lat, lng, crop, sowing_date)))
+            sources.append({"id": "farm_intelligence", "status": "used"})
+        except Exception:
+            blocks.append("[UNAVAILABLE: farm risk engine]")
+            sources.append({"id": "farm_intelligence", "status": "unavailable"})
 
     blocks.append("[NOT INCLUDED: satellite crop health is not part of chat answers]")
     return "\n\n".join(blocks), sources

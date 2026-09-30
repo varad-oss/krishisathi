@@ -156,6 +156,9 @@ export function TodayCard({
             <Link href="/advisor" className={buttonClass.secondary}>
               <MessageCircle className="h-4 w-4" aria-hidden /> {t('farm.today.askCta')}
             </Link>
+            <Link href="/problem" className={buttonClass.ghost}>
+              {t('problem.cta')}
+            </Link>
           </div>
         </div>
 
