@@ -5,12 +5,12 @@ import type {
   DashboardStats,
   DiagnosisResponse,
   FarmConditions,
+  FarmIntelligence,
   FederationReport,
   FederationSignal,
   Kvk,
   LanguageCode,
   Outbreak,
-  PersonalizedAlerts,
   RegenerativeResponse,
   SoilData,
   SourceStatus,
@@ -194,8 +194,9 @@ export const getSoil = (lat: number, lng: number, signal?: AbortSignal) =>
 export const getCropHealth = (lat: number, lng: number, signal?: AbortSignal) =>
   request<CropHealth>(`/api/farm/crop-health?${q({ lat, lng })}`, { signal, timeoutMs: 40_000 });
 
-export const getPersonalizedAlerts = (lat: number, lng: number, crop: string | null, signal?: AbortSignal) =>
-  request<PersonalizedAlerts>(`/api/alerts/personalized?${q({ lat, lng, crop_type: crop })}`, { signal });
+/** Fused risks and the one prioritized action for a farm (rule-based; sources report their own status). */
+export const getFarmIntelligence = (lat: number, lng: number, crop: string | null, sowingDate: string | null, signal?: AbortSignal) =>
+  request<FarmIntelligence>(`/api/farm/intelligence?${q({ lat, lng, crop, sowing_date: sowingDate })}`, { signal, timeoutMs: 30_000 });
 
 export const getNearestKvk = (lat: number, lng: number, signal?: AbortSignal) =>
   request<Kvk>(`/api/kvk/nearest?${q({ lat, lng })}`, { signal });

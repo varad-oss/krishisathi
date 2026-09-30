@@ -130,22 +130,6 @@ export interface CropHealth {
   provenance: Provenance;
 }
 
-export interface OutbreakAlert {
-  id: string;
-  disease: string;
-  distance_km: number;
-  location: string;
-  severity: Level;
-  report_count: number;
-  crop_targets: string[];
-  last_report_at: string;
-}
-
-export interface PersonalizedAlerts {
-  alerts: OutbreakAlert[];
-  provenance: Provenance;
-}
-
 export interface Kvk {
   name: string;
   state: string;
@@ -288,4 +272,85 @@ export interface SourceStatus {
   status: 'configured' | 'not_configured' | 'unavailable';
   detail?: string | null;
   used_for: string[];
+}
+
+// --- Farm intelligence (GET /api/farm/intelligence) ------------------------------------------------
+
+export type RiskSeverity = 'low' | 'moderate' | 'high' | 'unavailable';
+export type RiskCategory = 'waterlogging' | 'water_stress' | 'heat_stress' | 'cold_stress' | 'disease' | 'pest' | 'spray_window' | 'harvest_weather' | 'crop_health';
+export type EvidenceBasis =
+  | 'observed' | 'forecast' | 'model_estimate' | 'satellite_observation' | 'rule_based'
+  | 'ai_generated' | 'ai_classified_reports' | 'farmer_reported' | 'static_reference';
+
+export interface Evidence {
+  id: string;
+  value: number | string | null;
+  unit: string | null;
+  date: string | null;
+  basis: EvidenceBasis;
+  source: string;
+  params: Record<string, number | string | null>;
+}
+
+export interface RuleRef {
+  id: string;
+  source: string;
+  url: string | null;
+}
+
+export interface Risk {
+  category: RiskCategory;
+  severity: RiskSeverity;
+  confidence: Level | null;
+  drivers: string[];
+  evidence: Evidence[];
+  action: string | null;
+  reason: string | null;
+  date: string | null;
+  crop: string | null;
+  crop_stage: string | null;
+  rules: RuleRef[];
+}
+
+export interface TopAction {
+  status: 'action' | 'routine' | 'unavailable';
+  action: string | null;
+  category: RiskCategory | null;
+  severity: RiskSeverity | null;
+  confidence: Level | null;
+  drivers: string[];
+  evidence: Evidence[];
+  date: string | null;
+  reason: string | null;
+}
+
+export type DataStatus = 'available' | 'unavailable' | 'not_configured' | 'no_data' | 'not_provided' | 'pending';
+
+export interface DataQualityItem {
+  source: 'weather' | 'soil' | 'satellite' | 'crop_stage' | 'outbreaks' | string;
+  status: DataStatus;
+  kind: string;
+  as_of: string | null;
+  reason: string | null;
+  provider: string | null;
+}
+
+export interface CropStageEstimate {
+  status: 'estimated' | 'not_provided' | 'no_calendar' | 'before_sowing' | 'beyond_season';
+  stage: 'initial' | 'development' | 'mid_season' | 'late_season' | null;
+  days_since_sowing: number | null;
+  season_length_days: number | null;
+  confidence: Level | null;
+  calendar: string | null;
+  reference: { source: string; url: string; notes: string };
+}
+
+export interface FarmIntelligence {
+  schema_version: string;
+  generated_at: string;
+  farm: { crop: string | null; sowing_date: string | null; location: { lat: number; lng: number }; crop_stage: CropStageEstimate };
+  top_action: TopAction;
+  risks: Risk[];
+  data_quality: DataQualityItem[];
+  engine: { id: string; version: string; kind: string; ai_used: boolean };
 }

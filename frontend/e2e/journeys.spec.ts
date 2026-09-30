@@ -19,21 +19,26 @@ test.describe('Landing → farm dashboard → advisory', () => {
 
     const today = page.locator('#today');
     await expect(today.getByText('Pune, Maharashtra')).toBeVisible();
-    // The highest-severity item leads the day: a nearby high-severity disease cluster (warning)
-    // outranks the 41.2 °C heat forecast (watch).
-    await expect(today.getByText('Late Blight reported nearby')).toBeVisible();
-    await expect(today.getByText('Warning')).toBeVisible();
-    await expect(page.locator('#alerts').getByText(/High heat/)).toBeVisible();
+    // The engine's top action leads the day: humid weather plus a nearby Late Blight cluster make disease the
+    // highest risk, ahead of the 41.2 °C heat forecast.
+    await expect(today.getByText('Check your crop for disease this week')).toBeVisible();
+    await expect(today.getByText(/Because humid, mild weather favours fungal disease and farmers nearby reported/)).toBeVisible();
+    await today.getByText('Why this recommendation?').click();
+    await expect(today.getByText(/4 farmer photo diagnoses of Late Blight within about 10 km/)).toBeVisible();
+    await expect(today.getByText('AI-classified farmer reports').first()).toBeVisible();
+    // Data quality: satellite is honestly not connected, soil is a model estimate.
+    await expect(today.getByRole('region', { name: 'Data used today' }).getByText('Not connected')).toBeVisible();
+
+    const risks = page.locator('#risks');
+    await expect(risks.getByText('Heat stress')).toBeVisible();
+    await expect(risks.getByText('Not assessed: no pest monitoring data is connected.')).toBeVisible();
+    await risks.getByText('Heat stress').click();
+    await expect(risks.getByText(/Highest temperature .*41\.2°C/)).toBeVisible();
 
     const weather = page.locator('#weather');
     await expect(weather.getByText('Model estimate').first()).toBeVisible();
     await expect(weather.getByText('Forecast').first()).toBeVisible();
     await expect(weather.getByRole('link', { name: 'Open-Meteo' })).toBeVisible();
-
-    const alerts = page.locator('#alerts');
-    await expect(alerts.getByText('Late Blight reported nearby')).toBeVisible();
-    await alerts.getByText('Late Blight reported nearby').click();
-    await expect(alerts.getByText(/not lab-confirmed/)).toBeVisible();
 
     const soil = page.locator('#soil');
     await expect(soil.getByText('Organic carbon', { exact: true })).toBeVisible();
@@ -60,7 +65,7 @@ test.describe('Landing → farm dashboard → advisory', () => {
     await expect(weather.getByRole('alert')).toContainText('temporarily unavailable');
     // Unrelated panels still render real data.
     await expect(page.locator('#soil').getByText('Organic carbon', { exact: true })).toBeVisible();
-    await expect(page.locator('#alerts').getByText('Late Blight reported nearby')).toBeVisible();
+    await expect(page.locator('#risks').getByText('Check your crop for disease this week')).toBeVisible();
 
     await weather.getByRole('button', { name: 'Try again' }).click();
     await expect(weather.getByText('7-day forecast')).toBeVisible();

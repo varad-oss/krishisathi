@@ -11,6 +11,7 @@ Severity is one of low | moderate | high | unavailable. "unavailable" always car
 from typing import Optional
 
 from models.intelligence import Evidence, Risk, RuleRef, TopAction
+from services.agro_rules import GUIDANCE as AGRO_GUIDANCE
 from services.farm_context import FarmContext
 
 ENGINE = {"id": "krishisathi-farm-risk-engine", "version": "1.0", "kind": "rule_based", "ai_used": False}
@@ -20,7 +21,7 @@ SEVERITY_RANK = {"unavailable": 0, "low": 1, "moderate": 2, "high": 3}
 CATEGORY_ORDER = ["waterlogging", "heat_stress", "cold_stress", "water_stress", "disease", "harvest_weather",
                   "crop_health", "spray_window", "pest"]
 
-GUIDANCE = "KrishiSathi rule (general agronomic guidance)"
+GUIDANCE = AGRO_GUIDANCE["name"]
 SOIL_WATER_RULE = RuleRef(id="soil_water_status", source="Saxton & Rawls (2006) pedotransfer; FAO-56 depletion fraction p = 0.5",
                           url="https://doi.org/10.2136/sssaj2005.0117")
 HEAT_STAGE_RULE = RuleRef(id="heat_sensitive_stage", source="Hatfield & Prueger (2015), Weather and Climate Extremes 10:4-10",

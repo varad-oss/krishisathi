@@ -1,5 +1,5 @@
 import type { makeFormatters, Params } from '@/lib/i18n';
-import type { Insight, InsightSeverity, OutbreakAlert } from '@/lib/types';
+import type { Insight, InsightSeverity } from '@/lib/types';
 import type { MessageKey } from '@/locales/en';
 
 type T = (key: MessageKey, params?: Params) => string;
@@ -16,7 +16,7 @@ export interface AlertView {
   when: string;
   basis: string;
   basisUrl: string | null;
-  kind: 'forecast' | 'current_model_estimate' | 'ai_classified_user_reports';
+  kind: 'forecast' | 'current_model_estimate';
 }
 
 export function whenLabel(t: T, fmt: Fmt, date: string | null): string {
@@ -58,25 +58,3 @@ export function insightView(t: T, fmt: Fmt, i: Insight): AlertView {
     kind: i.basis.kind,
   };
 }
-
-const OUTBREAK_SEVERITY: Record<string, InsightSeverity> = { high: 'warning', moderate: 'watch', low: 'info' };
-
-export function outbreakView(t: T, fmt: Fmt, a: OutbreakAlert, crop: string | null): AlertView {
-  const cropName = crop ? t(`crop.${crop}` as MessageKey) : t('farm.alerts.yourCrop');
-  return {
-    key: `outbreak-${a.id}`,
-    severity: OUTBREAK_SEVERITY[a.severity] ?? 'watch',
-    category: 'disease',
-    // Disease names come from the reference list / model in English; shown as reported.
-    title: t('farm.alerts.outbreakTitle', { disease: a.disease }),
-    why: t('farm.alerts.outbreakWhy', { count: fmt.num(a.report_count, 0), disease: a.disease, distance: fmt.num(a.distance_km, 0) }),
-    action: t('farm.alerts.outbreakWhat', { crop: cropName }),
-    impact: t('farm.alerts.outbreakImpact'),
-    when: fmt.relative(a.last_report_at),
-    basis: t('kind.ai_classified_user_reports'),
-    basisUrl: null,
-    kind: 'ai_classified_user_reports',
-  };
-}
-
-export const SEVERITY_RANK: Record<InsightSeverity, number> = { info: 0, watch: 1, warning: 2 };

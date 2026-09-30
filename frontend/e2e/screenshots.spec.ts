@@ -25,7 +25,7 @@ for (const width of WIDTHS) {
     await shoot('landing');
     await page.goto('/farm');
     await page.locator('#soil').getByText(/./).first().waitFor();
-    await page.locator('#alerts details').first().click();
+    await page.locator('#risks details').first().click();
     await page.locator('#soil details').first().click();
     await shoot('farm');
     await page.goto('/diagnose');

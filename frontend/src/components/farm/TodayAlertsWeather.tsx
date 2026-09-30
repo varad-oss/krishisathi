@@ -1,23 +1,18 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, Bell, Camera, CheckCircle2, CloudRain, CloudSun, Droplets, MapPin, MessageCircle, Sprout, TrendingDown, TrendingUp, Wind } from 'lucide-react';
+import { Camera, CheckCircle2, CloudRain, CloudSun, Droplets, MapPin, MessageCircle, Sprout, TrendingDown, TrendingUp, Wind } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import type { Resource } from '@/lib/use-resource';
-import type { CropHealth, FarmConditions, ForecastDay, PersonalizedAlerts } from '@/lib/types';
+import type { CropHealth, FarmConditions, FarmIntelligence, ForecastDay } from '@/lib/types';
 import type { MessageKey } from '@/locales/en';
 import { cn } from '@/lib/utils';
-import { buttonClass, Card, CardTitle, ErrorState, KindTag, LoadingBlock, ProvenanceLine, SeverityBadge, severityDot, Skeleton } from '../ui';
-import { insightView, outbreakView, SEVERITY_RANK, type AlertView } from './insight-text';
+import { buttonClass, Card, CardTitle, ErrorState, KindTag, ProvenanceLine, severityDot, Skeleton } from '../ui';
+import { insightView } from './insight-text';
+import { DataQualityStrip, EvidenceList, SeverityChip } from './Intelligence';
+import { actionWhat, because, stageText, topActionTitle } from './intelligence-text';
 
-export function useAlertViews(conditions: Resource<FarmConditions>, alerts: Resource<PersonalizedAlerts>, crop: string | null): AlertView[] {
-  const { t, fmt } = useI18n();
-  const weather = conditions.data?.insights.map((i) => insightView(t, fmt, i)) ?? [];
-  const outbreaks = alerts.data?.alerts.map((a) => outbreakView(t, fmt, a, crop)) ?? [];
-  return [...weather, ...outbreaks].sort((a, b) => SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity]);
-}
-
-const accent: Record<string, string> = { info: 'bg-sky-600', watch: 'bg-watch-500', warning: 'bg-warn-500' };
+const accent: Record<string, string> = { low: 'bg-leaf-500', moderate: 'bg-watch-500', high: 'bg-warn-500' };
 
 /** Crop condition in one line: satellite NDVI trend when available, otherwise an honest "no reading". */
 function CropCondition({ health, cropLabel }: { health: Resource<CropHealth>; cropLabel: string | null }) {
@@ -54,69 +49,93 @@ function CropCondition({ health, cropLabel }: { health: Resource<CropHealth>; cr
 export function TodayCard({
   conditions,
   health,
-  views,
+  intel,
   locationLabel,
   cropLabel,
 }: {
   conditions: Resource<FarmConditions>;
   health: Resource<CropHealth>;
-  views: AlertView[];
+  intel: Resource<FarmIntelligence>;
   locationLabel: string;
   cropLabel: string | null;
 }) {
-  const { t, fmt } = useI18n();
-  const top = views[0];
+  const { t, fmt, language } = useI18n();
   const cur = conditions.data?.current;
   const today = conditions.data?.daily[0];
-  const more = views.length - 1;
+  const data = intel.data;
+  const top = data?.top_action;
+  const stage = data?.farm.crop_stage;
+  const reason = top ? because(t, language, top.drivers) : null;
 
   return (
     <section id="today" aria-labelledby="today-title" className="scroll-mt-header overflow-hidden rounded-[var(--radius-card)] bg-surface shadow-[var(--shadow-raised)] ring-1 ring-line/80">
       <div className="grid lg:grid-cols-[1.55fr_1fr]">
         <div className="relative p-5 sm:p-8">
-          {top && <span aria-hidden className={cn('absolute inset-y-0 left-0 w-1', accent[top.severity])} />}
+          {top?.severity && accent[top.severity] && <span aria-hidden className={cn('absolute inset-y-0 left-0 w-1', accent[top.severity])} />}
           <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-soft">
             <MapPin className="h-4 w-4 text-leaf-600" aria-hidden />
             <span className="font-medium text-ink">{locationLabel}</span>
             {cropLabel && <span>· {cropLabel}</span>}
             <span>· {fmt.date(new Date(), { weekday: 'long', day: 'numeric', month: 'long' })}</span>
           </p>
+          {stage?.stage && (
+            <p className="mt-1 text-xs text-ink-faint">
+              {t('farm.stage', { stage: stageText(t, stage.stage), days: fmt.num(stage.days_since_sowing, 0) })}
+              {stage.confidence && ` · ${t('risk.confidence', { level: t(`level.${stage.confidence}` as MessageKey) })}`}
+            </p>
+          )}
           <h2 id="today-title" className="mt-4 text-sm font-semibold text-leaf-700">
             {t('farm.today.title')}
           </h2>
 
           <div className="mt-2" aria-live="polite">
-            {conditions.status === 'error' && !conditions.data ? (
-              <ErrorState error={conditions.error} onRetry={conditions.reload} title={t('farm.today.weatherUnavailable')} />
-            ) : conditions.status === 'loading' && !conditions.data ? (
+            {intel.status === 'error' && !data ? (
+              <ErrorState error={intel.error} onRetry={intel.reload} title={t('risk.unavailable')} />
+            ) : !data ? (
               <div className="space-y-3">
                 <Skeleton className="h-9 w-4/5" />
                 <Skeleton className="h-5 w-3/5" />
               </div>
-            ) : top ? (
+            ) : top && top.status !== 'routine' ? (
               <>
-                <p className="font-display text-[1.75rem] font-medium leading-tight text-ink sm:text-[2.1rem]">{top.title}</p>
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
-                  <SeverityBadge severity={top.severity} />
-                  <span className="text-ink-faint">{top.when}</span>
-                </div>
-                <div className="mt-5 rounded-[var(--radius-inner)] bg-leaf-50 p-4">
-                  <p className="text-xs font-semibold text-leaf-700">{t('farm.today.topAction')}</p>
-                  <p className="mt-1 text-[1.05rem] font-medium leading-snug text-ink">{top.action}</p>
-                  <p className="mt-2 text-sm text-ink-soft">{top.why}</p>
-                </div>
-                {more > 0 && (
-                  <a href="#alerts" className="mt-3 inline-flex min-h-10 items-center gap-1 text-sm font-semibold text-leaf-700 hover:underline">
-                    {t('farm.today.moreAlerts', { count: fmt.num(more, 0) })} <ArrowRight className="h-4 w-4" aria-hidden />
-                  </a>
+                <p className="font-display text-[1.75rem] font-medium leading-tight text-ink sm:text-[2.1rem]">{topActionTitle(t, top)}</p>
+                {top.status === 'action' && (
+                  <>
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+                      {top.category && <span className="font-semibold">{t(`risk.${top.category}` as MessageKey)}</span>}
+                      {top.severity && <SeverityChip severity={top.severity} />}
+                      {top.confidence && <span className="text-ink-faint">{t('risk.confidence', { level: t(`level.${top.confidence}` as MessageKey) })}</span>}
+                    </div>
+                    {reason && <p className="mt-3 text-ink-soft">{reason}</p>}
+                    {top.action && (
+                      <div className="mt-4 rounded-[var(--radius-inner)] bg-leaf-50 p-4">
+                        <p className="text-xs font-semibold text-leaf-700">{t('risk.whatToDo')}</p>
+                        <p className="mt-1 text-[1.05rem] font-medium leading-snug text-ink">{actionWhat(t, top.action, top.drivers, cropLabel)}</p>
+                      </div>
+                    )}
+                    {top.evidence.length > 0 && (
+                      <details className="group mt-3">
+                        <summary className="inline-flex min-h-10 cursor-pointer list-none items-center gap-1 text-sm font-semibold text-leaf-700 hover:underline">
+                          {t('today.whyThis')}
+                          <span aria-hidden className="transition-transform group-open:rotate-180">▾</span>
+                        </summary>
+                        <div className="mt-2 rounded-[var(--radius-inner)] bg-paper/70 p-4">
+                          <EvidenceList evidence={top.evidence} />
+                        </div>
+                      </details>
+                    )}
+                  </>
                 )}
+                <a href="#risks" className="mt-2 inline-flex min-h-10 items-center text-sm font-semibold text-leaf-700 hover:underline">
+                  {t('today.allRisks')}
+                </a>
               </>
             ) : (
               <div className="flex items-start gap-3">
                 <CheckCircle2 className="mt-1.5 h-6 w-6 shrink-0 text-leaf-600" aria-hidden />
                 <div>
-                  <p className="font-display text-[1.6rem] font-medium leading-tight">{t('farm.today.noRisk')}</p>
-                  <p className="mt-2 text-ink-soft">{t('farm.today.noRiskBody')}</p>
+                  <p className="font-display text-[1.6rem] font-medium leading-tight">{t('action.routine_monitoring.title')}</p>
+                  <p className="mt-2 text-ink-soft">{t('action.routine_monitoring.what')}</p>
                 </div>
               </div>
             )}
@@ -171,86 +190,8 @@ export function TodayCard({
           </div>
         </aside>
       </div>
+      {data && <DataQualityStrip items={data.data_quality} />}
     </section>
-  );
-}
-
-export function AlertsCard({ views, conditions, alerts }: { views: AlertView[]; conditions: Resource<FarmConditions>; alerts: Resource<PersonalizedAlerts> }) {
-  const { t } = useI18n();
-  const loading = (conditions.status === 'loading' && !conditions.data) || (alerts.status === 'loading' && !alerts.data);
-  return (
-    <Card id="alerts" aria-labelledby="alerts-title" className="scroll-mt-header">
-      <CardTitle icon={Bell} id="alerts-title" description={t('farm.alerts.subtitle')}>
-        {t('farm.alerts.title')}
-      </CardTitle>
-      {loading ? (
-        <LoadingBlock />
-      ) : (
-        <div className="space-y-3">
-          {views.length === 0 && conditions.status === 'success' && (
-            <div className="flex items-start gap-3 rounded-[var(--radius-inner)] bg-leaf-50/70 p-4 text-sm">
-              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-leaf-600" aria-hidden />
-              <div>
-                <p className="font-semibold">{t('farm.alerts.none')}</p>
-                <p className="mt-1 text-ink-soft">{t('farm.alerts.noneBody')}</p>
-              </div>
-            </div>
-          )}
-          <ul className="divide-y divide-line overflow-hidden rounded-[var(--radius-inner)] ring-1 ring-line">
-            {views.map((v) => (
-              <li key={v.key}>
-                <details className="group relative bg-surface open:bg-paper/50">
-                  <span aria-hidden className={cn('absolute inset-y-0 left-0 w-1', accent[v.severity])} />
-                  <summary className="flex min-h-11 cursor-pointer list-none items-start justify-between gap-3 py-4 pl-5 pr-4">
-                    <div className="min-w-0">
-                      <div className="mb-1 flex flex-wrap items-center gap-2">
-                        <SeverityBadge severity={v.severity} />
-                        <span className="text-xs text-ink-faint">{v.when}</span>
-                      </div>
-                      <p className="font-semibold leading-snug">{v.title}</p>
-                      <p className="mt-0.5 text-sm text-ink-soft">{v.action}</p>
-                    </div>
-                    <span aria-hidden className="mt-1 text-ink-faint transition-transform group-open:rotate-180">▾</span>
-                  </summary>
-                  <dl className="grid gap-3 px-5 pb-4 text-sm sm:grid-cols-2">
-                    <div>
-                      <dt className="font-semibold">{t('farm.alerts.why')}</dt>
-                      <dd className="text-ink-soft">{v.why}</dd>
-                    </div>
-                    <div>
-                      <dt className="font-semibold">{t('farm.alerts.impact')}</dt>
-                      <dd className="text-ink-soft">{v.impact}</dd>
-                    </div>
-                    <div className="sm:col-span-2">
-                      <dt className="font-semibold">{t('provenance.source')}</dt>
-                      <dd className="text-ink-soft">
-                        {v.kind === 'ai_classified_user_reports' ? null : (
-                          <>
-                            <span lang="en">Open-Meteo</span> · {t(v.kind === 'forecast' ? 'kind.forecast' : 'kind.model')}
-                            {' · '}
-                          </>
-                        )}
-                        {v.basisUrl ? (
-                          <a href={v.basisUrl} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
-                            {v.basis}
-                          </a>
-                        ) : (
-                          v.basis
-                        )}
-                      </dd>
-                    </div>
-                  </dl>
-                </details>
-              </li>
-            ))}
-          </ul>
-          {conditions.status === 'error' && (
-            <ErrorState compact error={conditions.error} onRetry={conditions.reload} title={t('farm.weather.unavailable')} updatedAt={conditions.updatedAt} />
-          )}
-          {alerts.status === 'error' && <ErrorState compact error={alerts.error} onRetry={alerts.reload} title={t('farm.alerts.outbreaksUnavailable')} />}
-        </div>
-      )}
-    </Card>
   );
 }
 

@@ -13,10 +13,14 @@ export interface FarmLocation {
 export interface FarmProfile {
   location: FarmLocation | null;
   crop: Crop | null;
+  /** ISO date (YYYY-MM-DD) the crop was sown; optional, enables crop-stage estimates. */
+  sowingDate: string | null;
 }
 
 const STORAGE_KEY = 'krishi_farm_profile';
-const EMPTY: FarmProfile = { location: null, crop: null };
+const EMPTY: FarmProfile = { location: null, crop: null, sowingDate: null };
+
+export const isIsoDate = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v));
 
 function parse(raw: string | null): FarmProfile {
   if (!raw) return EMPTY;
@@ -27,7 +31,7 @@ function parse(raw: string | null): FarmProfile {
       loc && typeof loc.lat === 'number' && typeof loc.lng === 'number' && Math.abs(loc.lat) <= 90 && Math.abs(loc.lng) <= 180
         ? { lat: loc.lat, lng: loc.lng, source: loc.source === 'device' ? 'device' : 'place', placeId: PLACES.find((x) => x.id === loc.placeId)?.id }
         : null;
-    return { location: validLoc as FarmLocation | null, crop: CROPS.includes(p?.crop) ? p.crop : null };
+    return { location: validLoc as FarmLocation | null, crop: CROPS.includes(p?.crop) ? p.crop : null, sowingDate: isIsoDate(p?.sowingDate) ? p.sowingDate : null };
   } catch {
     return EMPTY;
   }

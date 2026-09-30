@@ -10,7 +10,6 @@ const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString(
 
 function fresh(): Fixtures {
   const f = structuredClone(fixtures);
-  f.alerts.alerts.forEach((a) => (a.last_report_at = minutesAgo(90)));
   f.outbreaks.forEach((o, i) => (o.timestamp = minutesAgo(60 * (i + 1))));
   f.signals.signals.forEach((s) => (s.timestamp = minutesAgo(300)));
   f.stats.generated_at = new Date().toISOString();
@@ -30,7 +29,7 @@ export async function mockApi(page: Page, overrides: Overrides = {}) {
     conditions: { match: /\/api\/farm\/conditions/, body: f.conditions },
     regenerative: { match: /\/api\/farm\/regenerative/, body: f.regenerative },
     cropHealth: { match: /\/api\/farm\/crop-health/, body: f.crop_health },
-    alerts: { match: /\/api\/alerts\/personalized/, body: f.alerts },
+    intelligence: { match: /\/api\/farm\/intelligence/, body: f.intelligence },
     kvk: { match: /\/api\/kvk\/nearest/, body: f.kvk },
     diagnose: { match: /\/api\/diagnose$/, body: f.diagnosis },
     followup: { match: /\/api\/advisory\/followup/, body: f.advisory },

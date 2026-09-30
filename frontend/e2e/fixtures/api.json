@@ -892,27 +892,6 @@
    "verify_url": "https://kvk.icar.gov.in/"
   }
  },
- "alerts": {
-  "alerts": [
-   {
-    "id": "2a27c3d9-8c02-4371-9575-ea5dc4ca513c",
-    "disease": "Late Blight",
-    "distance_km": 10,
-    "location": "Near 18.6, 73.9",
-    "severity": "high",
-    "report_count": 4,
-    "crop_targets": [
-     "Tomato"
-    ],
-    "last_report_at": "2026-09-26T02:06:42.192264"
-   }
-  ],
-  "provenance": {
-   "source": "KrishiSathi community reports",
-   "kind": "ai_classified_user_reports",
-   "notes": "Clusters of at least 3 AI-classified photo diagnoses of the same disease within 50 km in 7 days. Not laboratory-confirmed."
-  }
- },
  "stats": {
   "generated_at": "2026-09-26T02:06:42.272298Z",
   "total_diagnoses": 8,
@@ -1344,6 +1323,514 @@
    "message": "Weather data is temporarily unavailable.",
    "request_id": "3f2a9c1e7b2d4a0f",
    "retryable": true
+  }
+ },
+ "intelligence": {
+  "schema_version": "1.0",
+  "generated_at": "2026-09-30T04:46:34.577824+00:00",
+  "farm": {
+   "crop": "Tomato",
+   "sowing_date": null,
+   "location": {
+    "lat": 18.52,
+    "lng": 73.856
+   },
+   "crop_stage": {
+    "method": "sowing_date_calendar",
+    "crop": "Tomato",
+    "stage": null,
+    "days_since_sowing": null,
+    "season_length_days": null,
+    "confidence": null,
+    "calendar": null,
+    "reference": {
+     "source": "FAO Irrigation and Drainage Paper 56, Table 11 (Allen et al., 1998)",
+     "url": "https://www.fao.org/4/x0490e/x0490e0b.htm",
+     "notes": "Typical stage lengths for one climate and planting period; your variety and season may differ."
+    },
+    "status": "not_provided"
+   }
+  },
+  "top_action": {
+   "status": "action",
+   "action": "scout_for_disease",
+   "category": "disease",
+   "severity": "high",
+   "confidence": "low",
+   "drivers": [
+    "fungal_weather",
+    "nearby_outbreak"
+   ],
+   "evidence": [
+    {
+     "id": "humid_forecast",
+     "value": 88.0,
+     "unit": "%",
+     "date": "2026-09-27",
+     "basis": "forecast",
+     "source": "weather",
+     "params": {
+      "temp_mean_c": 25.5
+     }
+    },
+    {
+     "id": "nearby_outbreak",
+     "value": "Late Blight",
+     "unit": null,
+     "date": "2026-09-26",
+     "basis": "ai_classified_reports",
+     "source": "outbreaks",
+     "params": {
+      "report_count": 4,
+      "distance_km": 10,
+      "severity": "high"
+     }
+    }
+   ],
+   "date": "2026-09-27",
+   "reason": null
+  },
+  "risks": [
+   {
+    "category": "disease",
+    "severity": "high",
+    "confidence": "low",
+    "drivers": [
+     "fungal_weather",
+     "nearby_outbreak"
+    ],
+    "evidence": [
+     {
+      "id": "humid_forecast",
+      "value": 88.0,
+      "unit": "%",
+      "date": "2026-09-27",
+      "basis": "forecast",
+      "source": "weather",
+      "params": {
+       "temp_mean_c": 25.5
+      }
+     },
+     {
+      "id": "nearby_outbreak",
+      "value": "Late Blight",
+      "unit": null,
+      "date": "2026-09-26",
+      "basis": "ai_classified_reports",
+      "source": "outbreaks",
+      "params": {
+       "report_count": 4,
+       "distance_km": 10,
+       "severity": "high"
+      }
+     }
+    ],
+    "action": "scout_for_disease",
+    "reason": null,
+    "date": "2026-09-27",
+    "crop": "Tomato",
+    "crop_stage": null,
+    "rules": [
+     {
+      "id": "fungal_risk",
+      "source": "General agronomic guidance (KrishiSathi rule)",
+      "url": null
+     },
+     {
+      "id": "disease_signal_count",
+      "source": "KrishiSathi rule (general agronomic guidance)",
+      "url": null
+     }
+    ]
+   },
+   {
+    "category": "spray_window",
+    "severity": "moderate",
+    "confidence": "moderate",
+    "drivers": [
+     "rain_soon"
+    ],
+    "evidence": [
+     {
+      "id": "rain_forecast",
+      "value": 12.0,
+      "unit": "mm",
+      "date": "2026-09-27",
+      "basis": "forecast",
+      "source": "weather",
+      "params": {
+       "probability_pct": 80.0
+      }
+     }
+    ],
+    "action": "postpone_spraying",
+    "reason": null,
+    "date": "2026-09-27",
+    "crop": "Tomato",
+    "crop_stage": null,
+    "rules": [
+     {
+      "id": "rain_expected",
+      "source": "General agronomic guidance (KrishiSathi rule)",
+      "url": null
+     }
+    ]
+   },
+   {
+    "category": "heat_stress",
+    "severity": "moderate",
+    "confidence": "moderate",
+    "drivers": [
+     "heat_stress_forecast"
+    ],
+    "evidence": [
+     {
+      "id": "temp_max_forecast",
+      "value": 41.2,
+      "unit": "\u00b0C",
+      "date": "2026-09-28",
+      "basis": "forecast",
+      "source": "weather",
+      "params": {}
+     }
+    ],
+    "action": "protect_from_heat",
+    "reason": null,
+    "date": "2026-09-28",
+    "crop": "Tomato",
+    "crop_stage": null,
+    "rules": [
+     {
+      "id": "heat_stress",
+      "source": "India Meteorological Department (IMD)",
+      "url": "https://mausam.imd.gov.in/"
+     }
+    ]
+   },
+   {
+    "category": "waterlogging",
+    "severity": "low",
+    "confidence": "moderate",
+    "drivers": [
+     "rain_expected"
+    ],
+    "evidence": [
+     {
+      "id": "rain_forecast",
+      "value": 12.0,
+      "unit": "mm",
+      "date": "2026-09-27",
+      "basis": "forecast",
+      "source": "weather",
+      "params": {
+       "probability_pct": 80.0
+      }
+     },
+     {
+      "id": "soil_moisture",
+      "value": 0.27,
+      "unit": "m\u00b3/m\u00b3",
+      "date": "2026-09-26T10:15",
+      "basis": "model_estimate",
+      "source": "weather",
+      "params": {
+       "depth": "3-9 cm"
+      }
+     },
+     {
+      "id": "soil_water_status",
+      "value": "dry",
+      "unit": null,
+      "date": null,
+      "basis": "model_estimate",
+      "source": "soil_water",
+      "params": {
+       "available_water_fraction": 0.06
+      }
+     }
+    ],
+    "action": "delay_irrigation",
+    "reason": null,
+    "date": "2026-09-27",
+    "crop": "Tomato",
+    "crop_stage": null,
+    "rules": [
+     {
+      "id": "rain_expected",
+      "source": "General agronomic guidance (KrishiSathi rule)",
+      "url": null
+     },
+     {
+      "id": "soil_water_status",
+      "source": "Saxton & Rawls (2006) pedotransfer; FAO-56 depletion fraction p = 0.5",
+      "url": "https://doi.org/10.2136/sssaj2005.0117"
+     }
+    ]
+   },
+   {
+    "category": "cold_stress",
+    "severity": "low",
+    "confidence": "moderate",
+    "drivers": [
+     "no_cold_stress"
+    ],
+    "evidence": [],
+    "action": null,
+    "reason": null,
+    "date": null,
+    "crop": "Tomato",
+    "crop_stage": null,
+    "rules": []
+   },
+   {
+    "category": "water_stress",
+    "severity": "low",
+    "confidence": "low",
+    "drivers": [
+     "rain_expected"
+    ],
+    "evidence": [
+     {
+      "id": "soil_moisture",
+      "value": 0.27,
+      "unit": "m\u00b3/m\u00b3",
+      "date": "2026-09-26T10:15",
+      "basis": "model_estimate",
+      "source": "weather",
+      "params": {
+       "depth": "3-9 cm"
+      }
+     },
+     {
+      "id": "soil_water_status",
+      "value": "dry",
+      "unit": null,
+      "date": null,
+      "basis": "model_estimate",
+      "source": "soil_water",
+      "params": {
+       "available_water_fraction": 0.06
+      }
+     }
+    ],
+    "action": null,
+    "reason": null,
+    "date": null,
+    "crop": "Tomato",
+    "crop_stage": null,
+    "rules": [
+     {
+      "id": "soil_water_status",
+      "source": "Saxton & Rawls (2006) pedotransfer; FAO-56 depletion fraction p = 0.5",
+      "url": "https://doi.org/10.2136/sssaj2005.0117"
+     }
+    ]
+   },
+   {
+    "category": "harvest_weather",
+    "severity": "unavailable",
+    "confidence": null,
+    "drivers": [],
+    "evidence": [],
+    "action": null,
+    "reason": "crop_stage_unknown",
+    "date": null,
+    "crop": "Tomato",
+    "crop_stage": null,
+    "rules": []
+   },
+   {
+    "category": "crop_health",
+    "severity": "unavailable",
+    "confidence": null,
+    "drivers": [],
+    "evidence": [],
+    "action": null,
+    "reason": "not_configured",
+    "date": null,
+    "crop": "Tomato",
+    "crop_stage": null,
+    "rules": []
+   },
+   {
+    "category": "pest",
+    "severity": "unavailable",
+    "confidence": null,
+    "drivers": [],
+    "evidence": [],
+    "action": null,
+    "reason": "no_pest_data_source",
+    "date": null,
+    "crop": "Tomato",
+    "crop_stage": null,
+    "rules": []
+   }
+  ],
+  "weather": {
+   "current": {
+    "valid_at": "2026-09-26T10:15",
+    "temperature_c": 29.4,
+    "humidity_pct": 64,
+    "wind_kmh": 8.5,
+    "condition": "mainly_clear",
+    "soil_moisture_3_9cm": 0.27
+   },
+   "next_days": [
+    {
+     "date": "2026-09-26",
+     "condition": "mainly_clear",
+     "temp_max_c": 32.0,
+     "temp_min_c": 22.0,
+     "precipitation_mm": 0.0,
+     "precipitation_probability_pct": 10
+    },
+    {
+     "date": "2026-09-27",
+     "condition": "rain",
+     "temp_max_c": 30.0,
+     "temp_min_c": 21.0,
+     "precipitation_mm": 12.0,
+     "precipitation_probability_pct": 80
+    },
+    {
+     "date": "2026-09-28",
+     "condition": "overcast",
+     "temp_max_c": 41.2,
+     "temp_min_c": 21.5,
+     "precipitation_mm": 1.0,
+     "precipitation_probability_pct": 30
+    }
+   ],
+   "provenance": {
+    "source": "Open-Meteo",
+    "source_url": "https://open-meteo.com/",
+    "kind": "model",
+    "notes": "Current values are numerical weather model estimates (15-minute resolution), not ground-station observations. Daily values are forecasts.",
+    "retrieved_at": "2026-09-26T02:06:41.757159+00:00",
+    "valid_at": "2026-09-26T10:15",
+    "timezone": "Asia/Kolkata"
+   }
+  },
+  "soil": {
+   "properties": {
+    "ph": 8.0,
+    "organic_carbon_pct": 0.46,
+    "total_nitrogen_g_per_kg": 0.7,
+    "clay_pct": 44.0,
+    "sand_pct": 24.33
+   },
+   "ratings": {
+    "ph": "alkaline",
+    "organic_carbon": "low",
+    "source": {
+     "name": "Soil Health Card scheme ratings (Govt. of India)",
+     "url": "https://soilhealth.dac.gov.in/"
+    }
+   },
+   "provenance": {
+    "source": "ISRIC SoilGrids 2.0",
+    "source_url": "https://soilgrids.org/",
+    "kind": "model",
+    "resolution": "250 m",
+    "depth": "0-15 cm",
+    "notes": "Predicted from global soil models, not measured on your field. Use a Soil Health Card lab test before changing fertilizer or amendments.",
+    "retrieved_at": "2026-09-26T02:06:41.802896+00:00"
+   }
+  },
+  "soil_water": {
+   "status": "dry",
+   "available_water_fraction": 0.06,
+   "field_capacity": 0.396,
+   "wilting_point": 0.263,
+   "confidence": "low",
+   "references": [
+    {
+     "source": "Saxton & Rawls (2006), Soil Sci. Soc. Am. J. 70:1569-1578",
+     "url": "https://doi.org/10.2136/sssaj2005.0117"
+    },
+    {
+     "source": "FAO Irrigation and Drainage Paper 56, Chapter 8 (depletion fraction p)",
+     "url": "https://www.fao.org/4/x0490e/x0490e0e.htm"
+    }
+   ]
+  },
+  "crop_health": {
+   "status": "unavailable",
+   "reason": "not_configured",
+   "retryable": false,
+   "provenance": {
+    "source": "Sentinel-2 via Google Earth Engine (COPERNICUS/S2_SR_HARMONIZED)",
+    "source_url": "https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR_HARMONIZED",
+    "dataset": "COPERNICUS/S2_SR_HARMONIZED",
+    "provider": "Copernicus / ESA",
+    "processing": "Level-2A surface reflectance (harmonized)",
+    "signal": "Satellite-derived vegetation signal (NDVI), not ground-truth crop health",
+    "kind": "satellite_observation",
+    "resolution": "10 m (averaged over a 250 m radius)",
+    "notes": "Median NDVI of cloud-masked pixels. NDVI depends on crop type and growth stage; compare it with your own field over time, not with other crops."
+   }
+  },
+  "nearby_outbreaks": [
+   {
+    "id": "2a27c3d9-8c02-4371-9575-ea5dc4ca513c",
+    "disease": "Late Blight",
+    "distance_km": 10,
+    "location": "Near 18.6, 73.9",
+    "severity": "high",
+    "report_count": 4,
+    "crop_targets": [
+     "Tomato"
+    ],
+    "last_report_at": "2026-09-26T02:06:42.192264+00:00"
+   }
+  ],
+  "data_quality": [
+   {
+    "source": "weather",
+    "status": "available",
+    "kind": "model",
+    "as_of": "2026-09-26T10:15",
+    "reason": null,
+    "provider": "Open-Meteo"
+   },
+   {
+    "source": "soil",
+    "status": "available",
+    "kind": "model",
+    "as_of": "2026-09-26T02:06:41.802896+00:00",
+    "reason": null,
+    "provider": "ISRIC SoilGrids 2.0"
+   },
+   {
+    "source": "satellite",
+    "status": "not_configured",
+    "kind": "satellite_observation",
+    "as_of": null,
+    "reason": "not_configured",
+    "provider": "Sentinel-2 (Copernicus)"
+   },
+   {
+    "source": "crop_stage",
+    "status": "not_provided",
+    "kind": "rule",
+    "as_of": null,
+    "reason": "not_provided",
+    "provider": "FAO-56 Table 11"
+   },
+   {
+    "source": "outbreaks",
+    "status": "available",
+    "kind": "ai_classified_user_reports",
+    "as_of": null,
+    "reason": null,
+    "provider": "KrishiSathi community reports"
+   }
+  ],
+  "engine": {
+   "id": "krishisathi-farm-risk-engine",
+   "version": "1.0",
+   "kind": "rule_based",
+   "ai_used": false
   }
  }
 }

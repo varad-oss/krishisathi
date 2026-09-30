@@ -3,10 +3,11 @@
 import { useState } from 'react';
 import { MapPin, Pencil } from 'lucide-react';
 import FarmProfileForm, { useLocationLabel } from '@/components/FarmProfileForm';
-import { AlertsCard, TodayCard, WeatherCard, useAlertViews } from '@/components/farm/TodayAlertsWeather';
+import { RiskRadar } from '@/components/farm/Intelligence';
+import { TodayCard, WeatherCard } from '@/components/farm/TodayAlertsWeather';
 import { CropHealthCard, KvkCard, SoilRegenCard } from '@/components/farm/SoilCropKvk';
 import { buttonClass, Card, LoadingBlock } from '@/components/ui';
-import { getCropHealth, getFarmConditions, getNearestKvk, getPersonalizedAlerts, getRegenerative } from '@/lib/api';
+import { getCropHealth, getFarmConditions, getFarmIntelligence, getNearestKvk, getRegenerative } from '@/lib/api';
 import { useFarmProfile } from '@/lib/farm-profile';
 import { useI18n } from '@/lib/i18n';
 import { useResource } from '@/lib/use-resource';
@@ -15,9 +16,9 @@ import { cn } from '@/lib/utils';
 
 const SECTIONS: { id: string; label: MessageKey }[] = [
   { id: 'today', label: 'farm.section.today' },
-  { id: 'alerts', label: 'farm.section.alerts' },
-  { id: 'crop', label: 'farm.section.cropHealth' },
+  { id: 'risks', label: 'farm.section.risks' },
   { id: 'weather', label: 'farm.section.weather' },
+  { id: 'crop', label: 'farm.section.cropHealth' },
   { id: 'soil', label: 'farm.section.soil' },
 ];
 
@@ -28,15 +29,16 @@ export default function FarmPage() {
   const locationLabel = useLocationLabel();
   const loc = profile.location;
   const crop = profile.crop;
+  const sowing = profile.sowingDate;
   const key = [loc?.lat, loc?.lng, crop];
 
   // Each panel loads independently so one failing source never blanks the page.
   const conditions = useResource(loc ? (s) => getFarmConditions(loc.lat, loc.lng, s) : null, key);
-  const alerts = useResource(loc ? (s) => getPersonalizedAlerts(loc.lat, loc.lng, crop, s) : null, key);
+  const intel = useResource(loc ? (s) => getFarmIntelligence(loc.lat, loc.lng, crop, sowing, s) : null, [...key, sowing]);
   const regen = useResource(loc ? (s) => getRegenerative(loc.lat, loc.lng, crop, s) : null, key);
   const health = useResource(loc ? (s) => getCropHealth(loc.lat, loc.lng, s) : null, key);
   const kvk = useResource(loc ? (s) => getNearestKvk(loc.lat, loc.lng, s) : null, key);
-  const views = useAlertViews(conditions, alerts, crop);
+  const cropLabel = crop ? t(`crop.${crop}` as MessageKey) : null;
 
   if (!ready) {
     return (
@@ -85,9 +87,9 @@ export default function FarmPage() {
       </nav>
 
       <div className="space-y-6">
-        <TodayCard conditions={conditions} health={health} views={views} locationLabel={locationLabel(loc)} cropLabel={crop ? t(`crop.${crop}` as MessageKey) : null} />
+        <TodayCard conditions={conditions} health={health} intel={intel} locationLabel={locationLabel(loc)} cropLabel={cropLabel} />
         <div className="grid items-start gap-6 lg:grid-cols-[1.6fr_1fr] [&>*]:min-w-0">
-          <AlertsCard views={views} conditions={conditions} alerts={alerts} />
+          <RiskRadar intel={intel} cropLabel={cropLabel} />
           <div className="space-y-6">
             <CropHealthCard health={health} />
             <KvkCard kvk={kvk} />

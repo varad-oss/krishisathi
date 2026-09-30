@@ -1,9 +1,9 @@
 'use client';
 
 import { useId, useState } from 'react';
-import { Crosshair, MapPin, Sprout } from 'lucide-react';
+import { CalendarDays, Crosshair, MapPin, Sprout } from 'lucide-react';
 import { CROPS, PLACES, type Crop, type PlaceId } from '@/lib/catalog';
-import { useFarmProfile, type FarmLocation } from '@/lib/farm-profile';
+import { isIsoDate, useFarmProfile, type FarmLocation } from '@/lib/farm-profile';
 import { useI18n } from '@/lib/i18n';
 import type { MessageKey } from '@/locales/en';
 import { cn } from '@/lib/utils';
@@ -24,9 +24,13 @@ export default function FarmProfileForm({ onDone, onCancel }: { onDone?: () => v
   const locationLabel = useLocationLabel();
   const [location, setLocation] = useState<FarmLocation | null>(profile.location);
   const [crop, setCrop] = useState<Crop | null>(profile.crop);
+  const [sowingDate, setSowingDate] = useState(profile.sowingDate ?? '');
   const [geoState, setGeoState] = useState<'idle' | 'locating' | 'denied' | 'failed'>('idle');
   const placeId = useId();
   const cropId = useId();
+  const sowingId = useId();
+  const sowingHelpId = useId();
+  const today = new Date().toISOString().slice(0, 10);
 
   const useDevice = () => {
     if (!('geolocation' in navigator)) {
@@ -56,7 +60,7 @@ export default function FarmProfileForm({ onDone, onCancel }: { onDone?: () => v
       onSubmit={(e) => {
         e.preventDefault();
         if (!location) return;
-        setProfile({ location, crop });
+        setProfile({ location, crop, sowingDate: crop && isIsoDate(sowingDate) && sowingDate <= today ? sowingDate : null });
         onDone?.();
       }}
     >
@@ -105,6 +109,24 @@ export default function FarmProfileForm({ onDone, onCancel }: { onDone?: () => v
           ))}
         </select>
       </div>
+
+      {crop && (
+        <div>
+          <label htmlFor={sowingId} className="mb-1 flex items-center gap-2 text-sm font-semibold text-ink">
+            <CalendarDays className="h-4 w-4 text-leaf-600" aria-hidden /> {t('profile.sowingDate')}
+          </label>
+          <input
+            id={sowingId}
+            type="date"
+            max={today}
+            value={sowingDate}
+            onChange={(e) => setSowingDate(e.target.value)}
+            aria-describedby={sowingHelpId}
+            className={inputClass}
+          />
+          <p id={sowingHelpId} className="mt-1 text-xs text-ink-faint">{t('profile.sowingHelp')}</p>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-3">
         <button type="submit" disabled={!location} className={buttonClass.primary}>
