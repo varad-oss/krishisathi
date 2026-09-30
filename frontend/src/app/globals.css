@@ -177,3 +177,11 @@ summary::-webkit-details-marker {
 }
 
 /* Leaflet styles are imported by the lazily-loaded map components only. */
+
+/* Map zoom controls: thumb-sized on every device (Leaflet's defaults are 26-30 px). */
+.leaflet-container .leaflet-bar a {
+  width: 44px;
+  height: 44px;
+  line-height: 44px;
+  font-size: 20px;
+}

@@ -19,7 +19,7 @@ export default function Header() {
       </a>
       <div className="mx-auto flex h-[var(--header-h)] max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         {/* min-w-0 + truncate: long native-script names must never push the language menu off small screens. */}
-        <Link href="/" className="flex min-w-0 items-center gap-2.5 rounded-lg" aria-label={t('app.name')}>
+        <Link href="/" className="flex min-h-11 min-w-0 items-center gap-2.5 rounded-lg" aria-label={t('app.name')}>
           <Logo className="h-7 w-7 shrink-0" />
           <span className="truncate text-lg font-semibold tracking-tight text-ink">{t('app.name')}</span>
         </Link>

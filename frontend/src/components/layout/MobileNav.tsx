@@ -20,8 +20,9 @@ export default function MobileNav() {
               <Link
                 href={item.href}
                 aria-current={active ? 'page' : undefined}
+                aria-label={t(item.label)}
                 className={cn(
-                  'relative flex min-h-[4.25rem] flex-col items-center justify-center gap-1 px-0.5 pb-1.5 pt-2 text-[0.72rem] leading-tight transition-colors',
+                  'relative flex min-h-[4.25rem] flex-col items-center justify-center gap-1 px-0 pb-1.5 pt-2 text-[0.72rem] leading-tight transition-colors',
                   active ? 'font-semibold text-leaf-700' : 'font-medium text-ink-soft',
                 )}
               >
@@ -29,7 +30,7 @@ export default function MobileNav() {
                 <span className={cn('flex h-8 w-12 items-center justify-center rounded-full transition-colors', active && 'bg-leaf-100')}>
                   <item.icon className={cn('h-[1.35rem] w-[1.35rem]', active && 'stroke-[2.3]')} aria-hidden />
                 </span>
-                <span className="line-clamp-2 max-w-full text-center [overflow-wrap:anywhere]">{t(item.label)}</span>
+                <span aria-hidden className="line-clamp-2 max-w-full text-center [overflow-wrap:normal] [word-break:keep-all]">{t(item.short)}</span>
               </Link>
             </li>
           );

@@ -419,7 +419,7 @@ export function ProvenanceLine({
       <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <span className="font-semibold text-ink-soft">{t('provenance.source')}:</span>
         {url ? (
-          <a href={url} target="_blank" rel="noopener noreferrer" lang="en" className="underline decoration-line-strong underline-offset-2 hover:text-leaf-700">
+          <a href={url} target="_blank" rel="noopener noreferrer" lang="en" className="inline-flex min-h-6 items-center underline decoration-line-strong underline-offset-2 hover:text-leaf-700">
             {source}
           </a>
         ) : (

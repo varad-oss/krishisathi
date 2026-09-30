@@ -63,7 +63,7 @@ function Country({ c }: { c: CountryComparison }) {
       </div>
       {c.samples.observations?.items?.[0] && (
         <details className="border-t border-line px-3 py-2 text-xs">
-          <summary className="cursor-pointer font-medium text-leaf-700">{t('interop.sample')}</summary>
+          <summary className="flex min-h-11 cursor-pointer items-center font-medium text-leaf-700">{t('interop.sample')}</summary>
           <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-all rounded bg-paper p-2" lang="en">{JSON.stringify(c.samples.observations.items[0], null, 2)}</pre>
         </details>
       )}

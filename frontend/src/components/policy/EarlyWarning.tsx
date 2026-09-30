@@ -137,7 +137,7 @@ export function EarlyWarningPanel({ ew, states, stateFilter }: { ew: Resource<Ea
             </section>
           </div>
           <details className="mt-4 text-sm text-ink-soft">
-            <summary className="cursor-pointer font-semibold">{t('policy.ew.methodTitle')}</summary>
+            <summary className="flex min-h-11 cursor-pointer items-center font-semibold">{t('policy.ew.methodTitle')}</summary>
             <p className="mt-2">{t('policy.ew.method', { min: fmt.num(d.disease.method.min_reports, 0) })}</p>
           </details>
           <VizMeta
