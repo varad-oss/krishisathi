@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CheckCircle2, Sprout } from 'lucide-react';
+import { CheckCircle2, ChevronDown } from 'lucide-react';
 import { ApiError, recordPractice } from '@/lib/api';
 import { enqueue, isConnectivityError } from '@/lib/offline';
 import { useI18n } from '@/lib/i18n';
@@ -9,7 +9,7 @@ import type { Resource } from '@/lib/use-resource';
 import type { CropOptions, FarmTwin, PracticeStatus, RegenerativeResponse, RegenHorizon, RegenPlanItem, RegenTrigger } from '@/lib/types';
 import type { MessageKey } from '@/locales/en';
 import { cn } from '@/lib/utils';
-import { Card, CardTitle, ErrorState, LoadingBlock, Note } from '../ui';
+import { ErrorState, LoadingBlock, Note, SavedCopyTag, Section } from '../ui';
 import { Choices } from './History';
 
 const HORIZONS: RegenHorizon[] = ['current', 'next', 'long_term'];
@@ -68,10 +68,10 @@ function PracticeItem({ rec, index, triggerText, twin, onSaved }: { rec: RegenPl
   const basis = rec.triggers.map(triggerText).filter(Boolean) as string[];
   return (
     <li>
-      <details className="group bg-surface open:bg-paper/50">
-        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 p-4">
+      <details className="group">
+        <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 py-4 hover:bg-paper/60 sm:px-2">
           <span className="flex min-w-0 items-start gap-3">
-            <span aria-hidden className="mt-0.5 font-display text-lg leading-none text-soil-500 tabular-nums">{fmt.num(index + 1, 0)}</span>
+            <span aria-hidden className="mt-0.5 w-5 font-display text-lg leading-none text-soil-500 tabular-nums">{fmt.num(index + 1, 0)}</span>
             <span className="min-w-0">
               <span className="block font-semibold leading-snug">{t(`${base}.title` as MessageKey)}</span>
               <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium">
@@ -79,13 +79,13 @@ function PracticeItem({ rec, index, triggerText, twin, onSaved }: { rec: RegenPl
                   <span aria-hidden className={cn('h-1.5 w-1.5 rounded-full', rec.priority === 'high' ? 'bg-soil-500' : rec.priority === 'medium' ? 'bg-leaf-500' : 'bg-line-strong')} />
                   {t(`farm.regen.priority.${rec.priority}` as MessageKey)}
                 </span>
-                <span className="text-ink-faint">{t(`farm.regen.timing.${rec.timing}` as MessageKey)}</span>
+                <span className="text-ink-soft">{t(`farm.regen.timing.${rec.timing}` as MessageKey)}</span>
               </span>
             </span>
           </span>
-          <span aria-hidden className="text-ink-faint transition-transform group-open:rotate-180">▾</span>
+          <ChevronDown aria-hidden className="h-5 w-5 shrink-0 text-ink-faint transition-transform group-open:rotate-180" />
         </summary>
-        <dl className="grid gap-3 px-4 pb-4 text-sm sm:grid-cols-2 sm:pl-11">
+        <dl className="grid gap-3 pb-5 pl-8 text-sm sm:grid-cols-2 sm:pl-10">
           {(['why', 'what', 'when', 'benefit'] as const).map((f) => (
             <div key={f}>
               <dt className="font-semibold">{t(`farm.regen.${f}` as MessageKey)}</dt>
@@ -96,7 +96,7 @@ function PracticeItem({ rec, index, triggerText, twin, onSaved }: { rec: RegenPl
             <dt className="font-semibold">{t('farm.regen.basis')}</dt>
             <dd className="text-ink-soft">
               {basis.length ? basis.join(' · ') : t('farm.regen.basisGeneral')}
-              <span className="block text-xs text-ink-faint">{t(`farm.regen.confidence.${rec.confidence}` as MessageKey)}</span>
+              <span className="block text-xs text-ink-soft">{t(`farm.regen.confidence.${rec.confidence}` as MessageKey)}</span>
             </dd>
           </div>
           {twin && <PracticeAdoption twin={twin} practice={rec.id} onSaved={onSaved} />}
@@ -111,15 +111,15 @@ export function PracticePlan({ data, triggerText, twin, onSaved }: { data: Regen
   const { t } = useI18n();
   let n = 0;
   return (
-    <div className="space-y-5">
-      <p className="text-xs text-ink-faint">{t(data.crop_stage?.status === 'estimated' ? 'farm.regen.stageNote' : 'farm.regen.noStage')}</p>
+    <div className="space-y-6">
+      <p className="text-sm text-ink-soft">{t(data.crop_stage?.status === 'estimated' ? 'farm.regen.stageNote' : 'farm.regen.noStage')}</p>
       {HORIZONS.map((h) => {
         const items = data.plan.filter((r) => r.horizon === h);
         if (!items.length) return null;
         return (
           <section key={h} aria-labelledby={`regen-${h}`}>
-            <h4 id={`regen-${h}`} className="mb-2 text-sm font-semibold text-ink-soft">{t(`farm.regen.horizon.${h}` as MessageKey)}</h4>
-            <ol className="divide-y divide-line overflow-hidden rounded-[var(--radius-inner)] ring-1 ring-line">
+            <h4 id={`regen-${h}`} className="mb-1 text-sm font-semibold text-soil-700">{t(`farm.regen.horizon.${h}` as MessageKey)}</h4>
+            <ol className="divide-y divide-line border-y border-line">
               {items.map((rec) => (
                 <PracticeItem key={rec.id} rec={rec} index={n++} triggerText={triggerText} twin={twin} onSaved={onSaved} />
               ))}
@@ -137,23 +137,22 @@ export function CropOptionsCard({ options }: { options: Resource<CropOptions> })
   const data = options.data;
   const dash = <span className="text-ink-faint">{t('farm.options.notAvailable')}</span>;
   return (
-    <Card id="options" aria-labelledby="options-title" className="scroll-mt-header">
-      <CardTitle
-        icon={Sprout}
-        id="options-title"
-        description={t(data?.basis === 'all_supported_crops' ? 'farm.options.subtitleAll' : 'farm.options.subtitle')}
-      >
-        {t('farm.options.title')}
-      </CardTitle>
+    <Section
+      id="options"
+      title={t('farm.options.title')}
+      description={t(data?.basis === 'all_supported_crops' ? 'farm.options.subtitleAll' : 'farm.options.subtitle')}
+      action={options.cached && options.updatedAt ? <SavedCopyTag time={options.updatedAt} /> : undefined}
+    >
       {!data && options.status === 'loading' ? (
         <LoadingBlock lines={4} />
       ) : !data && options.status === 'error' ? (
         <ErrorState error={options.error} onRetry={options.reload} title={t('farm.options.unavailable')} />
       ) : data ? (
         <>
+          {options.status === 'error' && <ErrorState compact error={options.error} onRetry={options.reload} updatedAt={options.updatedAt} />}
           <div className="relative -mx-1 overflow-x-auto">
             <table className="w-full min-w-[34rem] text-left text-sm">
-              <thead className="text-xs text-ink-faint">
+              <thead className="text-xs text-ink-soft">
                 <tr className="border-b border-line">
                   <th scope="col" className="px-1 py-2 font-medium">{t('farm.options.crop')}</th>
                   <th scope="col" className="px-1 py-2 font-medium">{t('farm.options.water')}</th>
@@ -181,7 +180,7 @@ export function CropOptionsCard({ options }: { options: Resource<CropOptions> })
             </table>
           </div>
           <Note className="mt-4">{t('farm.options.market')}</Note>
-          <div className="mt-6 space-y-1 border-t border-dashed border-line pt-3 text-xs text-ink-faint">
+          <div className="mt-6 space-y-1 border-t border-line pt-3 text-xs text-ink-soft">
             <p className="font-semibold text-ink-soft">{t('provenance.source')}:</p>
             <p>
               {t('farm.options.water')}: <a className="underline underline-offset-2" href={data.sources.water_need.url} target="_blank" rel="noreferrer">{data.sources.water_need.source}</a>. {t('farm.options.waterNote')}
@@ -191,9 +190,8 @@ export function CropOptionsCard({ options }: { options: Resource<CropOptions> })
             </p>
             <p>{t('farm.options.clusters')}: {t('kind.ai_classified_user_reports')}</p>
           </div>
-          {options.status === 'error' && <ErrorState compact error={options.error} onRetry={options.reload} updatedAt={options.updatedAt} />}
         </>
       ) : null}
-    </Card>
+    </Section>
   );
 }

@@ -69,8 +69,8 @@ const en = {
 
   // Landing
   'landing.badge': 'Digital public good for Indian agriculture',
-  'landing.title': 'AI-powered agricultural intelligence for climate-resilient farming',
-  'landing.subtitle': 'KrishiSathi turns weather forecasts, soil data, satellite signals and crop photos into clear, explained advice for small farmers, and gives administrators an honest view of emerging risks.',
+  'landing.title': "See what is happening in your field, and what to do next",
+  'landing.subtitle': "Weather, soil, satellite images and your crop photos, turned into one clear next step in your language.",
   'landing.ctaFarm': 'Open farmer dashboard',
   'landing.ctaPolicy': 'Explore agricultural intelligence',
   'landing.flow.title': 'How it works',
@@ -984,6 +984,24 @@ const en = {
   'interop.category.risk_signals': "Risk signals",
   'interop.category.weather_signals': "Weather signals",
   'interop.category.diseases': "Disease catalogue",
+  'nav.more': "More",
+  'more.title': "Farm & settings",
+  'more.subtitle': "Your farm details, language, and how KrishiSathi works.",
+  'more.officers': "For agriculture officers",
+  'more.officersBody': "Regional disease and weather signals, aggregated and anonymised.",
+  'risk.level': "Risk: {level}",
+  'risk.strengthTitle': "How strong the evidence is",
+  'offline.savedTag': "Saved copy · {time}",
+  'farm.loading': "Checking your field conditions…",
+  'farm.crop.fromAbove': "What we can see from above",
+  'problem.group.plant': "What do you see on the plant?",
+  'problem.group.field': "What is happening in the field?",
+  'problem.spots.title': "Spots or disease-like marks",
+  'problem.spots.body': "Brown, black or yellow spots on leaves, stems or fruit. Take a photo to check.",
+  'problem.leaves.title': "Leaves look different",
+  'problem.leaves.body': "Yellowing, curling, holes or an unusual colour. Take a photo of one leaf.",
+  'problem.drying.title': "Plants are drying or wilting",
+  'problem.drying.body': "See heat and water-shortage risks for your farm, and what to do.",
 } as const;
 
 export type MessageKey = keyof typeof en;

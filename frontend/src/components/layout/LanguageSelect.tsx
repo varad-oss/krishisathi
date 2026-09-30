@@ -1,26 +1,24 @@
 'use client';
 
-import { Globe } from 'lucide-react';
+import { ChevronDown, Languages } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { SUPPORTED_LANGUAGES } from '@/lib/languages';
 import type { LanguageCode } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
-export default function LanguageSelect({ className, tone = 'dark' }: { className?: string; tone?: 'dark' | 'light' }) {
+export default function LanguageSelect({ className, large }: { className?: string; large?: boolean }) {
   const { language, setLanguage, switching, t } = useI18n();
   return (
-    <label className={cn('relative flex items-center', className)}>
+    <label className={cn('relative flex shrink-0 items-center', className)}>
       <span className="sr-only">{t('nav.language')}</span>
-      <Globe className={cn('pointer-events-none absolute left-3 h-4 w-4', tone === 'dark' ? 'text-leaf-100' : 'text-ink-faint')} aria-hidden />
+      <Languages className="pointer-events-none absolute left-3 h-4 w-4 text-ink-soft" aria-hidden />
       <select
         value={language}
         onChange={(e) => setLanguage(e.target.value as LanguageCode)}
         aria-busy={switching}
         className={cn(
-          'min-h-10 appearance-none rounded-xl py-1.5 pl-9 pr-8 text-sm font-medium focus:outline-none focus-visible:ring-2',
-          tone === 'dark'
-            ? 'border border-leaf-500/60 bg-leaf-700 text-white focus-visible:ring-leaf-200'
-            : 'border border-line-strong bg-surface text-ink focus-visible:ring-leaf-200',
+          'w-full appearance-none rounded-[var(--radius-inner)] border border-line-strong bg-surface pl-9 pr-8 font-medium text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-leaf-200',
+          large ? 'min-h-12 text-base' : 'min-h-11 max-w-[9.5rem] py-1.5 text-sm',
         )}
       >
         {SUPPORTED_LANGUAGES.map((l) => (
@@ -29,7 +27,7 @@ export default function LanguageSelect({ className, tone = 'dark' }: { className
           </option>
         ))}
       </select>
-      <span aria-hidden className={cn('pointer-events-none absolute right-3 text-xs', tone === 'dark' ? 'text-leaf-100' : 'text-ink-faint')}>▾</span>
+      <ChevronDown className="pointer-events-none absolute right-2.5 h-4 w-4 text-ink-soft" aria-hidden />
     </label>
   );
 }

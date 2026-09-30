@@ -41,6 +41,7 @@ export default function ReadAloud({ text, language, className, autoPlay }: { tex
 
   const languageName = SUPPORTED_LANGUAGES.find((l) => l.code === language)?.nativeName ?? language;
 
+  const playing = status === 'playing';
   return (
     <span className={cn('inline-flex flex-col items-start gap-1', className)}>
       <button
@@ -48,8 +49,8 @@ export default function ReadAloud({ text, language, className, autoPlay }: { tex
         onClick={() => (busy ? stop() : play(text, language))}
         aria-pressed={busy}
         className={cn(
-          'inline-flex min-h-10 items-center gap-2 rounded-full border px-3.5 text-sm font-semibold transition-[background-color,border-color,color,transform] active:scale-[0.98]',
-          busy ? 'border-ink bg-ink text-paper hover:bg-ink/90' : 'border-line-strong bg-surface text-ink hover:border-leaf-600 hover:text-leaf-700',
+          'inline-flex min-h-11 items-center gap-2.5 rounded-full border-2 px-4 text-[0.95rem] font-semibold transition-[background-color,border-color,color,transform] active:scale-[0.98]',
+          busy ? 'border-ink bg-ink text-white hover:bg-ink/90' : 'border-line-strong bg-surface text-ink hover:border-leaf-600 hover:text-leaf-700',
         )}
       >
         {status === 'loading' ? (
@@ -57,12 +58,20 @@ export default function ReadAloud({ text, language, className, autoPlay }: { tex
         ) : busy ? (
           <Square className="h-3.5 w-3.5 fill-current" aria-hidden />
         ) : (
-          <Volume2 className="h-4 w-4" aria-hidden />
+          <Volume2 className="h-[1.15rem] w-[1.15rem]" aria-hidden />
         )}
         {status === 'loading' ? t('speech.preparing') : busy ? t('speech.stop') : t('action.readAloud')}
+        {/* While audio plays, three moving bars make the state obvious even at a glance or in sunlight. */}
+        {playing && (
+          <span aria-hidden className="animate-level ml-0.5 flex h-4 items-end gap-[3px]">
+            <span className="h-full w-[3px] rounded-full bg-leaf-200" />
+            <span className="h-full w-[3px] rounded-full bg-leaf-200" />
+            <span className="h-full w-[3px] rounded-full bg-leaf-200" />
+          </span>
+        )}
       </button>
       {error && (
-        <span role="alert" className="text-xs text-warn-700">
+        <span role="alert" className="text-sm text-warn-700">
           {t(error === 'blocked' ? 'speech.error.blocked' : 'speech.error.service', { language: languageName })}
         </span>
       )}

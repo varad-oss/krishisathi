@@ -1,12 +1,12 @@
 'use client';
 
-import { CheckCircle2, CircleDashed, Radar, XCircle } from 'lucide-react';
+import { CheckCircle2, ChevronDown, CircleDashed, XCircle } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import type { Resource } from '@/lib/use-resource';
 import type { DataQualityItem, Evidence, FarmIntelligence, Level, Risk, RiskSeverity, RuleRef } from '@/lib/types';
 import type { MessageKey } from '@/locales/en';
 import { cn } from '@/lib/utils';
-import { Card, CardTitle, ErrorState, KindTag, LevelBadge, LoadingBlock } from '../ui';
+import { ActionBlock, ErrorState, KindTag, LevelBadge, LoadingBlock, RiskLevel, SavedCopyTag, Section, StrengthDots } from '../ui';
 import { actionTitle, actionWhat, basisKind, because, evidenceText, impactText, reasonText } from './intelligence-text';
 
 export function SeverityChip({ severity, className }: { severity: RiskSeverity; className?: string }) {
@@ -22,12 +22,12 @@ export function SeverityChip({ severity, className }: { severity: RiskSeverity; 
   return <LevelBadge level={severity} className={className} />;
 }
 
-/** Evidence confidence, kept visibly separate from the risk level. */
+/** Evidence confidence, kept visibly separate from the risk level: neutral ink dots, never risk colours. */
 export function ConfidenceChip({ level, className }: { level: Level; className?: string }) {
   const { t } = useI18n();
-  const tone = level === 'high' ? 'ring-leaf-500 text-leaf-700' : level === 'moderate' ? 'ring-line-strong text-ink' : 'ring-watch-200 text-watch-700';
   return (
-    <span className={cn('inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold ring-1', tone, className)} data-testid="confidence-chip">
+    <span className={cn('inline-flex items-center gap-2 text-sm font-medium text-ink-soft', className)} data-testid="confidence-chip">
+      <StrengthDots level={level} />
       {t('risk.evidenceConfidence', { level: t(`level.${level}` as MessageKey) })}
     </span>
   );
@@ -94,48 +94,60 @@ export function EvidenceList({ evidence, rules }: { evidence: Evidence[]; rules?
 function RiskRow({ risk, cropLabel }: { risk: Risk; cropLabel: string | null }) {
   const { t, fmt, language } = useI18n();
   const reason = because(t, language, risk.drivers);
-  const summary =
-    risk.severity === 'unavailable' ? reasonText(t, risk.reason) : risk.action ? actionTitle(t, risk.action) : reason ?? t('risk.lowNote');
+  const assessed = risk.severity !== 'unavailable';
+  const summary = !assessed ? reasonText(t, risk.reason) : risk.action ? actionTitle(t, risk.action) : reason ?? t('risk.lowNote');
   const impact = risk.severity === 'moderate' || risk.severity === 'high' ? impactText(t, risk) : null;
+  const what = risk.action ? actionWhat(t, risk.action, risk.drivers, cropLabel) : '';
+  const block = 'border-t border-line pt-3';
+  const label = 'mb-1 text-sm font-semibold text-ink';
   return (
     <li id={`risk-${risk.category}`}>
-      <details className="group bg-surface open:bg-paper/50">
-        <summary className="flex min-h-11 cursor-pointer list-none items-start justify-between gap-3 px-4 py-3.5">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-semibold">{t(`risk.${risk.category}` as MessageKey)}</span>
-              <SeverityChip severity={risk.severity} />
-              {risk.severity !== 'unavailable' && risk.confidence && <ConfidenceChip level={risk.confidence} />}
+      <details className="group">
+        <summary className="flex min-h-14 cursor-pointer list-none items-start justify-between gap-3 py-4 hover:bg-paper/60 sm:px-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
+              <span className="text-[1.05rem] font-semibold">{t(`risk.${risk.category}` as MessageKey)}</span>
+              <RiskLevel level={risk.severity} />
             </div>
-            <p className="mt-0.5 text-sm text-ink-soft">{summary}</p>
+            <p className="mt-1 text-ink-soft">{summary}</p>
+            {assessed && risk.confidence && <ConfidenceChip level={risk.confidence} className="mt-1.5" />}
           </div>
-          <span aria-hidden className="mt-1 text-ink-faint transition-transform group-open:rotate-180">▾</span>
+          <ChevronDown aria-hidden className="mt-1 h-5 w-5 shrink-0 text-ink-faint transition-transform group-open:rotate-180" />
         </summary>
-        <div className="space-y-3 px-4 pb-4 text-sm">
-          {risk.severity !== 'unavailable' && reason && (
-            <p>
-              <span className="font-semibold">{t('farm.alerts.why')}: </span>
-              <span className="text-ink-soft">{reason}</span>
-            </p>
+        <div className="space-y-4 pb-5 sm:px-2">
+          {assessed && reason && (
+            <div className={block}>
+              <p className={label}>{t('farm.alerts.why')}</p>
+              <p className="text-ink-soft">{reason}</p>
+              {impact && <p className="mt-1 text-sm text-ink-soft"><span className="font-semibold text-ink">{t('farm.alerts.impact')}: </span>{impact}</p>}
+            </div>
           )}
-          {risk.action && (
-            <p>
-              <span className="font-semibold">{t('risk.whatToDo')}: </span>
-              <span className="text-ink-soft">{actionWhat(t, risk.action, risk.drivers, cropLabel)}</span>
-            </p>
-          )}
-          {impact && (
-            <p>
-              <span className="font-semibold">{t('farm.alerts.impact')}: </span>
-              <span className="text-ink-soft">{impact}</span>
-            </p>
-          )}
-          {risk.severity !== 'unavailable' && risk.confidence && <ConfidenceWhy basis={risk.confidence_basis} />}
-          <EvidenceList evidence={risk.evidence} rules={risk.rules} />
-          {risk.date && <p className="text-xs text-ink-faint">{fmt.date(risk.date, { weekday: 'long', day: 'numeric', month: 'short' })}</p>}
+          {(assessed && risk.confidence) || risk.evidence.length > 0 ? (
+            <div className={cn(block, 'space-y-3')}>
+              <p className={label}>{t('risk.strengthTitle')}</p>
+              {assessed && risk.confidence && <ConfidenceWhy basis={risk.confidence_basis} />}
+              <EvidenceList evidence={risk.evidence} rules={risk.rules} />
+            </div>
+          ) : null}
+          {what && <ActionBlock label={t('risk.whatToDo')}>{what}</ActionBlock>}
+          {risk.date && <p className="text-xs text-ink-soft">{fmt.date(risk.date, { weekday: 'long', day: 'numeric', month: 'short' })}</p>}
         </div>
       </details>
     </li>
+  );
+}
+
+/** A two-line legend that shows, rather than tells, that risk and evidence are different scales. */
+function RiskLegend() {
+  const { t } = useI18n();
+  return (
+    <div className="mt-6 rounded-[var(--radius-inner)] border border-line bg-surface p-4 text-sm">
+      <div className="flex flex-wrap gap-x-6 gap-y-2" aria-hidden>
+        <RiskLevel level="high" />
+        <span className="inline-flex items-center gap-2 font-medium text-ink-soft"><StrengthDots level="low" /> {t('risk.evidenceConfidence', { level: t('level.low') })}</span>
+      </div>
+      <p className="mt-2 text-ink-soft">{t('risk.levelVsConfidence')}</p>
+    </div>
   );
 }
 
@@ -143,27 +155,29 @@ export function RiskRadar({ intel, cropLabel }: { intel: Resource<FarmIntelligen
   const { t } = useI18n();
   const data = intel.data;
   return (
-    <Card id="risks" aria-labelledby="risks-title" className="scroll-mt-header">
-      <CardTitle icon={Radar} id="risks-title" description={t('risk.subtitle')}>
-        {t('risk.title')}
-      </CardTitle>
+    <Section
+      id="risks"
+      title={t('risk.title')}
+      description={t('risk.subtitle')}
+      action={intel.cached && intel.updatedAt ? <SavedCopyTag time={intel.updatedAt} /> : undefined}
+    >
       {!data && intel.status === 'loading' ? (
-        <LoadingBlock lines={5} />
+        <LoadingBlock lines={5} label={t('farm.loading')} />
       ) : !data && intel.status === 'error' ? (
         <ErrorState error={intel.error} onRetry={intel.reload} title={t('risk.unavailable')} />
       ) : data ? (
         <>
           {intel.status === 'error' && <ErrorState compact error={intel.error} onRetry={intel.reload} updatedAt={intel.updatedAt} />}
-          <ul className="divide-y divide-line overflow-hidden rounded-[var(--radius-inner)] ring-1 ring-line">
+          <ul className="divide-y divide-line border-y border-line">
             {data.risks.map((r) => (
               <RiskRow key={r.category} risk={r} cropLabel={cropLabel} />
             ))}
           </ul>
-          <p className="mt-3 text-sm text-ink-soft">{t('risk.levelVsConfidence')}</p>
-          <p className="mt-2 text-xs text-ink-faint">{t('risk.engineNote')}</p>
+          <RiskLegend />
+          <p className="mt-3 text-xs text-ink-soft">{t('risk.engineNote')}</p>
         </>
       ) : null}
-    </Card>
+    </Section>
   );
 }
 
@@ -185,9 +199,9 @@ export function DataQualityStrip({ items }: { items: DataQualityItem[] }) {
     return t('dq.status.available');
   };
   return (
-    <section aria-labelledby="dq-title" className="border-t border-line bg-paper/40 px-5 py-4 sm:px-8">
-      <h3 id="dq-title" className="text-xs font-semibold text-ink-soft">{t('dq.title')}</h3>
-      <ul className="mt-2 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-5">
+    <section aria-labelledby="dq-title" className="rounded-[var(--radius-inner)] border border-line bg-surface px-4 py-3.5 sm:px-5">
+      <h3 id="dq-title" className="text-sm font-semibold text-ink-soft">{t('dq.title')}</h3>
+      <ul className="mt-2 grid gap-x-6 gap-y-2.5 text-sm sm:grid-cols-2 lg:grid-cols-5">
         {items.map((d) => {
           const tone = dqTone(d);
           const Icon = DQ_ICON[tone];
@@ -196,7 +210,7 @@ export function DataQualityStrip({ items }: { items: DataQualityItem[] }) {
               <Icon aria-hidden className={cn('mt-0.5 h-4 w-4 shrink-0', tone === 'good' ? 'text-leaf-600' : tone === 'bad' ? 'text-warn-700' : 'text-ink-faint')} />
               <span className="min-w-0">
                 <span className="font-medium">{t(`dq.source.${d.source}` as MessageKey)}</span>
-                <span className="block text-xs text-ink-faint">
+                <span className="block text-xs text-ink-soft">
                   {detail(d)}
                   {d.status === 'available' && <> · <KindTag kind={d.kind} /></>}
                 </span>

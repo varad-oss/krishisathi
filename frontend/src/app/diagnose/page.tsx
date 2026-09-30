@@ -6,7 +6,7 @@ import { Camera, ImagePlus, Loader2, MapPin, MessageCircle, ScanSearch, X } from
 import Conversation, { type ChatMessage } from '@/components/Conversation';
 import DiagnosisResult from '@/components/diagnose/DiagnosisResult';
 import { useLocationLabel } from '@/components/FarmProfileForm';
-import { buttonClass, Card, ErrorState, inputClass, Note, PageHeader } from '@/components/ui';
+import { buttonClass, ErrorState, inputClass, Note, PageHeader } from '@/components/ui';
 import { ApiError, diagnoseCrop, getFollowUpAdvisory } from '@/lib/api';
 import { CROPS, type Crop } from '@/lib/catalog';
 import { useFarmProfile } from '@/lib/farm-profile';
@@ -19,7 +19,7 @@ import { cn, newId } from '@/lib/utils';
 type Phase = 'select' | 'analyzing' | 'result';
 
 export default function DiagnosePage() {
-  const { t, language } = useI18n();
+  const { t, fmt, language } = useI18n();
   const { profile, twin } = useFarmProfile();
   const locationLabel = useLocationLabel();
   const [file, setFile] = useState<File | null>(null);
@@ -134,32 +134,26 @@ export default function DiagnosePage() {
   const stepIndex = phase === 'result' ? 2 : file ? 1 : 0;
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 pb-12 pt-6 sm:px-6 sm:pt-10">
-      <PageHeader title={t('diagnose.title')} subtitle={t('diagnose.subtitle')} />
+    <div className="mx-auto w-full max-w-3xl px-4 pb-12 pt-8 sm:px-6 sm:pt-12">
+      <PageHeader title={t('diagnose.title')} subtitle={phase === 'result' ? undefined : t('diagnose.subtitle')} />
 
-      <ol className="mb-6 flex flex-wrap items-center gap-2 text-sm font-medium" aria-label={t('diagnose.title')}>
+      <ol className="mb-8 grid grid-cols-3 gap-2 text-sm font-medium" aria-label={t('diagnose.title')}>
         {steps.map((s, i) => (
-          <li key={s.key} className="flex items-center gap-2" aria-current={i === stepIndex ? 'step' : undefined}>
-            <span
-              className={cn(
-                'flex h-7 w-7 items-center justify-center rounded-full text-xs tabular-nums',
-                i < stepIndex ? 'bg-leaf-600 text-white' : i === stepIndex ? 'bg-leaf-100 text-leaf-700 ring-2 ring-leaf-500' : 'bg-line text-ink-faint',
-              )}
-            >
-              {i + 1}
+          <li key={s.key} aria-current={i === stepIndex ? 'step' : undefined}>
+            <span aria-hidden className={cn('block h-1.5 rounded-full', i <= stepIndex ? 'bg-leaf-600' : 'bg-paper-deep')} />
+            <span className={cn('mt-2 flex items-center gap-1.5', i === stepIndex ? 'font-semibold text-ink' : 'text-ink-soft')}>
+              <span className="tabular-nums">{fmt.num(i + 1, 0)}</span> {t(s.label)}
             </span>
-            <span className={i === stepIndex ? 'text-ink' : 'text-ink-faint'}>{t(s.label)}</span>
-            {i < steps.length - 1 && <span aria-hidden className="h-px w-6 bg-line-strong" />}
           </li>
         ))}
       </ol>
 
       {phase === 'result' && result ? (
-        <div className="space-y-5">
+        <div className="space-y-10">
           <DiagnosisResult result={result} previewUrl={previewUrl} onReset={reset} twin={location ? twin : null} />
           {result.status !== 'not_a_plant' && (
-            <Card aria-labelledby="followup-title">
-              <h2 id="followup-title" className="mb-5 flex items-center gap-2 font-display text-[1.3rem] font-medium">
+            <section aria-labelledby="followup-title" className="border-t border-line pt-8">
+              <h2 id="followup-title" className="mb-5 flex items-center gap-2 font-display text-xl">
                 <MessageCircle className="h-5 w-5 text-leaf-600" aria-hidden /> {t('diagnose.followup.title')}
               </h2>
               {profile.location ? (
@@ -178,11 +172,11 @@ export default function DiagnosePage() {
                   </Link>
                 </Note>
               )}
-            </Card>
+            </section>
           )}
         </div>
       ) : (
-        <Card className="space-y-5">
+        <div className="space-y-8">
           {!file ? (
             <div
               onDragOver={(e) => {
@@ -196,24 +190,22 @@ export default function DiagnosePage() {
                 pick(e.dataTransfer.files?.[0]);
               }}
               className={cn(
-                'flex flex-col items-center justify-center rounded-[var(--radius-inner)] border-2 border-dashed px-4 py-12 text-center transition-colors',
-                dragging ? 'border-leaf-500 bg-leaf-50' : 'border-line-strong bg-paper/70',
+                'rounded-[var(--radius-card)] border-2 border-dashed p-5 transition-colors sm:p-8',
+                dragging ? 'border-leaf-500 bg-leaf-50' : 'border-line-strong bg-surface',
               )}
             >
-              <span aria-hidden className="flex h-14 w-14 items-center justify-center rounded-2xl bg-leaf-50 text-leaf-700">
-                <ImagePlus className="h-7 w-7" />
-              </span>
-              <p className="mt-4 font-display text-xl font-medium">{t('diagnose.upload.title')}</p>
-              <div className="mt-4 flex w-full max-w-sm flex-col gap-3 sm:flex-row sm:justify-center">
-                <button type="button" onClick={() => cameraInput.current?.click()} className={cn(buttonClass.primary, 'w-full sm:w-auto')}>
-                  <Camera className="h-4 w-4" aria-hidden /> {t('diagnose.upload.camera')}
+              <p className="font-display text-xl">{t('diagnose.upload.title')}</p>
+              <p className="mt-1 text-ink-soft">{t('diagnose.upload.tips')}</p>
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <button type="button" onClick={() => cameraInput.current?.click()} className={cn(buttonClass.primary, 'min-h-16 w-full text-base sm:w-auto sm:px-8')}>
+                  <Camera className="h-6 w-6" aria-hidden /> {t('diagnose.upload.camera')}
                 </button>
-                <button type="button" onClick={() => fileInput.current?.click()} className={cn(buttonClass.secondary, 'w-full sm:w-auto')}>
-                  {t('diagnose.upload.browse')}
+                <button type="button" onClick={() => fileInput.current?.click()} className={cn(buttonClass.secondary, 'min-h-16 w-full sm:w-auto')}>
+                  <ImagePlus className="h-5 w-5" aria-hidden /> {t('diagnose.upload.browse')}
                 </button>
               </div>
               <p className="mt-4 hidden text-sm text-ink-soft sm:block">{t('diagnose.upload.drop')} {t('diagnose.upload.browse')}</p>
-              <p className="mt-2 max-w-md text-xs text-ink-faint">{t('diagnose.upload.hint')}</p>
+              <p className="mt-2 max-w-md text-xs text-ink-soft">{t('diagnose.upload.hint')}</p>
               <input ref={cameraInput} type="file" accept="image/*" capture="environment" className="sr-only" tabIndex={-1} aria-hidden onChange={(e) => pick(e.target.files?.[0])} />
               <input
                 ref={fileInput}
@@ -226,23 +218,23 @@ export default function DiagnosePage() {
               />
             </div>
           ) : (
-            <div className="relative overflow-hidden rounded-[var(--radius-inner)] bg-ink/5">
+            <div className="relative overflow-hidden rounded-[var(--radius-card)] bg-ink">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={previewUrl ?? ''} alt={t('diagnose.upload.preview')} className="mx-auto max-h-80 w-full object-contain" />
+              <img src={previewUrl ?? ''} alt={t('diagnose.upload.preview')} className="mx-auto max-h-[22rem] w-full object-contain" />
               {phase !== 'analyzing' && (
                 <button
                   type="button"
                   onClick={reset}
                   aria-label={t('diagnose.upload.remove')}
-                  className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-surface/90 text-ink shadow hover:bg-surface"
+                  className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full bg-surface text-ink shadow-[var(--shadow-raised)] hover:bg-paper"
                 >
                   <X className="h-5 w-5" aria-hidden />
                 </button>
               )}
               {phase === 'analyzing' && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-leaf-900/70 text-white backdrop-blur-[2px]" role="status" aria-live="polite">
-                  <Loader2 className="h-8 w-8 animate-spin" aria-hidden />
-                  <p className="font-semibold">{t('diagnose.analyzing')}</p>
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-ink/75 px-6 text-center text-white" role="status" aria-live="polite">
+                  <ScanSearch className="h-9 w-9 animate-pulse" aria-hidden />
+                  <p className="text-lg font-semibold">{t('diagnose.analyzing')}</p>
                   <p className="text-sm text-leaf-100">{t('diagnose.analyzingHint')}</p>
                 </div>
               )}
@@ -250,14 +242,14 @@ export default function DiagnosePage() {
           )}
 
           {problem && <Note tone="warning">{t(`diagnose.upload.${problem}` as MessageKey)}</Note>}
-          <p className="text-xs text-ink-faint">{t('diagnose.upload.tips')}</p>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <fieldset className="grid gap-5 sm:grid-cols-2" disabled={phase === 'analyzing'}>
+            <legend className="sr-only">{t('diagnose.step.details')}</legend>
             <div>
-              <label htmlFor={cropId} className="mb-1 block text-sm font-semibold">
+              <label htmlFor={cropId} className="mb-1.5 block font-semibold">
                 {t('diagnose.crop')}
               </label>
-              <select id={cropId} value={crop} onChange={(e) => setCrop(e.target.value as Crop | '')} className={inputClass} disabled={phase === 'analyzing'}>
+              <select id={cropId} value={crop} onChange={(e) => setCrop(e.target.value as Crop | '')} className={inputClass}>
                 <option value="">{t('diagnose.cropUnknown')}</option>
                 {CROPS.map((c) => (
                   <option key={c} value={c}>
@@ -266,21 +258,21 @@ export default function DiagnosePage() {
                 ))}
               </select>
             </div>
-            <div className="text-sm">
-              <p className="mb-1 font-semibold">{t('profile.location')}</p>
+            <div>
+              <p className="mb-1.5 font-semibold">{t('profile.location')}</p>
               {profile.location ? (
-                <label className="flex min-h-11 items-start gap-2 rounded-xl border border-line-strong p-3">
-                  <input type="checkbox" checked={useLocation} onChange={(e) => setUseLocation(e.target.checked)} className="mt-1 h-4 w-4 accent-leaf-600" />
-                  <span>
+                <label className="flex min-h-12 cursor-pointer items-start gap-3 rounded-[var(--radius-inner)] border border-line-strong bg-surface p-3">
+                  <input type="checkbox" checked={useLocation} onChange={(e) => setUseLocation(e.target.checked)} className="mt-1 h-5 w-5 shrink-0 accent-leaf-600" />
+                  <span className="text-sm">
                     {t('diagnose.location')}
-                    <span className="block text-xs text-ink-faint">
-                      <MapPin className="mr-1 inline h-3 w-3" aria-hidden />
+                    <span className="mt-0.5 flex items-center gap-1 text-ink-soft">
+                      <MapPin className="h-3.5 w-3.5" aria-hidden />
                       {locationLabel(profile.location)}
                     </span>
                   </span>
                 </label>
               ) : (
-                <p className="rounded-xl bg-paper p-3 text-ink-soft">
+                <p className="rounded-[var(--radius-inner)] border border-dashed border-line-strong p-3 text-sm text-ink-soft">
                   {t('diagnose.noLocation')}{' '}
                   <Link href="/farm" className="font-semibold text-leaf-700 underline underline-offset-2">
                     {t('profile.title')}
@@ -288,13 +280,14 @@ export default function DiagnosePage() {
                 </p>
               )}
             </div>
-          </div>
+          </fieldset>
 
           {error && <ErrorState error={error} title={t('diagnose.failed')} onRetry={analyze} />}
 
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <button type="button" onClick={analyze} disabled={!file || phase === 'analyzing'} className={cn(buttonClass.primary, 'w-full sm:flex-1')}>
-              {phase === 'analyzing' ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <ScanSearch className="h-4 w-4" aria-hidden />}
+          {/* On phones the main action stays in reach of the thumb once a photo is chosen. */}
+          <div className={cn('flex flex-col gap-3 sm:flex-row', file && 'sticky bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-20 -mx-4 border-t border-line bg-paper/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0')}>
+            <button type="button" onClick={analyze} disabled={!file || phase === 'analyzing'} className={cn(buttonClass.primary, 'w-full text-base sm:flex-1')}>
+              {phase === 'analyzing' ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> : <ScanSearch className="h-5 w-5" aria-hidden />}
               {phase === 'analyzing' ? t('diagnose.analyzing') : t('diagnose.analyze')}
             </button>
             {phase === 'analyzing' && (
@@ -303,8 +296,8 @@ export default function DiagnosePage() {
               </button>
             )}
           </div>
-          <p className="text-xs text-ink-faint">{t('diagnose.result.disclaimer')}</p>
-        </Card>
+          <p className="text-sm text-ink-soft">{t('diagnose.result.disclaimer')}</p>
+        </div>
       )}
     </div>
   );

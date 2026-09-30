@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import {
-  Figtree,
-  Fraunces,
+  Geist,
   Noto_Sans_Bengali,
   Noto_Sans_Devanagari,
   Noto_Sans_Gujarati,
@@ -18,11 +17,10 @@ import MobileNav from '@/components/layout/MobileNav';
 import OfflineStatus from '@/components/layout/OfflineStatus';
 import Providers from './providers';
 
-// Latin text: Figtree (body) and Fraunces (display). Indic scripts use Noto Sans for consistent matras and
-// conjuncts across devices; those files have unicode-range subsets, so browsers only download the script
-// actually on screen, and they are not preloaded.
-const body = Figtree({ subsets: ['latin'], display: 'swap', variable: '--font-figtree' });
-const display = Fraunces({ subsets: ['latin'], display: 'swap', variable: '--font-fraunces', axes: ['opsz'] });
+// One sans family: Geist for Latin (large x-height, clear numerals outdoors). Indic scripts use Noto Sans for
+// consistent matras and conjuncts across devices; those files have unicode-range subsets, so browsers only
+// download the script actually on screen, and they are not preloaded.
+const latin = Geist({ subsets: ['latin'], display: 'swap', variable: '--font-geist' });
 const deva = Noto_Sans_Devanagari({ subsets: ['devanagari'], display: 'swap', preload: false, variable: '--font-deva' });
 const beng = Noto_Sans_Bengali({ subsets: ['bengali'], display: 'swap', preload: false, variable: '--font-beng' });
 const guru = Noto_Sans_Gurmukhi({ subsets: ['gurmukhi'], display: 'swap', preload: false, variable: '--font-guru' });
@@ -34,7 +32,7 @@ const mlym = Noto_Sans_Malayalam({ subsets: ['malayalam'], display: 'swap', prel
 const scripts = [deva, beng, guru, gujr, taml, telu, knda, mlym];
 
 export const metadata: Metadata = {
-  title: { default: 'KrishiSathi — Agricultural intelligence for climate-resilient farming', template: '%s · KrishiSathi' },
+  title: { default: 'KrishiSathi — Understand your field, decide what to do next', template: '%s · KrishiSathi' },
   description:
     'Explained, localized farm advice from weather forecasts, soil data, satellite signals and crop photos, with honest data provenance. Available in 10 Indian languages.',
   manifest: '/manifest.json',
@@ -43,17 +41,17 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#f4f1e8',
+  themeColor: '#f5f4f0',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={[body.variable, display.variable, ...scripts.map((f) => f.variable)].join(' ')}>
-      <body className="flex min-h-screen flex-col font-sans antialiased">
+    <html lang="en" className={[latin.variable, ...scripts.map((f) => f.variable)].join(' ')}>
+      <body className="flex min-h-dvh flex-col pb-[calc(4.25rem+env(safe-area-inset-bottom))] font-sans antialiased md:pb-0">
         <Providers>
           <Header />
           <OfflineStatus />
-          <main id="main" className="flex flex-1 flex-col pb-20 md:pb-0">
+          <main id="main" className="flex flex-1 flex-col">
             {children}
           </main>
           <Footer />

@@ -2,10 +2,10 @@
 
 import { Suspense, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { ImagePlus, MapPin, Sprout, X } from 'lucide-react';
+import { History, ImagePlus, MapPin, Sprout, X } from 'lucide-react';
 import Conversation, { type ChatMessage } from '@/components/Conversation';
 import FarmProfileForm, { useLocationLabel } from '@/components/FarmProfileForm';
-import { buttonClass, Card, LoadingBlock, Note, PageHeader } from '@/components/ui';
+import { buttonClass, LoadingBlock, Note, PageHeader } from '@/components/ui';
 import { ApiError, getAdvisory } from '@/lib/api';
 import { useFarmProfile } from '@/lib/farm-profile';
 import { useI18n } from '@/lib/i18n';
@@ -25,13 +25,14 @@ function LastAnswer() {
   const [saved] = useState(() => readCached<SavedAnswer>(LAST_ANSWER));
   if (!saved) return null;
   return (
-    <details className="rounded-[var(--radius-inner)] bg-paper/80 p-4 text-sm ring-1 ring-line">
-      <summary className="cursor-pointer font-semibold text-ink-soft">
+    <details className="rounded-[var(--radius-inner)] border border-dashed border-sky-600/40 bg-sky-50/60 p-4 text-sm">
+      <summary className="flex min-h-10 cursor-pointer items-center gap-2 font-semibold text-sky-700">
+        <History className="h-4 w-4" aria-hidden />
         {t('offline.lastAnswer', { time: fmt.relative(saved.savedAt) })}
       </summary>
       <p className="mt-2 font-medium">{saved.data.question}</p>
       <p lang={saved.data.language} className="mt-1 whitespace-pre-wrap text-ink-soft">{saved.data.answer}</p>
-      <p className="mt-2 text-xs text-ink-faint">{t('offline.savedCopy')}</p>
+      <p className="mt-2 text-xs text-ink-soft">{t('offline.savedCopy')}</p>
     </details>
   );
 }
@@ -106,16 +107,16 @@ function AdvisorPage() {
   if (!ready) return <div className="mx-auto w-full max-w-3xl px-4 py-10"><LoadingBlock /></div>;
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 pb-12 pt-6 sm:px-6 sm:pt-10">
+    <div className="mx-auto w-full max-w-3xl px-4 pb-12 pt-8 sm:px-6 sm:pt-12">
       <PageHeader
         title={t('advisor.title')}
         subtitle={t('advisor.subtitle')}
         eyebrow={
           profile.location && !editing ? (
             <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <MapPin className="h-4 w-4" aria-hidden /> {locationLabel(profile.location)}
+              <MapPin className="h-4 w-4 text-leaf-600" aria-hidden /> <span className="text-ink">{locationLabel(profile.location)}</span>
               {profile.crop && <span className="text-ink-soft">· {t(`crop.${profile.crop}` as MessageKey)}</span>}
-              <button type="button" onClick={() => setEditing(true)} className="min-h-10 font-semibold text-leaf-700 underline underline-offset-2">
+              <button type="button" onClick={() => setEditing(true)} className="min-h-11 font-semibold text-leaf-700 underline underline-offset-4">
                 {t('action.change')}
               </button>
             </span>
@@ -124,10 +125,10 @@ function AdvisorPage() {
       />
 
       {!profile.location || editing ? (
-        <Card>
-          {!profile.location && <Note className="mb-5">{t('advisor.needProfile')}</Note>}
+        <div>
+          {!profile.location && <Note className="mb-6">{t('advisor.needProfile')}</Note>}
           <FarmProfileForm onDone={() => setEditing(false)} onCancel={profile.location ? () => setEditing(false) : undefined} />
-        </Card>
+        </div>
       ) : (
         <Conversation
           messages={messages}
@@ -138,7 +139,7 @@ function AdvisorPage() {
           suggestions={messages.length ? [] : [t('advisor.q1'), t('advisor.q2'), t('advisor.q3'), t('advisor.q4')]}
           intro={
             <>
-              <div className="flex items-start gap-3 rounded-[var(--radius-inner)] bg-leaf-50/70 p-4 text-sm text-ink-soft">
+              <div className="flex items-start gap-3 rounded-[var(--radius-inner)] bg-leaf-50 p-4">
                 <Sprout className="mt-0.5 h-5 w-5 shrink-0 text-leaf-600" aria-hidden />
                 <p className="text-ink">{t('advisor.welcome')}</p>
               </div>
@@ -150,7 +151,7 @@ function AdvisorPage() {
               {image ? (
                 <span className="relative inline-block">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={image.url} alt={t('advisor.attachedPhoto')} className="h-16 w-16 rounded-lg object-cover ring-1 ring-line" />
+                  <img src={image.url} alt={t('advisor.attachedPhoto')} className="h-16 w-16 rounded-[var(--radius-inner)] border border-line object-cover" />
                   <button
                     type="button"
                     onClick={() => setImage(null)}
@@ -161,7 +162,7 @@ function AdvisorPage() {
                   </button>
                 </span>
               ) : (
-                <button type="button" onClick={() => fileInput.current?.click()} className={cn(buttonClass.ghost, 'min-h-10 px-2')}>
+                <button type="button" onClick={() => fileInput.current?.click()} className={cn(buttonClass.ghost, 'min-h-11 px-2')}>
                   <ImagePlus className="h-4 w-4" aria-hidden /> {t('advisor.attach')}
                 </button>
               )}

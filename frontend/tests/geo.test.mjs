@@ -37,3 +37,12 @@ test('GeoJSON round trip keeps an open ring for editing', () => {
   assert.deepEqual(fromPolygon(g), square(100));
   assert.deepEqual(fromPolygon(undefined), []);
 });
+
+test('the field preview keeps the outline inside its box, north up', async () => {
+  const { outlinePath } = await import('../src/lib/geo.ts');
+  assert.equal(outlinePath([]), '');
+  const d = outlinePath(square(100), 64, 4);
+  const nums = [...d.matchAll(/-?\d+(\.\d+)?/g)].map((m) => Number(m[0]));
+  assert.ok(nums.every((n) => n >= 4 - 0.01 && n <= 60 + 0.01), d);
+  assert.match(d, /^M4,60 L60,60 L60,4 L4,4 Z$/); // square: SW corner bottom-left, NE corner top-right
+});

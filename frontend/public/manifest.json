@@ -2,8 +2,8 @@
   "name": "KrishiSathi",
   "short_name": "KrishiSathi",
   "description": "Agricultural intelligence for climate-resilient farming",
-  "theme_color": "#245533",
-  "background_color": "#f7f6f1",
+  "theme_color": "#2b673b",
+  "background_color": "#f5f4f0",
   "display": "standalone",
   "start_url": "/farm",
   "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]

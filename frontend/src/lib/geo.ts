@@ -59,3 +59,21 @@ export const toPolygon = (points: Position[]) => ({ type: 'Polygon' as const, co
 
 /** Open ring of a stored polygon (for editing). */
 export const fromPolygon = (g: { coordinates: Position[][] } | undefined): Position[] => (g ? g.coordinates[0].slice(0, -1) : []);
+
+/**
+ * SVG path of the outline scaled into a `size`×`size` box with `pad` margin, north up and true to shape (east–west
+ * distances are shrunk by cos(latitude) like the area formula). Used for a tile-free preview of the saved field.
+ */
+export function outlinePath(points: Position[], size = 64, pad = 4): string {
+  if (points.length < 3) return '';
+  const xy = project(points);
+  const xs = xy.map((p) => p[0]);
+  const ys = xy.map((p) => p[1]);
+  const [minX, maxX, minY, maxY] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  const span = Math.max(maxX - minX, maxY - minY) || 1;
+  const k = (size - 2 * pad) / span;
+  const ox = pad + (size - 2 * pad - (maxX - minX) * k) / 2;
+  const oy = pad + (size - 2 * pad - (maxY - minY) * k) / 2;
+  const r = (v: number) => Math.round(v * 10) / 10;
+  return `${xy.map(([x, y], i) => `${i ? 'L' : 'M'}${r(ox + (x - minX) * k)},${r(oy + (maxY - y) * k)}`).join(' ')} Z`;
+}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Building2, ExternalLink, Layers, Leaf, Minus, Radio, RefreshCw, Satellite, TrendingDown, TrendingUp } from 'lucide-react';
+import { Building2, Cloud, ExternalLink, Leaf, Minus, Radio, RefreshCw, ScanLine, TrendingDown, TrendingUp } from 'lucide-react';
 import { getCropHealthHistory, getFieldCropHealthHistory } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
 import { useResource, type Resource } from '@/lib/use-resource';
@@ -10,7 +10,7 @@ import type { MessageKey } from '@/locales/en';
 import { cn } from '@/lib/utils';
 import { FieldOutline } from './FieldPlot';
 import { PracticePlan } from './Regenerative';
-import { buttonClass, Card, CardTitle, ErrorState, LevelBadge, LoadingBlock, Note, ProvenanceLine, UnavailableNote } from '../ui';
+import { buttonClass, ErrorState, LevelBadge, linkClass, LoadingBlock, Note, ProvenanceLine, SavedCopyTag, Section, UnavailableNote } from '../ui';
 
 const SOIL_REASON: Record<SoilReason, MessageKey> = {
   rate_limited: 'farm.soil.reason.rate_limited',
@@ -61,12 +61,12 @@ function SoilProperties({ soil, onRetry }: { soil: SoilData; onRetry: () => void
   ];
   return (
     <>
-      <dl className="grid grid-cols-2 overflow-hidden rounded-[var(--radius-inner)] bg-soil-50/70 ring-1 ring-soil-100 sm:grid-cols-4">
-        {items.map((i, idx) => (
-          <div key={i.label} className={cn('p-4', idx % 2 === 1 && 'border-l border-soil-100', idx >= 2 && 'border-t border-soil-100 sm:border-t-0', idx === 2 && 'sm:border-l')}>
-            <dt className="text-xs font-medium text-soil-700">{i.label}</dt>
-            <dd className="mt-1 font-display text-2xl font-medium tabular-nums">{i.value}</dd>
-            {'rating' in i && i.rating && <dd className="text-xs text-ink-soft">{i.rating}</dd>}
+      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-[var(--radius-inner)] border border-soil-100 bg-soil-100 sm:grid-cols-4">
+        {items.map((i) => (
+          <div key={i.label} className="bg-soil-50 p-4">
+            <dt className="text-sm font-medium text-soil-700">{i.label}</dt>
+            <dd className="mt-1 font-display text-2xl tabular-nums">{i.value}</dd>
+            {'rating' in i && i.rating && <dd className="text-sm text-ink-soft">{i.rating}</dd>}
             {'level' in i && i.level && <dd className="mt-1"><LevelBadge level={i.level} /></dd>}
           </div>
         ))}
@@ -122,10 +122,7 @@ export function SoilRegenCard({ regen, twin, onSaved }: { regen: Resource<Regene
   const { t, fmt } = useI18n();
   const data = regen.data;
   return (
-    <Card id="soil" aria-labelledby="soil-title" className="scroll-mt-header">
-      <CardTitle icon={Layers} id="soil-title" description={t('farm.soil.subtitle')}>
-        {t('farm.soil.title')}
-      </CardTitle>
+    <Section id="soil" title={t('farm.soil.title')} description={t('farm.soil.subtitle')} action={regen.cached && regen.updatedAt ? <SavedCopyTag time={regen.updatedAt} /> : undefined}>
       {!data && regen.status === 'loading' ? (
         <LoadingBlock lines={4} />
       ) : !data && regen.status === 'error' ? (
@@ -134,15 +131,15 @@ export function SoilRegenCard({ regen, twin, onSaved }: { regen: Resource<Regene
         <>
           <SoilProperties soil={data.soil} onRetry={regen.reload} />
 
-          <h3 className="mt-10 flex items-center gap-2 font-display text-xl font-medium">
+          <h3 className="mt-12 flex items-center gap-2 font-display text-xl">
             <Leaf className="h-5 w-5 text-leaf-600" aria-hidden /> {t('farm.regen.title')}
           </h3>
-          <p className="mb-4 mt-1 text-sm text-ink-soft">{t('farm.regen.subtitle')}</p>
+          <p className="mb-5 mt-1 max-w-[62ch] text-ink-soft">{t('farm.regen.subtitle')}</p>
           <PracticePlan data={data} twin={twin} onSaved={onSaved} triggerText={(tr) => triggerText(t, fmt, tr)} />
-          {regen.status === 'error' && <ErrorState compact error={regen.error} onRetry={regen.reload} updatedAt={regen.updatedAt} />}
+          {regen.status === 'error' && <div className="mt-4"><ErrorState compact error={regen.error} onRetry={regen.reload} updatedAt={regen.updatedAt} /></div>}
         </>
       ) : null}
-    </Card>
+    </Section>
   );
 }
 
@@ -153,7 +150,7 @@ function Radar({ sar }: { sar: SarSummary }) {
   const { t, fmt } = useI18n();
   const signed = (v: number) => `${v > 0 ? '+' : ''}${fmt.num(v, 1)}`;
   return (
-    <div className="mt-4 rounded-[var(--radius-inner)] bg-paper/70 p-3 text-sm">
+    <div className="border-t border-line py-4 text-sm">
       <p className="flex items-center gap-1.5 font-semibold">
         <Radio className="h-4 w-4 text-sky-700" aria-hidden /> {t('farm.crop.radar.title')}
       </p>
@@ -166,7 +163,7 @@ function Radar({ sar }: { sar: SarSummary }) {
             {sar.latest_image_date && ` · ${fmt.date(sar.latest_image_date)}`}
           </p>
           {sar.water_signal && <Note tone="watch" className="mt-2">{t('farm.crop.radar.water')}</Note>}
-          <p className="mt-1 text-xs text-ink-faint">{t('farm.crop.radar.note')}</p>
+          <p className="mt-1 text-xs text-ink-soft">{t('farm.crop.radar.note')}</p>
         </>
       ) : (
         <p className="mt-1 text-ink-faint">{t(sar.status === 'no_data' ? 'farm.crop.radar.noData' : sar.status === 'insufficient_data' ? 'farm.crop.fieldTooSmall' : 'farm.crop.radar.unavailable')}</p>
@@ -203,8 +200,8 @@ function SatelliteHistory({ lat, lng, twin }: { lat: number; lng: number; twin: 
   );
   const d = history.data;
   return (
-    <details className="group mt-4" onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}>
-      <summary className="inline-flex min-h-10 cursor-pointer list-none items-center gap-1 text-sm font-semibold text-leaf-700 hover:underline">
+    <details className="group border-t border-line pt-2" onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}>
+      <summary className={cn(linkClass, 'cursor-pointer list-none')}>
         {t('farm.crop.history.show')} <span aria-hidden className="transition-transform group-open:rotate-180">▾</span>
       </summary>
       <div className="mt-2">
@@ -247,8 +244,8 @@ function QualityDetails({ h }: { h: CropHealth }) {
   const pct = (v: number | null | undefined) => fmt.num(v == null ? null : Math.round(v * 100), 0);
   const lc = q.land_cover;
   return (
-    <details className="group mt-3 text-sm" data-testid="satellite-quality">
-      <summary className="inline-flex min-h-10 cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-1">
+    <details className="group border-t border-line py-2 text-sm" data-testid="satellite-quality">
+      <summary className="inline-flex min-h-11 cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-1">
         <span className="font-semibold">{t('farm.crop.quality.title')}:</span>
         <span className={cn('font-semibold', QUALITY_TONE[q.level])}>{t(`farm.crop.quality.level.${q.level}` as MessageKey)}</span>
         <span aria-hidden className="text-ink-faint transition-transform group-open:rotate-180">▾</span>
@@ -261,7 +258,7 @@ function QualityDetails({ h }: { h: CropHealth }) {
           <li key={f} className="text-watch-700">{t(`farm.crop.quality.flag.${f}` as MessageKey)}</li>
         ))}
       </ul>
-      <p className="mt-2 text-xs text-ink-faint" lang="en">{q.method}; {q.resolution_m} m. {lc.status === 'available' ? lc.provenance.source : null}</p>
+      <p className="mt-2 text-xs text-ink-soft" lang="en">{q.method}; {q.resolution_m} m. {lc.status === 'available' ? lc.provenance.source : null}</p>
     </details>
   );
 }
@@ -271,10 +268,13 @@ function Scope({ h }: { h: CropHealth }) {
   const roi = h.roi;
   if (!roi) return null;
   return (
-    <p className="mb-3 text-sm text-ink-soft" data-testid="satellite-scope">
-      {roi.mode === 'polygon'
-        ? t('farm.crop.scope.field', { area: fmt.num(roi.area_ha, roi.area_ha < 1 ? 2 : 1) })
-        : t('farm.crop.scope.point')}
+    <p className="mb-4 inline-flex items-start gap-2 rounded-[var(--radius-tag)] bg-paper-deep/60 px-2.5 py-1.5 text-sm text-ink" data-testid="satellite-scope">
+      <ScanLine className="mt-0.5 h-4 w-4 shrink-0 text-ink-soft" aria-hidden />
+      <span>
+        {roi.mode === 'polygon'
+          ? t('farm.crop.scope.field', { area: fmt.num(roi.area_ha, roi.area_ha < 1 ? 2 : 1) })
+          : t('farm.crop.scope.point')}
+      </span>
     </p>
   );
 }
@@ -306,91 +306,94 @@ export function CropHealthCard({
           ? t('farm.crop.noImagery')
           : t('farm.crop.unavailable');
   return (
-    <Card id="crop" aria-labelledby="crop-title" className="scroll-mt-header">
-      <CardTitle icon={Satellite} id="crop-title">
-        {t('farm.crop.signalTitle')}
-      </CardTitle>
-      <div className="mb-4">
-        <FieldOutline twin={twin} center={location} plot={plot} onChanged={onPlotChanged} />
-      </div>
-      {!h && health.status === 'loading' ? (
-        <LoadingBlock lines={2} />
-      ) : !h && health.status === 'error' ? (
-        <ErrorState error={health.error} onRetry={health.reload} title={t('farm.crop.unavailable')} />
-      ) : h ? (
-        <>
-          <Scope h={h} />
-          {h.status === 'available' && h.ndvi != null ? (
-            <>
-              <div className="flex flex-wrap items-end gap-6">
-                <div>
-                  <p className="text-sm text-ink-soft">{t('farm.crop.ndvi')}</p>
-                  <p className="font-display text-4xl font-medium tabular-nums" data-testid="ndvi-value">{fmt.num(h.ndvi, 2)}</p>
-                </div>
-                {h.change != null && trend && (
+    <Section
+      id="crop"
+      eyebrow={t('farm.crop.signalTitle')}
+      title={t('farm.crop.fromAbove')}
+      action={health.cached && health.updatedAt ? <SavedCopyTag time={health.updatedAt} /> : undefined}
+    >
+      <FieldOutline twin={twin} center={location} plot={plot} onChanged={onPlotChanged} />
+      <div className="mt-6">
+        {!h && health.status === 'loading' ? (
+          <LoadingBlock lines={2} />
+        ) : !h && health.status === 'error' ? (
+          <ErrorState error={health.error} onRetry={health.reload} title={t('farm.crop.unavailable')} />
+        ) : h ? (
+          <>
+            <Scope h={h} />
+            {h.status === 'available' && h.ndvi != null ? (
+              <>
+                {/* The observation in words first; the index behind it underneath. */}
+                <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
+                  {h.change != null && trend && (
+                    <div>
+                      <p className="text-sm text-ink-soft">{t('farm.crop.change')}</p>
+                      <p className={cn('mt-0.5 flex items-center gap-2 font-display text-2xl', trend === 'decline' ? 'text-warn-700' : trend === 'increase' ? 'text-leaf-700' : 'text-ink')}>
+                        <TrendIcon className="h-6 w-6" aria-hidden />
+                        {t(`farm.crop.trend.${trend}` as MessageKey)}
+                      </p>
+                    </div>
+                  )}
                   <div>
-                    <p className="text-sm text-ink-soft">{t('farm.crop.change')}</p>
-                    <p className={cn('flex items-center gap-1 text-lg font-semibold', trend === 'decline' ? 'text-warn-700' : 'text-leaf-700')}>
-                      <TrendIcon className="h-5 w-5" aria-hidden />
-                      {t(`farm.crop.trend.${trend}` as MessageKey)}
-                      <span className="text-sm font-normal tabular-nums text-ink-soft">({h.change > 0 ? '+' : ''}{fmt.num(h.change, 2)})</span>
+                    <p className="text-sm text-ink-soft">{t('farm.crop.ndvi')}</p>
+                    <p className="mt-0.5 flex items-baseline gap-2">
+                      <span className="font-display text-2xl tabular-nums" data-testid="ndvi-value">{fmt.num(h.ndvi, 2)}</span>
+                      {h.change != null && <span className="text-sm tabular-nums text-ink-soft">({h.change > 0 ? '+' : ''}{fmt.num(h.change, 2)})</span>}
                     </p>
                   </div>
+                </div>
+                {b && (
+                  <p className="mt-4 max-w-[62ch]">
+                    {b.status === 'available' && b.position && b.min != null && b.max != null
+                      ? t(`farm.crop.baseline.${b.position === 'below_range' ? 'below' : b.position === 'above_range' ? 'above' : 'within'}` as MessageKey, {
+                          min: fmt.num(b.min, 2),
+                          max: fmt.num(b.max, 2),
+                        })
+                      : <span className="text-ink-soft">{t('farm.crop.baseline.insufficient')}</span>}
+                  </p>
                 )}
-              </div>
-              {b && (
-                <p className="mt-3 text-sm">
-                  {b.status === 'available' && b.position && b.min != null && b.max != null
-                    ? t(`farm.crop.baseline.${b.position === 'below_range' ? 'below' : b.position === 'above_range' ? 'above' : 'within'}` as MessageKey, {
-                        min: fmt.num(b.min, 2),
-                        max: fmt.num(b.max, 2),
-                      })
-                    : <span className="text-ink-soft">{t('farm.crop.baseline.insufficient')}</span>}
-                </p>
-              )}
-              {h.latest_image_date && h.clear_pixel_fraction != null && (
-                <p className="mt-1 text-xs text-ink-faint">
-                  {t('farm.crop.quality', { date: fmt.date(h.latest_image_date), pct: fmt.num(Math.round(h.clear_pixel_fraction * 100), 0) })}
-                </p>
-              )}
-              <Note tone="info" className="mt-3">{t('farm.crop.indicatorNote')}</Note>
-            </>
-          ) : (
-            <UnavailableNote>
-              <span data-testid="satellite-unavailable">{unavailableText(h)}</span>
-              <span className="mt-1 block text-xs text-ink-faint">{t('farm.crop.explain')}</span>
-            </UnavailableNote>
-          )}
-          <QualityDetails h={h} />
-          {h.sar && <Radar sar={h.sar} />}
-          {h.status !== 'unavailable' && <SatelliteHistory lat={location.lat} lng={location.lng} twin={twin} />}
-          {h.status !== 'unavailable' && (
-            <ProvenanceLine
-              source={h.sar ? 'Sentinel-1 + Sentinel-2 (Copernicus) via Google Earth Engine' : h.provenance.source}
-              url={h.provenance.source_url}
-              kind="satellite_observation"
-              note={<>{t('farm.crop.explain')} <span lang="en">{h.provenance.resolution}</span></>}
-            />
-          )}
-        </>
-      ) : null}
-    </Card>
+                {h.latest_image_date && h.clear_pixel_fraction != null && (
+                  <p className="mt-1.5 flex items-start gap-2 text-sm text-ink-soft">
+                    <Cloud className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                    {t('farm.crop.quality', { date: fmt.date(h.latest_image_date), pct: fmt.num(Math.round(h.clear_pixel_fraction * 100), 0) })}
+                  </p>
+                )}
+                <Note tone="info" className="my-4">{t('farm.crop.indicatorNote')}</Note>
+              </>
+            ) : (
+              <UnavailableNote className="mb-4">
+                <span data-testid="satellite-unavailable">{unavailableText(h)}</span>
+                <span className="mt-1 block text-xs text-ink-soft">{t('farm.crop.explain')}</span>
+              </UnavailableNote>
+            )}
+            <QualityDetails h={h} />
+            {h.sar && <Radar sar={h.sar} />}
+            {h.status !== 'unavailable' && <SatelliteHistory lat={location.lat} lng={location.lng} twin={twin} />}
+            {h.status !== 'unavailable' && (
+              <ProvenanceLine
+                source={h.sar ? 'Sentinel-1 + Sentinel-2 (Copernicus) via Google Earth Engine' : h.provenance.source}
+                url={h.provenance.source_url}
+                kind="satellite_observation"
+                note={<>{t('farm.crop.explain')} <span lang="en">{h.provenance.resolution}</span></>}
+              />
+            )}
+          </>
+        ) : null}
+      </div>
+    </Section>
   );
 }
 
 export function KvkCard({ kvk }: { kvk: Resource<Kvk> }) {
   const { t, fmt } = useI18n();
   const portal = (
-    <a href="https://kvk.icar.gov.in/" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-10 items-center gap-1 text-sm font-semibold text-leaf-700 underline-offset-2 hover:underline">
+    <a href="https://kvk.icar.gov.in/" target="_blank" rel="noopener noreferrer" className={linkClass}>
       {t('farm.kvk.portal')} <ExternalLink className="h-3.5 w-3.5" aria-hidden />
     </a>
   );
   const k = kvk.data;
   return (
-    <Card aria-labelledby="kvk-title">
-      <CardTitle icon={Building2} id="kvk-title">
-        {t('farm.kvk.title')}
-      </CardTitle>
+    <Section id="kvk" title={t('farm.kvk.title')}>
       {kvk.status === 'loading' && !k ? (
         <LoadingBlock lines={2} />
       ) : kvk.status === 'error' && kvk.error.code === 'NOT_FOUND' ? (
@@ -398,18 +401,21 @@ export function KvkCard({ kvk }: { kvk: Resource<Kvk> }) {
       ) : kvk.status === 'error' && !k ? (
         <ErrorState error={kvk.error} onRetry={kvk.reload} title={t('farm.kvk.unavailable')} />
       ) : k ? (
-        <>
-          <p className="font-display text-xl font-medium" lang="en">{k.name}</p>
-          <p className="mt-1 text-sm text-ink-soft">
-            {k.match === 'site' && k.distance_km != null
-              ? t('farm.kvk.distance', { distance: fmt.num(k.distance_km, k.distance_km < 10 ? 1 : 0) })
-              : t('farm.kvk.district', { district: k.district })}
-          </p>
-          {k.match === 'district' && <p className="mt-3 text-xs text-ink-faint">{t('farm.kvk.districtNote')}</p>}
-          <div className="mt-2">{portal}</div>
-          <ProvenanceLine source={k.provenance.source} kind="static_reference" className="mt-4" note={t('farm.kvk.verify')} />
-        </>
+        <div className="flex items-start gap-3">
+          <Building2 className="mt-1 h-5 w-5 shrink-0 text-soil-500" aria-hidden />
+          <div className="min-w-0 flex-1">
+            <p className="font-display text-xl" lang="en">{k.name}</p>
+            <p className="mt-0.5 text-ink-soft">
+              {k.match === 'site' && k.distance_km != null
+                ? t('farm.kvk.distance', { distance: fmt.num(k.distance_km, k.distance_km < 10 ? 1 : 0) })
+                : t('farm.kvk.district', { district: k.district })}
+            </p>
+            {k.match === 'district' && <p className="mt-2 text-sm text-ink-soft">{t('farm.kvk.districtNote')}</p>}
+            <div className="mt-1">{portal}</div>
+            <ProvenanceLine source={k.provenance.source} kind="static_reference" className="mt-3" note={t('farm.kvk.verify')} />
+          </div>
+        </div>
       ) : null}
-    </Card>
+    </Section>
   );
 }
