@@ -6,23 +6,9 @@ from core.errors import ApiError
 from core.security import Principal, require_system_role
 from models.interop import AggregatedStateReport, RegionalAgriSignal, StateConfig, strip_pii
 from services.persistence_service import persistence_service
+from services.regions import INDIAN_STATES
 
 router = APIRouter(prefix="/api/states", tags=["Cross-State Interoperability"])
-
-# Deployment configuration only (language, reference point, typical crops). No statistics:
-# figures such as farmers reached or alert counts must come from live records, not constants.
-# lat/lng is a reference point near the state's geographic centre, used for indicative forecasts.
-INDIAN_STATES = [
-    {"code": "PB", "name": "Punjab", "lat": 31.1471, "lng": 75.3412, "default_language": "pa", "primary_crops": ["Wheat", "Rice", "Cotton", "Sugarcane"]},
-    {"code": "MH", "name": "Maharashtra", "lat": 19.7515, "lng": 75.7139, "default_language": "mr", "primary_crops": ["Cotton", "Sugarcane", "Soybean", "Rice", "Onion"]},
-    {"code": "KA", "name": "Karnataka", "lat": 15.3173, "lng": 75.7139, "default_language": "kn", "primary_crops": ["Rice", "Sugarcane", "Cotton", "Finger millet", "Maize"]},
-    {"code": "TN", "name": "Tamil Nadu", "lat": 11.1271, "lng": 78.6569, "default_language": "ta", "primary_crops": ["Rice", "Sugarcane", "Cotton", "Groundnut"]},
-    {"code": "UP", "name": "Uttar Pradesh", "lat": 26.8467, "lng": 80.9462, "default_language": "hi", "primary_crops": ["Wheat", "Rice", "Sugarcane", "Potato", "Mustard"]},
-    {"code": "MP", "name": "Madhya Pradesh", "lat": 22.9734, "lng": 78.6569, "default_language": "hi", "primary_crops": ["Soybean", "Wheat", "Rice", "Cotton", "Maize"]},
-    {"code": "GJ", "name": "Gujarat", "lat": 22.2587, "lng": 71.1924, "default_language": "gu", "primary_crops": ["Cotton", "Groundnut", "Wheat", "Rice"]},
-    {"code": "WB", "name": "West Bengal", "lat": 22.9868, "lng": 87.8550, "default_language": "bn", "primary_crops": ["Rice", "Potato", "Wheat"]},
-]
-
 
 @router.get("")
 @router.get("/", include_in_schema=False)

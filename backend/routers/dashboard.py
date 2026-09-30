@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from datetime import datetime, timezone
 
@@ -7,14 +6,11 @@ from fastapi import APIRouter, Depends
 from core.cache import cache_get, cache_set
 from core.rate_limit import ai_rate_limit
 from models.diagnosis import Language
-from models.exceptions import ServiceUnavailableException
-from routers.states import INDIAN_STATES
-from services import agro_rules
 from services.earth_engine_service import earth_engine_service
 from services.gemini_service import gemini_service
 from services.measurement import feedback_metrics
 from services.persistence_service import persistence_service
-from services.weather_service import PROVENANCE_BASE, weather_service
+from services.regions import state_weather_risk
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
@@ -84,16 +80,4 @@ async def get_crop_health():
 @router.get("/weather-risk")
 async def get_weather_risk():
     """Rule-based forecast risks at one reference point per state (indicative, not statewide)."""
-    async def one(state):
-        try:
-            conditions = await weather_service.get_conditions(state["lat"], state["lng"])
-        except ServiceUnavailableException:
-            return {"state": state["code"], "status": "unavailable", "insights": []}
-        return {"state": state["code"], "status": "available", "insights": agro_rules.evaluate(conditions)}
-
-    regions = await asyncio.gather(*(one(s) for s in INDIAN_STATES))
-    return {
-        "regions": regions,
-        "aggregation": "single_reference_point_per_state",
-        "provenance": {**PROVENANCE_BASE, "retrieved_at": datetime.now(timezone.utc).isoformat()},
-    }
+    return await state_weather_risk()

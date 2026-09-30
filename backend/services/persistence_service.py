@@ -216,6 +216,16 @@ class PersistenceService:
             logger.error(f"Failed to persist diagnosis: {e}")
             raise
 
+    async def detection_rows(self, since: datetime) -> list[tuple]:
+        """(disease, crop, lat, lng, date) of located, confident disease detections since `since`. Callers must aggregate."""
+        async with AsyncSessionLocal() as session:
+            rows = (await session.execute(
+                select(DiagnosisRecord.disease, DiagnosisRecord.crop, DiagnosisRecord.lat, DiagnosisRecord.lng, DiagnosisRecord.timestamp)
+                .where(DiagnosisRecord.diagnosis_status == "disease_detected", DiagnosisRecord.certainty.in_(ELIGIBLE_CERTAINTY),
+                       DiagnosisRecord.lat.is_not(None), DiagnosisRecord.timestamp >= since)
+            )).all()
+        return [(r[0], r[1], r[2], r[3], r[4].date()) for r in rows]
+
     async def save_advisory(self, query: str, advisory_text: str, crop: str, lat: float, lng: float, language: str, data_sources: List[str]) -> None:
         try:
             async with AsyncSessionLocal() as session:
